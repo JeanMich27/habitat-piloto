@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-standalone
+.env
+.env.local
+tsconfig.tsbuildinfo
+.DS_Store
+# public/descargas/habitat-piloto.zip SÍ se versiona a propósito: es el
+# paquete descargable que el sitio ofrece desde el botón "Descargar app".

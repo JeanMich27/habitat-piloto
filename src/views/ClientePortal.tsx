@@ -1,0 +1,346 @@
+import { useState } from "react";
+import {
+  Building2,
+  Calendar,
+  Check,
+  Circle,
+  Clock,
+  MapPin,
+  Upload,
+  X,
+} from "lucide-react";
+import type { Lead, Propiedad } from "../types";
+import { ETAPAS_CIERRE } from "../types";
+
+type Tab = "proceso" | "documentos" | "citas";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "proceso", label: "Mi Proceso" },
+  { key: "documentos", label: "Documentos" },
+  { key: "citas", label: "Citas" },
+];
+
+const fmtFecha = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+const fmtHora = (iso: string) =>
+  new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+
+const ESTADO_DOC_ESTILO: Record<string, string> = {
+  Pendiente: "bg-slate-100 text-slate-500",
+  Cargado: "bg-sky-50 text-sky-700",
+  Validado: "bg-emerald-50 text-emerald-700",
+  Rechazado: "bg-rose-50 text-rose-700",
+};
+
+interface Props {
+  lead: Lead;
+  propiedad: Propiedad | undefined;
+  onSubirDocumento: (leadId: string, nombreDoc: string) => void;
+  onConfirmarCita: (leadId: string, citaId: string) => void;
+}
+
+export default function ClientePortal({ lead, propiedad, onSubirDocumento, onConfirmarCita }: Props) {
+  const [tab, setTab] = useState<Tab>("proceso");
+  const [modalSubir, setModalSubir] = useState<string | null>(null);
+  const [modalReagendar, setModalReagendar] = useState<string | null>(null);
+  const [reagendarEnviado, setReagendarEnviado] = useState(false);
+
+  const cierre = lead.cierre;
+
+  if (!cierre) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center text-slate-400">
+        Este cliente todavía no tiene un proceso de cierre activo.
+      </div>
+    );
+  }
+
+  const docPendienteOReclamado = cierre.documentos.find(
+    (d) => d.estado === "Pendiente" || d.estado === "Rechazado",
+  );
+  const proximaCita = cierre.citas
+    .filter((c) => c.estado !== "Realizada")
+    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())[0];
+  const historialCitas = cierre.citas.filter((c) => c.estado === "Realizada");
+
+  const queSigue = docPendienteOReclamado
+    ? {
+        texto: `Te toca a ti: sube "${docPendienteOReclamado.nombre}"${docPendienteOReclamado.motivoRechazo ? ` (rechazado: ${docPendienteOReclamado.motivoRechazo})` : ""}.`,
+        accion: () => {
+          setTab("documentos");
+        },
+      }
+    : cierre.etapaActual < ETAPAS_CIERRE.length - 1
+      ? {
+          texto: `Le toca a tu asesor: avanzar "${ETAPAS_CIERRE[cierre.etapaActual + 1]}".`,
+          accion: null,
+        }
+      : { texto: "¡Proceso completo!", accion: null };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500">
+            <Building2 className="size-5 text-white/70" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900">{propiedad?.titulo ?? "Propiedad"}</h1>
+            <p className="text-xs text-slate-500">
+              {propiedad?.tipoOperacion === "Renta" ? "Proceso de renta" : "Proceso de compra"} · Hola,{" "}
+              {lead.nombre.split(" ")[0]}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+              tab === t.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mi Proceso */}
+      {tab === "proceso" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <ol className="space-y-4">
+              {ETAPAS_CIERRE.map((etapa, i) => {
+                const estado = i < cierre.etapaActual ? "hecho" : i === cierre.etapaActual ? "actual" : "pendiente";
+                return (
+                  <li key={etapa} className="flex items-center gap-3">
+                    <span
+                      className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
+                        estado === "hecho"
+                          ? "bg-emerald-500 text-white"
+                          : estado === "actual"
+                            ? "bg-amber-400 text-white"
+                            : "bg-slate-100 text-slate-300"
+                      }`}
+                    >
+                      {estado === "hecho" ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Circle className="size-2.5 fill-current" />
+                      )}
+                    </span>
+                    <span
+                      className={`text-sm ${
+                        estado === "pendiente" ? "text-slate-400" : "font-medium text-slate-800"
+                      }`}
+                    >
+                      {etapa}
+                    </span>
+                    {estado === "actual" && (
+                      <span className="ml-auto rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                        En proceso
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          <div className="rounded-xl border border-slate-300 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Qué sigue</p>
+            <p className="mt-1 text-sm text-slate-700">{queSigue.texto}</p>
+            {queSigue.accion && (
+              <button
+                onClick={queSigue.accion}
+                className="mt-2 text-xs font-semibold text-slate-800 underline"
+              >
+                Ir a Documentos
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Documentos */}
+      {tab === "documentos" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <ul className="space-y-2">
+            {cierre.documentos.map((d) => (
+              <li key={d.nombre} className="rounded-lg border border-slate-200 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">{d.nombre}</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ESTADO_DOC_ESTILO[d.estado]}`}
+                    >
+                      {d.estado}
+                    </span>
+                    {(d.estado === "Pendiente" || d.estado === "Rechazado") && (
+                      <button
+                        onClick={() => setModalSubir(d.nombre)}
+                        className="flex items-center gap-1 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700"
+                      >
+                        <Upload className="size-3.5" /> Subir
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {d.estado === "Rechazado" && d.motivoRechazo && (
+                  <p className="mt-1.5 text-xs text-rose-600">Motivo: {d.motivoRechazo}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Citas */}
+      {tab === "citas" && (
+        <div className="space-y-4">
+          {proximaCita ? (
+            <div className="rounded-xl border border-slate-300 bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Próxima cita
+              </p>
+              <p className="mt-1 text-base font-bold text-slate-900">{proximaCita.tipo}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+                <Calendar className="size-4" /> {fmtFecha(proximaCita.fecha)} · {fmtHora(proximaCita.fecha)}
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+                <MapPin className="size-4" /> {proximaCita.ubicacion}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  disabled={proximaCita.estado === "Confirmada"}
+                  onClick={() => onConfirmarCita(lead.id, proximaCita.id)}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {proximaCita.estado === "Confirmada" ? "Confirmada ✓" : "Confirmar asistencia"}
+                </button>
+                <button
+                  onClick={() => setModalReagendar(proximaCita.id)}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white"
+                >
+                  Solicitar reagendar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-400 shadow-sm">
+              No tienes citas próximas.
+            </p>
+          )}
+
+          <div>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Historial
+            </h2>
+            {historialCitas.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin citas pasadas todavía.</p>
+            ) : (
+              <ul className="space-y-2">
+                {historialCitas.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm"
+                  >
+                    <span className="text-slate-700">{c.tipo}</span>
+                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                      <Clock className="size-3.5" /> {fmtFecha(c.fecha)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: subir documento (simulado, sin storage real) */}
+      {modalSubir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Subir {modalSubir}</h2>
+              <button
+                onClick={() => setModalSubir(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-8 text-slate-400">
+              <Upload className="size-6" />
+              <p className="text-xs">PDF o JPG, máx. 10MB</p>
+              <p className="text-[10px] text-slate-300">Sin almacenamiento real en el prototipo</p>
+            </div>
+            <button
+              onClick={() => {
+                onSubirDocumento(lead.id, modalSubir);
+                setModalSubir(null);
+              }}
+              className="mt-4 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+            >
+              Simular carga
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: solicitar reagendar */}
+      {modalReagendar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            {reagendarEnviado ? (
+              <div className="text-center">
+                <p className="text-sm font-semibold text-emerald-700">Solicitud enviada a tu asesor ✓</p>
+                <button
+                  onClick={() => {
+                    setModalReagendar(null);
+                    setReagendarEnviado(false);
+                  }}
+                  className="mt-4 w-full rounded-lg bg-slate-800 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between">
+                  <h2 className="text-lg font-bold text-slate-900">Solicitar reagendar</h2>
+                  <button
+                    onClick={() => setModalReagendar(null)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Motivo
+                </label>
+                <textarea rows={2} className="input mt-1" placeholder="¿Por qué necesitas cambiar la cita?" />
+                <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Fecha preferida
+                </label>
+                <input type="date" className="input mt-1" />
+                <button
+                  onClick={() => setReagendarEnviado(true)}
+                  className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+                >
+                  Enviar solicitud
+                </button>
+                <p className="mt-2 text-center text-xs text-slate-400">
+                  No reagenda automáticamente — tu asesor confirma la nueva fecha.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

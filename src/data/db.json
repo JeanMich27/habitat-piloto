@@ -1,0 +1,348 @@
+{
+  "agencia": {
+    "nombre": "Hábitat Bienes Raíces",
+    "direccion": "",
+    "logoUrl": ""
+  },
+  "propiedades": [
+    {
+      "id": "prop-001",
+      "titulo": "Casa en Lomas Verdes, Naucalpan",
+      "ubicacion": "Lomas Verdes 3a Sección, Naucalpan de Juárez",
+      "municipio": "Naucalpan",
+      "estado": "Estado de México",
+      "precio": 4850000,
+      "recamaras": 3,
+      "banos": 2.5,
+      "m2": 210,
+      "descripcion": "Casa en condominio horizontal con jardín privado, cocina integral y 2 cajones de estacionamiento. A 5 min de Plaza Satélite.",
+      "estatus": "Activa",
+      "tipoInmueble": "Casa",
+      "tipoOperacion": "Venta",
+      "asesorId": "user-003",
+      "propietario": {
+        "nombre": "Ana Beltrán",
+        "telefono": "+52 55 2211 3344",
+        "correo": "ana.beltran@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": true },
+        { "nombre": "Predial", "aprobado": true },
+        { "nombre": "Contrato", "aprobado": true }
+      ],
+      "capturadaEl": "2026-05-28T10:00:00",
+      "publicadaEl": "2026-06-10T09:00:00",
+      "ultimaActividad": "2026-07-13T16:00:00",
+      "eventos": [
+        {
+          "id": "ev-001",
+          "fecha": "2026-06-10T09:00:00",
+          "tipo": "Publicacion",
+          "descripcion": "Propiedad publicada tras aprobar documentos"
+        },
+        {
+          "id": "ev-002",
+          "fecha": "2026-06-18T12:30:00",
+          "tipo": "Nota",
+          "descripcion": "Actualizó fotografías de fachada y jardín"
+        },
+        {
+          "id": "ev-003",
+          "fecha": "2026-07-01T10:15:00",
+          "tipo": "Nota",
+          "descripcion": "Publicó nuevamente en redes sociales"
+        },
+        {
+          "id": "ev-004",
+          "fecha": "2026-07-13T16:00:00",
+          "tipo": "Nota",
+          "descripcion": "Realizó visita con Sofía Alarcón"
+        }
+      ],
+      "comparables": [
+        {
+          "id": "cmp-001",
+          "direccion": "Casa en Lomas Verdes 2a Sección",
+          "precio": 4700000,
+          "m2": 205,
+          "fuente": "Inmuebles24"
+        },
+        {
+          "id": "cmp-002",
+          "direccion": "Casa en Bosques de Echegaray",
+          "precio": 5100000,
+          "m2": 220,
+          "fuente": "Portal EasyBroker"
+        },
+        {
+          "id": "cmp-003",
+          "direccion": "Casa en Valle Dorado",
+          "precio": 4600000,
+          "m2": 195,
+          "fuente": "Referido"
+        }
+      ]
+    },
+    {
+      "id": "prop-002",
+      "titulo": "Departamento en Zona Esmeralda, Atizapán",
+      "ubicacion": "Bosque Esmeralda, Atizapán de Zaragoza",
+      "municipio": "Atizapán de Zaragoza",
+      "estado": "Estado de México",
+      "precio": 3200000,
+      "recamaras": 2,
+      "banos": 2,
+      "m2": 98,
+      "descripcion": "Departamento con balcón y vista al bosque, amenidades: gimnasio, roof garden y seguridad 24/7.",
+      "estatus": "Validacion",
+      "tipoInmueble": "Depto",
+      "tipoOperacion": "Venta",
+      "asesorId": "user-003",
+      "propietario": {
+        "nombre": "Jorge Villaseñor",
+        "telefono": "+52 55 7788 1122",
+        "correo": "jorge.villasenor@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": true },
+        { "nombre": "Predial", "aprobado": false },
+        { "nombre": "Contrato", "aprobado": false }
+      ],
+      "capturadaEl": "2026-07-14T10:00:00"
+    },
+    {
+      "id": "prop-003",
+      "titulo": "Casa en Ciudad López Mateos",
+      "ubicacion": "Col. México Nuevo, Ciudad López Mateos",
+      "municipio": "Ciudad López Mateos",
+      "estado": "Estado de México",
+      "precio": 2750000,
+      "recamaras": 3,
+      "banos": 2,
+      "m2": 160,
+      "descripcion": "Casa de dos niveles con patio de servicio y cuarto de TV. Cerca de la Av. Adolfo López Mateos y transporte público.",
+      "estatus": "Intake",
+      "tipoInmueble": "Casa",
+      "tipoOperacion": "Venta",
+      "asesorId": "user-004",
+      "propietario": {
+        "nombre": "Marisol Camacho",
+        "telefono": "+52 55 9900 4455",
+        "correo": "marisol.camacho@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": false },
+        { "nombre": "Predial", "aprobado": false },
+        { "nombre": "Contrato", "aprobado": false }
+      ],
+      "capturadaEl": "2026-07-22T09:30:00"
+    },
+    {
+      "id": "prop-004",
+      "titulo": "Departamento en Col. Nápoles, CDMX",
+      "ubicacion": "Col. Nápoles, Benito Juárez, CDMX",
+      "municipio": "Benito Juárez",
+      "estado": "Ciudad de México",
+      "precio": 6900000,
+      "recamaras": 2,
+      "banos": 2,
+      "m2": 115,
+      "descripcion": "Departamento remodelado a 3 cuadras del WTC, piso 7 con elevador, bodega y estacionamiento techado.",
+      "estatus": "Intake",
+      "tipoInmueble": "Depto",
+      "tipoOperacion": "Venta",
+      "asesorId": "user-005",
+      "propietario": {
+        "nombre": "Héctor Nájera",
+        "telefono": "+52 55 3344 6677",
+        "correo": "hector.najera@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": false },
+        { "nombre": "Predial", "aprobado": false },
+        { "nombre": "Contrato", "aprobado": false }
+      ],
+      "capturadaEl": "2026-07-20T15:00:00"
+    },
+    {
+      "id": "prop-005",
+      "titulo": "Departamento en renta, Naucalpan",
+      "ubicacion": "Ciudad Satélite, Naucalpan de Juárez",
+      "municipio": "Naucalpan",
+      "estado": "Estado de México",
+      "precio": 18000,
+      "recamaras": 2,
+      "banos": 1,
+      "m2": 75,
+      "descripcion": "Departamento amueblado cerca de Plaza Satélite, listo para entrega inmediata. Incluye 1 cajón de estacionamiento.",
+      "estatus": "Activa",
+      "tipoInmueble": "Depto",
+      "tipoOperacion": "Renta",
+      "asesorId": "user-005",
+      "propietario": {
+        "nombre": "Rodrigo Cifuentes",
+        "telefono": "+52 55 4433 2210",
+        "correo": "rodrigo.cifuentes@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": true },
+        { "nombre": "Predial", "aprobado": true },
+        { "nombre": "Contrato", "aprobado": true }
+      ],
+      "capturadaEl": "2026-06-20T11:00:00",
+      "publicadaEl": "2026-07-01T09:00:00",
+      "ultimaActividad": "2026-07-23T10:00:00"
+    }
+  ],
+  "usuarios": [
+    {
+      "id": "user-001",
+      "nombre": "Iliana Gutiérrez",
+      "correo": "iliana.gutierrez@habitatbr.mx",
+      "telefono": "+52 55 1122 3344",
+      "rol": "asesor_equipo",
+      "puesto": "Asesora Inmobiliaria (Captación)",
+      "iniciales": "IG",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-002",
+      "nombre": "Jean Morales",
+      "correo": "jean.morales@habitatbr.mx",
+      "telefono": "+52 55 2233 4455",
+      "rol": "broker",
+      "puesto": "Broker / Administrador",
+      "iniciales": "JM",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-003",
+      "nombre": "Lulu Zanabria",
+      "correo": "lulu.zanabria@habitatbr.mx",
+      "telefono": "+52 55 3344 5566",
+      "rol": "asesor_equipo",
+      "puesto": "Asesora Inmobiliaria Sr.",
+      "iniciales": "LZ",
+      "estadoCuenta": "Activo",
+      "puedeVerOtrasPropiedades": true
+    },
+    {
+      "id": "user-004",
+      "nombre": "Marco Delgado",
+      "correo": "marco.delgado@habitatbr.mx",
+      "telefono": "+52 55 4455 6677",
+      "rol": "asesor_equipo",
+      "puesto": "Asesor Inmobiliario",
+      "iniciales": "MD",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-005",
+      "nombre": "Karla Estrada",
+      "correo": "karla.estrada@habitatbr.mx",
+      "telefono": "+52 55 5566 7788",
+      "rol": "asesor_equipo",
+      "puesto": "Asesora Inmobiliaria",
+      "iniciales": "KE",
+      "estadoCuenta": "Activo"
+    }
+  ],
+  "leads": [
+    {
+      "id": "lead-001",
+      "nombre": "Fernanda Ríos",
+      "telefono": "+52 55 1234 0011",
+      "etapa": "Nuevo",
+      "origen": "Directo",
+      "interesPropiedadId": "prop-001",
+      "asesorId": "user-003",
+      "creado": "2026-07-21T09:15:00",
+      "nota": "Pregunta si la casa acepta crédito Infonavit + bancario."
+    },
+    {
+      "id": "lead-002",
+      "nombre": "Ricardo Peña",
+      "telefono": "+52 55 8877 2244",
+      "etapa": "Contactado",
+      "origen": "Portal",
+      "interesPropiedadId": "prop-002",
+      "asesorId": "user-003",
+      "creado": "2026-07-19T17:40:00",
+      "primerContactoEn": "2026-07-19T18:05:00",
+      "nota": "Le interesa el depto de Esmeralda, pide fotos del roof garden."
+    },
+    {
+      "id": "lead-003",
+      "nombre": "Sofía Alarcón",
+      "telefono": "+52 55 3322 9090",
+      "etapa": "Visitado",
+      "origen": "Redes",
+      "interesPropiedadId": "prop-001",
+      "asesorId": "user-003",
+      "creado": "2026-07-15T11:05:00",
+      "primerContactoEn": "2026-07-15T11:20:00",
+      "nota": "Visita realizada sábado 26 de julio, 11:00 am. Le gustó, sigue comparando."
+    },
+    {
+      "id": "lead-004",
+      "nombre": "Andrés Lomelí",
+      "telefono": "+52 55 6611 4478",
+      "etapa": "Negociacion",
+      "origen": "Portal",
+      "interesPropiedadId": "prop-002",
+      "asesorId": "user-003",
+      "creado": "2026-07-08T13:30:00",
+      "primerContactoEn": "2026-07-08T13:52:00",
+      "montoOferta": 3050000,
+      "nota": "Ofertó $3,050,000. Espera contrapropuesta del propietario."
+    },
+    {
+      "id": "lead-005",
+      "nombre": "Paola Mendieta",
+      "telefono": "+52 55 9944 7712",
+      "etapa": "Nuevo",
+      "origen": "Directo",
+      "interesPropiedadId": "prop-003",
+      "asesorId": "user-004",
+      "creado": "2026-07-22T19:20:00",
+      "nota": "Busca casa en López Mateos, presupuesto máx $2.9M."
+    },
+    {
+      "id": "lead-006",
+      "nombre": "Roberto Salgado",
+      "telefono": "+52 55 7711 2233",
+      "etapa": "Cierre",
+      "origen": "Directo",
+      "interesPropiedadId": "prop-005",
+      "asesorId": "user-005",
+      "creado": "2026-07-05T10:00:00",
+      "primerContactoEn": "2026-07-05T10:20:00",
+      "nota": "Va a rentar el departamento de Satélite. Visita realizada, documentos enviados, en investigación de antecedentes.",
+      "cierre": {
+        "etapaActual": 2,
+        "documentos": [
+          { "nombre": "INE", "estado": "Validado" },
+          { "nombre": "Comprobante de domicilio", "estado": "Validado" },
+          { "nombre": "Comprobante de ingresos", "estado": "Cargado" },
+          { "nombre": "Referencias personales", "estado": "Pendiente" }
+        ],
+        "citas": [
+          {
+            "id": "cita-001",
+            "fecha": "2026-07-08T11:00:00",
+            "ubicacion": "Depto. Satélite, Naucalpan",
+            "tipo": "Visita",
+            "estado": "Realizada"
+          },
+          {
+            "id": "cita-002",
+            "fecha": "2026-07-29T17:00:00",
+            "ubicacion": "Oficina Hábitat Bienes Raíces",
+            "tipo": "Firma de contrato",
+            "estado": "Programada"
+          }
+        ]
+      }
+    }
+  ]
+}

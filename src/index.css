@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+/* Estilo base compartido para inputs/selects/textareas de formularios
+   (wizard Nueva Propiedad y pantallas futuras).
+   OJO: esta clase se genera después que las utilidades de Tailwind en el CSS
+   final, así que sus propiedades (w-full, px-3) ganan por orden de aparición
+   sobre utilidades como w-auto/pl-9 puestas junto a "input" en el mismo
+   elemento, aunque vengan "después" en el atributo className. Si un input
+   necesita ancho o padding distinto al default, no combines "input" con esa
+   utilidad — escribe las clases sueltas (border, rounded-lg, py-2, text-sm,
+   focus:...) sin pasar por esta clase. Ya pasó dos veces (w-auto en Reportes,
+   pl-9 en NuevaPropiedad). */
+.input {
+  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none;
+}

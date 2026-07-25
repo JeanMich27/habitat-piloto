@@ -1,0 +1,25 @@
+Hábitat — App del piloto (versión descargable)
+================================================
+
+Cómo abrirla:
+- Mac: doble clic en "start.command" (si macOS bloquea el archivo por venir
+  de internet, clic derecho > Abrir la primera vez).
+- Windows: doble clic en "start.bat".
+
+Requisito: tener Node.js instalado (una sola vez) — descárgalo gratis en
+https://nodejs.org (versión LTS). El script lo usa para abrir un servidor
+local y mostrarte la app en tu navegador.
+
+Los datos que captures se guardan en la base de datos compartida del
+piloto — todos los que usen esta app o el sitio web ven la misma
+información en tiempo real. Necesitas conexión a internet.
+
+Qué reportar mientras pruebas:
+1. Datos duros: precios, tiempos, número de propiedades/leads reales que
+   manejas normalmente — para calibrar KPIs y reportes con cifras reales.
+2. Fricciones: pasos confusos, campos que faltan o sobran, textos poco
+   claros.
+3. Errores: cualquier pantalla en blanco, dato que no se guardó, o
+   comportamiento inesperado — anota qué hiciste justo antes.
+
+Gracias por probarla.
