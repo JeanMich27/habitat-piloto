@@ -307,8 +307,8 @@ export default function App() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-900 text-lg font-black text-white">
-            H
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black tracking-tight text-white">
+            RE
           </div>
           <h1 className="mt-4 text-center text-lg font-bold text-slate-900">Modo demostración</h1>
           <p className="mt-1 text-center text-sm text-slate-500">

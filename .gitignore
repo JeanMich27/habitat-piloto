@@ -9,3 +9,4 @@ tsconfig.tsbuildinfo
 # paquete descargable que el sitio ofrece desde el botón "Descargar app".
 .vercel
 .env*
+.fuse_hidden*
