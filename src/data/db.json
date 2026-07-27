@@ -192,6 +192,49 @@
       "capturadaEl": "2026-06-20T11:00:00",
       "publicadaEl": "2026-07-01T09:00:00",
       "ultimaActividad": "2026-07-23T10:00:00"
+    },
+    {
+      "id": "prop-006",
+      "titulo": "Casa en Interlomas, Huixquilucan",
+      "ubicacion": "Bosque Real, Huixquilucan",
+      "municipio": "Huixquilucan",
+      "estado": "Estado de México",
+      "precio": 8500000,
+      "recamaras": 4,
+      "banos": 3.5,
+      "m2": 320,
+      "descripcion": "Residencia en privada con club de golf, doble altura en sala, family room y 3 cajones de estacionamiento.",
+      "estatus": "Activa",
+      "tipoInmueble": "Casa",
+      "tipoOperacion": "Venta",
+      "asesorId": "user-006",
+      "propietario": {
+        "nombre": "Patricia Olvera",
+        "telefono": "+52 55 8899 0011",
+        "correo": "patricia.olvera@example.com"
+      },
+      "documentos": [
+        { "nombre": "INE", "aprobado": true },
+        { "nombre": "Predial", "aprobado": true },
+        { "nombre": "Contrato", "aprobado": true }
+      ],
+      "capturadaEl": "2026-06-05T10:00:00",
+      "publicadaEl": "2026-06-15T09:00:00",
+      "ultimaActividad": "2026-07-24T12:00:00",
+      "eventos": [
+        {
+          "id": "ev-101",
+          "fecha": "2026-06-15T09:00:00",
+          "tipo": "Publicacion",
+          "descripcion": "Propiedad publicada tras aprobar documentos"
+        },
+        {
+          "id": "ev-102",
+          "fecha": "2026-07-24T12:00:00",
+          "tipo": "Nota",
+          "descripcion": "Visita realizada con prospecto interesado"
+        }
+      ]
     }
   ],
   "usuarios": [
@@ -244,6 +287,36 @@
       "rol": "asesor_equipo",
       "puesto": "Asesora Inmobiliaria",
       "iniciales": "KE",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-006",
+      "nombre": "Gerardo Fuentes",
+      "correo": "gerardo.fuentes@realestate.mx",
+      "telefono": "+52 55 6677 8899",
+      "rol": "asesor_independiente",
+      "puesto": "Asesor Independiente",
+      "iniciales": "GF",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-007",
+      "nombre": "Ana Beltrán",
+      "correo": "ana.beltran@example.com",
+      "telefono": "+52 55 2211 3344",
+      "rol": "propietario",
+      "puesto": "Propietaria",
+      "iniciales": "AB",
+      "estadoCuenta": "Activo"
+    },
+    {
+      "id": "user-008",
+      "nombre": "Roberto Salgado",
+      "correo": "roberto.salgado@example.com",
+      "telefono": "+52 55 7711 2233",
+      "rol": "cliente",
+      "puesto": "Cliente / Inquilino",
+      "iniciales": "RS",
       "estadoCuenta": "Activo"
     }
   ],
@@ -311,6 +384,7 @@
       "id": "lead-006",
       "nombre": "Roberto Salgado",
       "telefono": "+52 55 7711 2233",
+      "correo": "roberto.salgado@example.com",
       "etapa": "Cierre",
       "origen": "Directo",
       "interesPropiedadId": "prop-005",
@@ -343,6 +417,30 @@
           }
         ]
       }
+    },
+    {
+      "id": "lead-007",
+      "nombre": "Claudia Reynoso",
+      "telefono": "+52 55 4488 9911",
+      "etapa": "Nuevo",
+      "origen": "Portal",
+      "interesPropiedadId": "prop-006",
+      "asesorId": "user-006",
+      "creado": "2026-07-24T09:00:00",
+      "nota": "Pregunta por opciones de crédito hipotecario para Bosque Real."
+    },
+    {
+      "id": "lead-008",
+      "nombre": "Emilio Trueba",
+      "telefono": "+52 55 5522 3300",
+      "etapa": "Negociacion",
+      "origen": "Referido",
+      "interesPropiedadId": "prop-006",
+      "asesorId": "user-006",
+      "creado": "2026-07-10T15:00:00",
+      "primerContactoEn": "2026-07-10T15:25:00",
+      "montoOferta": 8200000,
+      "nota": "Ofertó $8,200,000 de contado. Espera respuesta del propietario."
     }
   ]
 }
