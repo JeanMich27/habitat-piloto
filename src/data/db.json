@@ -1,6 +1,6 @@
 {
   "agencia": {
-    "nombre": "Hábitat Bienes Raíces",
+    "nombre": "Real Estate",
     "direccion": "",
     "logoUrl": ""
   },
@@ -198,7 +198,7 @@
     {
       "id": "user-001",
       "nombre": "Iliana Gutiérrez",
-      "correo": "iliana.gutierrez@habitatbr.mx",
+      "correo": "iliana.gutierrez@realestate.mx",
       "telefono": "+52 55 1122 3344",
       "rol": "asesor_equipo",
       "puesto": "Asesora Inmobiliaria (Captación)",
@@ -208,7 +208,7 @@
     {
       "id": "user-002",
       "nombre": "Jean Morales",
-      "correo": "jean.morales@habitatbr.mx",
+      "correo": "jean.morales@realestate.mx",
       "telefono": "+52 55 2233 4455",
       "rol": "broker",
       "puesto": "Broker / Administrador",
@@ -218,7 +218,7 @@
     {
       "id": "user-003",
       "nombre": "Lulu Zanabria",
-      "correo": "lulu.zanabria@habitatbr.mx",
+      "correo": "lulu.zanabria@realestate.mx",
       "telefono": "+52 55 3344 5566",
       "rol": "asesor_equipo",
       "puesto": "Asesora Inmobiliaria Sr.",
@@ -229,7 +229,7 @@
     {
       "id": "user-004",
       "nombre": "Marco Delgado",
-      "correo": "marco.delgado@habitatbr.mx",
+      "correo": "marco.delgado@realestate.mx",
       "telefono": "+52 55 4455 6677",
       "rol": "asesor_equipo",
       "puesto": "Asesor Inmobiliario",
@@ -239,7 +239,7 @@
     {
       "id": "user-005",
       "nombre": "Karla Estrada",
-      "correo": "karla.estrada@habitatbr.mx",
+      "correo": "karla.estrada@realestate.mx",
       "telefono": "+52 55 5566 7788",
       "rol": "asesor_equipo",
       "puesto": "Asesora Inmobiliaria",
@@ -337,7 +337,7 @@
           {
             "id": "cita-002",
             "fecha": "2026-07-29T17:00:00",
-            "ubicacion": "Oficina Hábitat Bienes Raíces",
+            "ubicacion": "Oficina Real Estate",
             "tipo": "Firma de contrato",
             "estado": "Programada"
           }

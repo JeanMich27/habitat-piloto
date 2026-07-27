@@ -1,4 +1,4 @@
-import { GripVertical, Megaphone, Phone, Share2, Users } from "lucide-react";
+import { GripVertical, Megaphone, MessageCircle, Phone, Share2, Users } from "lucide-react";
 import type { Lead, LeadOrigin, Propiedad } from "../types";
 
 // Sin integraciones externas en el MVP: "origen" es un dato que el asesor
@@ -22,7 +22,7 @@ export default function KanbanCard({ lead, propiedad }: Props) {
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/lead-id", lead.id)}
-      className="group cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow active:cursor-grabbing"
+      className="group cursor-grab rounded-lg border border-slate-200 bg-white p-3 transition-colors hover:border-slate-300 active:cursor-grabbing"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-slate-800">{lead.nombre}</p>
@@ -57,6 +57,18 @@ export default function KanbanCard({ lead, propiedad }: Props) {
           })}
         </span>
       </div>
+
+      {/* Acción rápida: abre WhatsApp con el teléfono del lead. */}
+      <a
+        href={`https://wa.me/${lead.telefono.replace(/\D/g, "")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        draggable={false}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 px-2 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50"
+      >
+        <MessageCircle className="size-3.5" /> Notificar por WhatsApp
+      </a>
     </div>
   );
 }

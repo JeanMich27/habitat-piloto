@@ -1,7 +1,34 @@
 @import "tailwindcss";
 
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  @apply bg-white text-slate-900 antialiased;
+}
+
+/* Transición sutil al cambiar de vista (se aplica vía key={vistaActiva} en AppShell). */
+@keyframes vista-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-vista {
+  animation: vista-entrada 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-vista {
+    animation: none;
+  }
+}
+
+/* Hover suave en todos los botones sin repetir la clase en cada componente. */
+button {
+  @apply transition-colors duration-150;
 }
 
 /* Estilo base compartido para inputs/selects/textareas de formularios
@@ -15,5 +42,5 @@ body {
    focus:...) sin pasar por esta clase. Ya pasó dos veces (w-auto en Reportes,
    pl-9 en NuevaPropiedad). */
 .input {
-  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none;
+  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors focus:border-slate-500 focus:outline-none;
 }

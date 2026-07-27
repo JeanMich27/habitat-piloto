@@ -1,5 +1,20 @@
 # Poner el piloto en línea para los 10 testers
 
+> **Actualización (julio 2026): la app ahora tiene cuentas y seguridad por rol.**
+>
+> - La migración `supabase/migracion-auth-rls.sql` **ya está aplicada** al proyecto
+>   `habitat-piloto` de Supabase (Auth + RLS por rol). Si algún día creas un
+>   proyecto nuevo, corre `schema.sql` y después `migracion-auth-rls.sql`.
+> - Cada persona crea su cuenta desde la pantalla de registro; queda **Pendiente**
+>   hasta que el broker la apruebe en **Solicitudes**. Los invitados desde la
+>   pantalla Asesores entran ya activos al registrarse con el mismo correo.
+> - La cuenta del broker es el correo `niper987@gmail.com`: al registrarte con él
+>   quedas activo como Broker/Admin automáticamente.
+> - **Pendiente manual en Supabase** (2 min): Dashboard → **Authentication →
+>   URL Configuration** → pon como *Site URL* la URL de tu sitio en Vercel (y
+>   agrégala a *Redirect URLs*). Sin esto, los correos de confirmación y de
+>   recuperación de contraseña redirigen mal.
+
 El código ya está listo (backend compartido con Supabase, importador de
 CSV/Excel, paquete descargable). Conectaste Supabase y Vercel en esta sesión,
 pero esta sesión de Cowork no tiene control directo sobre esas cuentas para

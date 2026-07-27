@@ -5,7 +5,7 @@ import StatusBadge from "./StatusBadge";
 
 export default function PropertyCard({ propiedad }: { propiedad: Propiedad }) {
   return (
-    <article className="flex w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+    <article className="flex w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300">
       {/* Placeholder de foto */}
       <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500">
         <Home className="size-10 text-white/40" />

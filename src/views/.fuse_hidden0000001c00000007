@@ -45,7 +45,7 @@ export default function AsesorDashboard({
             <p className="text-sm text-slate-500">{asesor.puesto}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm shadow-sm ring-1 ring-slate-200">
           <TrendingUp className="size-4 text-emerald-600" />
           <span className="font-semibold">{misLeads.length}</span> leads activos
           · <span className="font-semibold">{misPropiedades.length}</span>{" "}

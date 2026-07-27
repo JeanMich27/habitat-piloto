@@ -77,6 +77,8 @@ export const CAMPOS_PROPIEDAD: CampoMapeo[] = [
 export const CAMPOS_LEAD: CampoMapeo[] = [
   { key: "nombre", etiqueta: "Nombre del contacto", obligatorio: true, alias: ["nombre", "cliente", "contacto"] },
   { key: "telefono", etiqueta: "Teléfono", obligatorio: false, alias: ["telefono", "tel", "phone"] },
+  // El correo vincula la cuenta del cliente con su lead (Portal Cliente).
+  { key: "correo", etiqueta: "Correo", obligatorio: false, alias: ["correo", "email", "mail"] },
   { key: "origen", etiqueta: "Origen", obligatorio: false, alias: ["origen", "fuente", "source"] },
   { key: "nota", etiqueta: "Nota", obligatorio: false, alias: ["nota", "notas", "comentarios"] },
   { key: "montoOferta", etiqueta: "Monto de oferta", obligatorio: false, alias: ["monto", "oferta", "presupuesto"] },
@@ -175,6 +177,7 @@ export function filasALeads(
       id: `lead-import-${Date.now()}-${i}`,
       nombre,
       telefono: val("telefono"),
+      correo: val("correo").toLowerCase(),
       etapa: "Nuevo",
       origen: ORIGENES_VALIDOS.includes(origenRaw as LeadOrigin) ? (origenRaw as LeadOrigin) : "Directo",
       interesPropiedadId: "",

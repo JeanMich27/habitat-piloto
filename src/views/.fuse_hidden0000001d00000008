@@ -79,7 +79,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500">
             <Building2 className="size-5 text-white/70" />
@@ -111,7 +111,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
       {/* Mi Proceso */}
       {tab === "proceso" && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <ol className="space-y-4">
               {ETAPAS_CIERRE.map((etapa, i) => {
                 const estado = i < cierre.etapaActual ? "hecho" : i === cierre.etapaActual ? "actual" : "pendiente";
@@ -167,7 +167,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
 
       {/* Documentos */}
       {tab === "documentos" && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <ul className="space-y-2">
             {cierre.documentos.map((d) => (
               <li key={d.nombre} className="rounded-lg border border-slate-200 px-4 py-3">
@@ -230,7 +230,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
               </div>
             </div>
           ) : (
-            <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-400">
+            <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-400 shadow-sm">
               No tienes citas próximas.
             </p>
           )}

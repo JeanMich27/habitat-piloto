@@ -91,7 +91,7 @@ export interface Propiedad {
   comparables?: Comparable[];
 }
 
-export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo";
+export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";
 
 export interface Usuario {
   id: string;
@@ -110,6 +110,9 @@ export interface Lead {
   id: string;
   nombre: string;
   telefono: string;
+  // Correo del interesado: es lo que vincula su cuenta (rol "cliente") con
+  // este lead — sin correo, el cliente no puede ver su proceso en el portal.
+  correo?: string;
   etapa: LeadStage;
   origen: LeadOrigin;
   interesPropiedadId: string;

@@ -1,0 +1,95 @@
+// Solicitudes de acceso (solo Broker): aprueba o rechaza cuentas nuevas.
+// Al registrarse, cada cuenta queda "Pendiente" con el rol que la persona
+// solicitó; el broker puede corregir el rol antes de aprobar.
+import { useState } from "react";
+import { Check, ShieldQuestion, X } from "lucide-react";
+import type { UserRole, Usuario } from "../types";
+
+const ETIQUETAS_ROL: Record<UserRole, string> = {
+  broker: "Broker / Admin",
+  asesor_independiente: "Asesor independiente",
+  asesor_equipo: "Asesor de equipo",
+  propietario: "Propietario",
+  cliente: "Cliente",
+};
+
+// El broker no puede otorgar el rol broker desde aquí (evita escalamiento por descuido).
+const ROLES_ASIGNABLES: UserRole[] = ["asesor_equipo", "asesor_independiente", "propietario", "cliente"];
+
+interface Props {
+  usuarios: Usuario[];
+  onResolver: (usuarioId: string, cambios: Partial<Usuario>) => void;
+}
+
+export default function SolicitudesAcceso({ usuarios, onResolver }: Props) {
+  const pendientes = usuarios.filter((u) => u.estadoCuenta === "Pendiente");
+  const [rolesElegidos, setRolesElegidos] = useState<Record<string, UserRole>>({});
+
+  const rolDe = (u: Usuario) => rolesElegidos[u.id] ?? u.rol;
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <h1 className="text-xl font-bold text-slate-900">Solicitudes de acceso</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Personas que crearon cuenta y esperan tu aprobación. Verifica el rol antes de aprobar:
+        define qué información podrán ver.
+      </p>
+
+      {pendientes.length === 0 ? (
+        <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
+          <ShieldQuestion className="size-8 text-slate-300" />
+          <p className="text-sm font-semibold text-slate-600">No hay solicitudes pendientes</p>
+          <p className="text-xs text-slate-400">Cuando alguien se registre, aparecerá aquí.</p>
+        </div>
+      ) : (
+        <div className="mt-6 space-y-3">
+          {pendientes.map((u) => (
+            <div key={u.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                  {u.iniciales || u.nombre.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-slate-900">{u.nombre}</p>
+                  <p className="truncate text-xs text-slate-500">{u.correo}</p>
+                  {u.telefono && <p className="text-xs text-slate-400">{u.telefono}</p>}
+                  <p className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                    Solicitó: {ETIQUETAS_ROL[u.rol]}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <select
+                  value={rolDe(u)}
+                  onChange={(e) => setRolesElegidos((prev) => ({ ...prev, [u.id]: e.target.value as UserRole }))}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-slate-900 focus:outline-none sm:w-56"
+                >
+                  {ROLES_ASIGNABLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ETIQUETAS_ROL[r]}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2 sm:ml-auto">
+                  <button
+                    onClick={() => onResolver(u.id, { rol: rolDe(u), estadoCuenta: "Activo" })}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 sm:flex-none"
+                  >
+                    <Check className="size-4" /> Aprobar
+                  </button>
+                  <button
+                    onClick={() => onResolver(u.id, { estadoCuenta: "Inactivo" })}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 sm:flex-none"
+                  >
+                    <X className="size-4" /> Rechazar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}

@@ -174,7 +174,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
             Pipeline agregado
           </h2>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-end gap-3">
               {pipeline.map((e) => (
                 <div key={e.etapa} className="flex flex-1 flex-col items-center gap-2">
@@ -197,7 +197,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-slate-500">
             <AlertTriangle className="size-4 text-amber-500" /> Alertas
           </h2>
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             {leadsSinContactar.map((l) => (
               <div
                 key={l.id}
@@ -230,7 +230,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Ranking de asesores
         </h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
