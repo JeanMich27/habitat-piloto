@@ -319,7 +319,8 @@ export default function DetalleDePropiedad({
               Agendar visita
             </button>
           </div>
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">Nombre</th>
@@ -346,6 +347,7 @@ export default function DetalleDePropiedad({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -362,7 +364,8 @@ export default function DetalleDePropiedad({
               Registrar oferta
             </button>
           </div>
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[38rem] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">Cliente</th>
@@ -415,6 +418,7 @@ export default function DetalleDePropiedad({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

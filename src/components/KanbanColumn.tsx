@@ -33,7 +33,7 @@ export default function KanbanColumn({
         const leadId = e.dataTransfer.getData("text/lead-id");
         if (leadId) onDropLead(leadId, etapa);
       }}
-      className={`flex min-h-[24rem] w-72 shrink-0 flex-col rounded-xl border bg-white transition ${
+      className={`flex min-h-[24rem] w-[85vw] max-w-xs shrink-0 snap-start flex-col rounded-xl border bg-white transition sm:w-72 ${
         sobre ? "border-slate-400 ring-2 ring-slate-200" : "border-slate-200"
       }`}
     >
@@ -48,7 +48,10 @@ export default function KanbanColumn({
         {children}
         {cantidad === 0 && (
           <p className="mt-4 text-center text-xs text-slate-400">
-            Arrastra un lead aquí
+            Sin leads en esta etapa.
+            <span className="mt-1 block">
+              Cambia la etapa desde la tarjeta del lead.
+            </span>
           </p>
         )}
       </div>

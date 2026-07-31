@@ -2,15 +2,8 @@ import { Building2, TrendingUp } from "lucide-react";
 import KanbanCard from "../components/KanbanCard";
 import KanbanColumn from "../components/KanbanColumn";
 import PropertyCard from "../components/PropertyCard";
+import { ETAPAS_LEAD } from "../data/etapasLead";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
-
-const COLUMNAS: { titulo: string; etapa: LeadStage; acento: string }[] = [
-  { titulo: "Nuevo", etapa: "Nuevo", acento: "bg-blue-500" },
-  { titulo: "Contactado", etapa: "Contactado", acento: "bg-violet-500" },
-  { titulo: "Visitado", etapa: "Visitado", acento: "bg-amber-500" },
-  { titulo: "Negociación", etapa: "Negociacion", acento: "bg-orange-500" },
-  { titulo: "Cierre", etapa: "Cierre", acento: "bg-emerald-500" },
-];
 
 interface Props {
   asesor: Usuario;
@@ -83,8 +76,8 @@ export default function AsesorDashboard({
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Pipeline de leads
         </h2>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {COLUMNAS.map((col) => {
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
+          {ETAPAS_LEAD.map((col) => {
             const leadsCol = misLeads.filter((l) => l.etapa === col.etapa);
             return (
               <KanbanColumn
@@ -102,6 +95,7 @@ export default function AsesorDashboard({
                     propiedad={propiedades.find(
                       (p) => p.id === lead.interesPropiedadId,
                     )}
+                    onMoverEtapa={onMoveLead}
                   />
                 ))}
               </KanbanColumn>

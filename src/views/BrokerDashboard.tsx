@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import KpiCard from "../components/KpiCard";
+import { ETAPAS_LEAD } from "../data/etapasLead";
 import { diasDesde, formatMin, minutosRespuesta } from "../lib/metrics";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
@@ -21,13 +22,8 @@ const PERIODOS: { key: Periodo; label: string; dias: number }[] = [
   { key: "mes", label: "Mes", dias: 31 },
 ];
 
-const ETAPAS: { etapa: LeadStage; label: string; acento: string }[] = [
-  { etapa: "Nuevo", label: "Nuevo", acento: "bg-blue-500" },
-  { etapa: "Contactado", label: "Contactado", acento: "bg-violet-500" },
-  { etapa: "Visitado", label: "Visitado", acento: "bg-amber-500" },
-  { etapa: "Negociacion", label: "Negociación", acento: "bg-orange-500" },
-  { etapa: "Cierre", label: "Cierre", acento: "bg-emerald-500" },
-];
+// Las etapas viven en un solo archivo (src/data/etapasLead.ts) para que el
+// embudo del broker y el Kanban del asesor nunca se desincronicen.
 
 interface Props {
   broker: Usuario;
@@ -66,7 +62,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
     .reduce((sum, l) => sum + (l.montoOferta ?? 0) * 0.03, 0);
 
   // --- Pipeline agregado ---
-  const pipeline = ETAPAS.map((e) => ({
+  const pipeline = ETAPAS_LEAD.map((e) => ({
     ...e,
     cantidad: leadsPeriodo.filter((l) => l.etapa === e.etapa).length,
   }));
@@ -185,7 +181,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
                       style={{ height: `${(e.cantidad / maxPipeline) * 100}%` }}
                     />
                   </div>
-                  <span className="text-center text-[11px] text-slate-500">{e.label}</span>
+                  <span className="text-center text-[11px] text-slate-500">{e.titulo}</span>
                 </div>
               ))}
             </div>

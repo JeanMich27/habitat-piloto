@@ -99,7 +99,7 @@ export default function PerfilDesempeno({
           Propiedades activas
         </h2>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[34rem] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">Dirección</th>
@@ -143,7 +143,7 @@ export default function PerfilDesempeno({
           Leads activos
         </h2>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[34rem] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2.5">Nombre</th>
