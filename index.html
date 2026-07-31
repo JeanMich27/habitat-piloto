@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Real Estate · Plataforma Inmobiliaria</title>
+    <meta name="description" content="Plataforma de gestión inmobiliaria: propiedades, prospectos y equipo de asesores." />
+
+    <!-- PWA: hace la app instalable en la pantalla de inicio del teléfono -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+
+    <!-- iOS ignora el manifest: necesita sus propias meta tags -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Real Estate" />
   </head>
   <body>
     <div id="root"></div>

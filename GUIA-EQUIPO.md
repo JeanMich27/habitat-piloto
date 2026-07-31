@@ -26,13 +26,27 @@ Jean aprueba en: menú **Solicitudes de acceso** (aparece con un badge rojo cuan
 - **Propietario:** ve el avance de SU propiedad. Para vincularla, un asesor debe capturar (o editar) una propiedad poniendo el **correo del propietario** igual al correo con el que esa persona se registró.
 - **Cliente/Comprador:** ve su proceso de compra/renta (línea de tiempo, documentos, citas). Para vincularlo, el asesor registra un **lead con el correo del cliente** y lo lleva a etapa Cierre.
 
-## 4. Reglas del sistema (ya activas)
+## 4. Instalar la app en el teléfono
+
+La plataforma se instala en la pantalla de inicio como cualquier app: ícono propio, pantalla completa, sin barra del navegador. No está en App Store ni Google Play — se instala desde la misma URL.
+
+**Android (Chrome):** abre la URL y toca **Instalar** en el aviso que aparece abajo. Si lo cerraste: menú ⋮ → *Instalar aplicación*.
+
+**iPhone/iPad:** ábrela **en Safari** (Chrome en iOS no puede instalar). Toca **Compartir** → **Añadir a pantalla de inicio** → *Añadir*.
+
+Notas:
+
+- Una vez instalada, el aviso deja de aparecer.
+- La app requiere internet para ver datos actualizados; sin conexión abre pero muestra la última pantalla cacheada.
+- Las actualizaciones llegan solas al abrirla; no hay que reinstalar.
+
+## 5. Reglas del sistema (ya activas)
 
 - Nadie puede auto-nombrarse broker; solo Jean cambia roles y aprueba cuentas.
 - Intake → Validación la hace el asesor; **Validación → Activa solo el broker**.
 - Propietarios y clientes solo ven lo suyo; los asesores de equipo solo su propia operación (salvo permiso especial).
 
-## 5. Si el correo de confirmación no llega
+## 6. Si el correo de confirmación no llega
 
 Supabase gratuito limita los correos de confirmación (~3 por hora). Si el equipo se registra en bloque y no llegan:
 Jean puede desactivar la confirmación en **supabase.com → proyecto habitat-piloto → Authentication → Sign In / Up → desactivar "Confirm email"**. Para un piloto interno es aceptable; reactívala si el sitio se abre a externos.
