@@ -4,6 +4,7 @@ import {
   Bath,
   BedDouble,
   Building2,
+  Calculator,
   CheckCircle2,
   Clock,
   FileText,
@@ -60,6 +61,8 @@ interface Props {
   onAgregarEvento: (propiedadId: string, descripcion: string) => void;
   onAgregarComparable: (propiedadId: string, comparable: Omit<Comparable, "id">) => void;
   onResolverOferta: (leadId: string, resultado: "Aceptada" | "Rechazada") => void;
+  /** Solo se pasa cuando el usuario es asesor: abre la calculadora de comisiones. */
+  onCalcularComision?: (propiedadId: string) => void;
 }
 
 export default function DetalleDePropiedad({
@@ -73,6 +76,7 @@ export default function DetalleDePropiedad({
   onAgregarEvento,
   onAgregarComparable,
   onResolverOferta,
+  onCalcularComision,
 }: Props) {
   const [tab, setTab] = useState<Tab>("info");
   const [editando, setEditando] = useState(false);
@@ -133,7 +137,15 @@ export default function DetalleDePropiedad({
             <p className="text-xs text-slate-400">Asesor asignado: {nombreAsesor}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {onCalcularComision && (
+            <button
+              onClick={() => onCalcularComision(propiedad.id)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Calculator className="size-3.5" /> Calcular comisión
+            </button>
+          )}
           <button
             onClick={() => {
               setTab("info");

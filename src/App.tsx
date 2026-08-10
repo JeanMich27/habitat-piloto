@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Building2,
+  Calculator,
   ClipboardCheck,
   Download,
   Home,
@@ -28,6 +29,7 @@ import type {
 } from "./types";
 import AsesorDashboard from "./views/AsesorDashboard";
 import Asesores from "./views/Asesores";
+import CalculadoraComisiones from "./views/CalculadoraComisiones";
 import AuthScreen from "./views/AuthScreen";
 import BrokerDashboard from "./views/BrokerDashboard";
 import Configuracion from "./views/Configuracion";
@@ -79,6 +81,7 @@ type Vista =
   | "intake"
   | "reportes"
   | "importar"
+  | "comisiones"
   | "configuracion";
 
 const ETIQUETAS_ROL: Record<UserRole, string> = {
@@ -212,6 +215,8 @@ export default function App() {
   const [vista, setVista] = useState<Vista | null>(null);
   const [propiedadSeleccionadaId, setPropiedadSeleccionadaId] = useState<string | null>(null);
   const [asesorSeleccionadoId, setAsesorSeleccionadoId] = useState<string | null>(null);
+  // Desde dónde se abrió la calculadora, para saber a dónde regresar.
+  const [origenCalculadora, setOrigenCalculadora] = useState<Vista | null>(null);
 
   // Al entrar (o cambiar de cuenta), aterriza en la vista inicial de su rol.
   useEffect(() => {
@@ -246,6 +251,7 @@ export default function App() {
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
+          { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
           { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
           { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
           { id: "importar", etiqueta: "Importar", Icono: Upload },
@@ -254,6 +260,7 @@ export default function App() {
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
+          { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
           { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
         ];
       case "propietario":
@@ -476,6 +483,13 @@ export default function App() {
     setVista("detalle");
   };
 
+  // Abre la calculadora de comisiones con una propiedad precargada.
+  const irACalculadora = (propiedadId: string) => {
+    setPropiedadSeleccionadaId(propiedadId);
+    setOrigenCalculadora("detalle");
+    setVista("comisiones");
+  };
+
   const guardarNuevaPropiedad = (nueva: Propiedad) => {
     setPropiedades((prev) => [...prev, nueva]);
     upsertPropiedad(nueva);
@@ -634,7 +648,10 @@ export default function App() {
     <AppShell
       items={navItems}
       vistaActiva={vista ?? ""}
-      onNavegar={(id) => setVista(id as Vista)}
+      onNavegar={(id) => {
+        setOrigenCalculadora(null);
+        setVista(id as Vista);
+      }}
       nombreUsuario={yo.nombre}
       iniciales={yo.iniciales || yo.nombre.slice(0, 2).toUpperCase()}
       etiquetaRol={ETIQUETAS_ROL[yo.rol]}
@@ -708,6 +725,11 @@ export default function App() {
               onAgregarEvento={(id, desc) => registrarEvento(id, "Nota", desc)}
               onAgregarComparable={agregarComparable}
               onResolverOferta={resolverOferta}
+              onCalcularComision={
+                yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo"
+                  ? irACalculadora
+                  : undefined
+              }
             />
           )}
           {vista === "asesores" && yo.rol === "broker" && (
@@ -744,6 +766,26 @@ export default function App() {
               onVerPropiedades={() => setVista("propiedades")}
             />
           )}
+          {/* Calculadora de comisiones: exclusiva de asesores. */}
+          {vista === "comisiones" &&
+            (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
+              <CalculadoraComisiones
+                key={origenCalculadora === "detalle" ? propiedadSeleccionadaId ?? "libre" : "libre"}
+                usuario={yo}
+                propiedades={propiedades}
+                propiedadInicialId={
+                  origenCalculadora === "detalle" ? propiedadSeleccionadaId : null
+                }
+                onVolver={
+                  origenCalculadora === "detalle"
+                    ? () => {
+                        setOrigenCalculadora(null);
+                        setVista("detalle");
+                      }
+                    : undefined
+                }
+              />
+            )}
           {vista === "mi-perfil" && <PerfilPersonal usuario={yo} onGuardar={guardarPerfilPersonal} />}
           {vista === "propietario" && yo.rol === "propietario" && (
             <PropietarioPortal

@@ -15,7 +15,7 @@
  * Para forzar que todos los dispositivos actualicen el cache, sube CACHE_VERSION.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `assets-${CACHE_VERSION}`;
 
