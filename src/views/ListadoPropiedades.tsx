@@ -17,7 +17,7 @@ import type {
   TipoOperacion,
   Usuario,
 } from "../types";
-import { formatoMXN } from "../types";
+import { formatoMXN, puedeCargarPropiedades } from "../types";
 
 type Columna = "direccion" | "precio" | "dias" | "leads" | "visitas" | "estado";
 
@@ -171,12 +171,15 @@ export default function ListadoPropiedades({
             {ordenadas.length} resultado{ordenadas.length === 1 ? "" : "s"}
           </p>
         </div>
-        <button
-          onClick={onNuevaPropiedad}
-          className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-        >
-          <Plus className="size-4" /> Nueva propiedad
-        </button>
+        {/* Captar inventario es del broker; el asesor de equipo no ve el botón. */}
+        {puedeCargarPropiedades(usuario.rol) && (
+          <button
+            onClick={onNuevaPropiedad}
+            className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            <Plus className="size-4" /> Nueva propiedad
+          </button>
+        )}
       </header>
 
       {/* Buscador y filtros */}

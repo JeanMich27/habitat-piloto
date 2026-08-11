@@ -4,14 +4,36 @@ import { formatoMXN } from "../types";
 import StatusBadge from "./StatusBadge";
 
 export default function PropertyCard({ propiedad }: { propiedad: Propiedad }) {
+  const totalFotos = propiedad.imagenes?.length ?? 0;
+  const portada = propiedad.imagenes?.[0];
+
   return (
     <article className="flex w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300">
-      {/* Placeholder de foto */}
+      {/* Foto real del CRM. El degradado solo aparece si no hay ninguna. */}
       <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500">
-        <Home className="size-10 text-white/40" />
+        {portada ? (
+          <img
+            src={portada}
+            alt={propiedad.titulo}
+            loading="lazy"
+            className="size-full object-cover"
+            // Si la URL del CRM se cae, se oculta la imagen y queda el
+            // degradado de siempre en vez de un ícono de imagen rota.
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <Home className="size-10 text-white/40" />
+        )}
         <div className="absolute left-3 top-3">
           <StatusBadge estatus={propiedad.estatus} />
         </div>
+        {totalFotos > 1 && (
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+            {totalFotos} fotos
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">

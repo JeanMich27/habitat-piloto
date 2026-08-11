@@ -37,6 +37,26 @@ export function comisionBase({
   return tipoOperacion === "Renta" ? valor * mesesRenta : (valor * pctVenta) / 100;
 }
 
+/**
+ * Tarifa pactada de una propiedad concreta.
+ *
+ * Si el CRM la trae (EasyBroker la entrega por propiedad: `commission`), esa
+ * manda — es el acuerdo real con el propietario, no un promedio. Solo cuando
+ * no existe se cae a los valores por defecto.
+ */
+export function tarifaDePropiedad(p?: {
+  tipoOperacion?: TipoOperacion;
+  comisionTipo?: "porcentaje" | "meses";
+  comisionValor?: number;
+}): { pctVenta: number; mesesRenta: number; delCrm: boolean } {
+  if (p?.comisionValor != null && p.comisionTipo) {
+    return p.comisionTipo === "meses"
+      ? { pctVenta: PCT_VENTA_DEFAULT, mesesRenta: p.comisionValor, delCrm: true }
+      : { pctVenta: p.comisionValor, mesesRenta: MESES_RENTA_DEFAULT, delCrm: true };
+  }
+  return { pctVenta: PCT_VENTA_DEFAULT, mesesRenta: MESES_RENTA_DEFAULT, delCrm: false };
+}
+
 /** Cómo se le explica al usuario de dónde salió la cifra. */
 export function explicacionComision(p: ParametrosComision): string {
   if (p.tipoOperacion === "Renta") {

@@ -53,6 +53,27 @@ export function rowToPropiedad(r: any): Propiedad {
     ultimaActividad: r.ultima_actividad ?? undefined,
     eventos: r.eventos ?? [],
     comparables: r.comparables ?? [],
+    // Datos del CRM
+    imagenes: r.imagenes ?? [],
+    amenidades: r.amenidades ?? [],
+    m2Terreno: r.m2_terreno != null ? Number(r.m2_terreno) : undefined,
+    mediosBanos: r.medios_banos ?? undefined,
+    estacionamientos: r.estacionamientos ?? undefined,
+    niveles: r.niveles ?? undefined,
+    mantenimiento: r.mantenimiento != null ? Number(r.mantenimiento) : undefined,
+    videoUrl: r.video_url ?? undefined,
+    tourVirtualUrl: r.tour_virtual_url ?? undefined,
+    colonia: r.colonia ?? undefined,
+    calle: r.calle ?? undefined,
+    codigoPostal: r.codigo_postal ?? undefined,
+    comisionTipo: r.comision_tipo ?? undefined,
+    comisionValor: r.comision_valor != null ? Number(r.comision_valor) : undefined,
+    comisionCompartidaPct:
+      r.comision_compartida_pct != null ? Number(r.comision_compartida_pct) : undefined,
+    exclusiva: r.exclusiva ?? undefined,
+    crmOrigen: r.crm_origen ?? undefined,
+    crmIdInterno: r.crm_id_interno ?? undefined,
+    urlPublica: r.eb_public_url ?? undefined,
   };
 }
 

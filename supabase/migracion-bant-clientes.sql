@@ -35,14 +35,26 @@ alter table public.leads add column if not exists historial jsonb not null defau
 -- ------------------------------------------------------------
 -- Si `bant` existe, sus 4 criterios deben venir del catálogo cerrado.
 -- Esto es lo que impide que dos asesores "interpreten" distinto.
+--
+-- El bloque de dinero depende del perfil: a un inquilino no se le mide por
+-- crédito hipotecario sino por solvencia y respaldo. Ambos catálogos suman
+-- igual (30/15/5/0), así que el puntaje sigue siendo comparable.
 alter table public.leads drop constraint if exists leads_bant_valido;
 alter table public.leads add constraint leads_bant_valido check (
   bant is null
   or (
-        bant->>'presupuesto' in ('aprobado','tramite','depende_venta','sin_definir')
-    and bant->>'autoridad'   in ('decide','filtro','sin_poder')
-    and bant->>'necesidad'   in ('clara','flexible','explorando')
-    and bant->>'plazo'       in ('inmediato','corto','medio','largo')
+        coalesce(bant->>'perfil','Comprador') in ('Comprador','Inquilino')
+    and (
+      case coalesce(bant->>'perfil','Comprador')
+        when 'Inquilino' then bant->>'presupuesto' in
+          ('solvente_aval','solvente_sin_aval','ingresos_dificiles','sin_solvencia')
+        else bant->>'presupuesto' in
+          ('aprobado','tramite','depende_venta','sin_definir')
+      end
+    )
+    and bant->>'autoridad' in ('decide','filtro','sin_poder')
+    and bant->>'necesidad' in ('clara','flexible','explorando')
+    and bant->>'plazo'     in ('inmediato','corto','medio','largo')
     and coalesce(bant->>'calificadoPor','') <> ''
     and coalesce(bant->>'calificadoEl','')  <> ''
   )
@@ -58,9 +70,12 @@ alter table public.leads drop column if exists puntaje_bant;
 alter table public.leads add column puntaje_bant integer generated always as (
   case when bant is null then null else
       case bant->>'presupuesto'
-        when 'aprobado'      then 30
-        when 'tramite'       then 15
-        when 'depende_venta' then 5
+        when 'aprobado'           then 30
+        when 'solvente_aval'      then 30
+        when 'tramite'            then 15
+        when 'solvente_sin_aval'  then 15
+        when 'depende_venta'      then 5
+        when 'ingresos_dificiles' then 5
         else 0 end
     + case bant->>'autoridad'
         when 'decide'   then 20
@@ -84,13 +99,19 @@ alter table public.leads add column clasificacion_lead text generated always as 
   case
     when bant is null then null
     when (
-        case bant->>'presupuesto' when 'aprobado' then 30 when 'tramite' then 15 when 'depende_venta' then 5 else 0 end
+        case bant->>'presupuesto'
+          when 'aprobado' then 30 when 'solvente_aval' then 30
+          when 'tramite' then 15 when 'solvente_sin_aval' then 15
+          when 'depende_venta' then 5 when 'ingresos_dificiles' then 5 else 0 end
       + case bant->>'autoridad'   when 'decide' then 20 when 'filtro' then 10 else 0 end
       + case bant->>'necesidad'   when 'clara' then 30 when 'flexible' then 15 when 'explorando' then 5 else 0 end
       + case bant->>'plazo'       when 'inmediato' then 20 when 'corto' then 15 when 'medio' then 5 else 0 end
     ) >= 80 then 'Hot'
     when (
-        case bant->>'presupuesto' when 'aprobado' then 30 when 'tramite' then 15 when 'depende_venta' then 5 else 0 end
+        case bant->>'presupuesto'
+          when 'aprobado' then 30 when 'solvente_aval' then 30
+          when 'tramite' then 15 when 'solvente_sin_aval' then 15
+          when 'depende_venta' then 5 when 'ingresos_dificiles' then 5 else 0 end
       + case bant->>'autoridad'   when 'decide' then 20 when 'filtro' then 10 else 0 end
       + case bant->>'necesidad'   when 'clara' then 30 when 'flexible' then 15 when 'explorando' then 5 else 0 end
       + case bant->>'plazo'       when 'inmediato' then 20 when 'corto' then 15 when 'medio' then 5 else 0 end

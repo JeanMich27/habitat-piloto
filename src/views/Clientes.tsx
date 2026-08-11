@@ -8,6 +8,7 @@
 // la ficha responde en tres segundos: ¿qué tan bueno es y qué sigue?
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Building2,
   Clock,
   Mail,
@@ -37,7 +38,7 @@ import {
   BANT_AUTORIDAD,
   BANT_NECESIDAD,
   BANT_PLAZO,
-  BANT_PRESUPUESTO,
+  catalogoPresupuesto,
   clasificarLead,
   formatoMXN,
   puntajeBant,
@@ -139,6 +140,17 @@ export default function Clientes({
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
   const [creando, setCreando] = useState(false);
+  // En pantalla chica no caben lista y ficha a la vez: se muestra una u otra.
+  // En pantalla grande esta variable no hace nada (ambas conviven).
+  const [panelMovil, setPanelMovil] = useState<"lista" | "ficha">("lista");
+
+  // Abrir un cliente: en móvil cambia de panel y sube el scroll, para que el
+  // toque tenga una respuesta visible en lugar de "no pasó nada".
+  const abrirCliente = (id: string) => {
+    setSeleccionadoId(id);
+    setPanelMovil("ficha");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [tipoEvento, setTipoEvento] = useState<TipoInteraccion>("Nota");
   const [textoEvento, setTextoEvento] = useState("");
 
@@ -147,13 +159,17 @@ export default function Clientes({
   useEffect(() => {
     if (!clienteInicialId) return;
     setSeleccionadoId(clienteInicialId);
+    setPanelMovil("ficha");
     setBusqueda("");
     setFiltroClase("Todas");
     setFiltroEtapa("Todas");
   }, [clienteInicialId]);
 
   useEffect(() => {
-    if (etapaInicial) setFiltroEtapa(etapaInicial);
+    if (etapaInicial) {
+      setFiltroEtapa(etapaInicial);
+      setPanelMovil("lista");
+    }
   }, [etapaInicial]);
 
   const filtrados = useMemo(() => {
@@ -233,7 +249,11 @@ export default function Clientes({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ============ Lista ============ */}
-        <div className="space-y-3 lg:col-span-5 xl:col-span-4">
+        <div
+          className={`space-y-3 lg:col-span-5 lg:block xl:col-span-4 ${
+            panelMovil === "ficha" ? "hidden" : ""
+          }`}
+        >
           <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
             <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
               <Search className="size-4 shrink-0 text-slate-400" />
@@ -296,7 +316,7 @@ export default function Clientes({
                   }`}
                 >
                   <button
-                    onClick={() => setSeleccionadoId(l.id)}
+                    onClick={() => abrirCliente(l.id)}
                     className="w-full p-4 pb-2 text-left"
                   >
                     <span className="flex items-start justify-between gap-2">
@@ -358,7 +378,19 @@ export default function Clientes({
         </div>
 
         {/* ============ Ficha ============ */}
-        <div className="space-y-4 lg:col-span-7 xl:col-span-8">
+        <div
+          className={`space-y-4 lg:col-span-7 lg:block xl:col-span-8 ${
+            panelMovil === "lista" ? "hidden" : ""
+          }`}
+        >
+          {/* Regreso a la lista: solo existe en móvil, donde hubo un cambio de panel. */}
+          <button
+            onClick={() => setPanelMovil("lista")}
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 lg:hidden"
+          >
+            <ArrowLeft className="size-4" /> Volver a la lista
+          </button>
+
           {!seleccionado ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-12 text-center">
               <UserIcon className="mx-auto size-8 text-slate-300" />
@@ -380,8 +412,11 @@ export default function Clientes({
                         {seleccionado.nombre}
                       </h2>
                       <p className="text-xs text-slate-500">
-                        {seleccionado.ocupacion || "Cliente particular"} · Registrado el{" "}
-                        {fmtFecha(seleccionado.creado)}
+                        {seleccionado.ocupacion || "Cliente particular"} ·{" "}
+                        {bant?.perfil === "Inquilino" ? "Busca rentar" : null}
+                        {bant?.perfil === "Comprador" ? "Busca comprar" : null}
+                        {bant?.perfil ? " · " : ""}
+                        Registrado el {fmtFecha(seleccionado.creado)}
                       </p>
                     </div>
                   </div>
@@ -511,8 +546,12 @@ export default function Clientes({
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {[
                         {
-                          etiqueta: "Cómo va a pagar",
-                          texto: etiquetaDe(BANT_PRESUPUESTO, bant.presupuesto),
+                          etiqueta:
+                            bant.perfil === "Inquilino" ? "Solvencia" : "Cómo va a pagar",
+                          texto: etiquetaDe(
+                            catalogoPresupuesto(bant.perfil ?? "Comprador"),
+                            bant.presupuesto,
+                          ),
                           puntos: desglose.presupuesto,
                           max: 30,
                         },
@@ -564,7 +603,11 @@ export default function Clientes({
                       <div className="space-y-1 rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
                         {bant.montoMaximo ? (
                           <p>
-                            <span className="font-semibold text-slate-800">Puede pagar hasta:</span>{" "}
+                            <span className="font-semibold text-slate-800">
+                              {bant.perfil === "Inquilino"
+                                ? "Renta máxima:"
+                                : "Puede pagar hasta:"}
+                            </span>{" "}
                             {formatoMXN(bant.montoMaximo)}
                             {propiedadInteres && bant.montoMaximo < propiedadInteres.precio && (
                               <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
@@ -575,7 +618,9 @@ export default function Clientes({
                         ) : null}
                         {bant.formaPago && (
                           <p>
-                            <span className="font-semibold text-slate-800">Forma de pago:</span>{" "}
+                            <span className="font-semibold text-slate-800">
+                              {bant.perfil === "Inquilino" ? "Respaldo:" : "Forma de pago:"}
+                            </span>{" "}
                             {bant.formaPago}
                           </p>
                         )}
@@ -692,7 +737,7 @@ export default function Clientes({
             setCreando(false);
             // Se abre su ficha de inmediato: el asesor acaba de capturarlo,
             // lo siguiente que quiere es calificarlo o escribirle.
-            setSeleccionadoId(nuevo.id);
+            abrirCliente(nuevo.id);
             setBusqueda("");
             setFiltroClase("Todas");
             setFiltroEtapa("Todas");
@@ -703,6 +748,7 @@ export default function Clientes({
       {calificando && seleccionado && (
         <CalificarProspectoModal
           lead={seleccionado}
+          propiedad={propiedadInteres}
           nombreAsesor={usuario.nombre}
           onCancelar={() => setCalificando(false)}
           onGuardar={(b) => {

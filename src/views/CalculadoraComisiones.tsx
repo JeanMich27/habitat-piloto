@@ -26,6 +26,7 @@ import {
   PCT_VENTA_DEFAULT,
   comisionBase,
   explicacionComision,
+  tarifaDePropiedad,
 } from "../lib/comisiones";
 
 const IVA = 0.16;
@@ -134,10 +135,18 @@ export default function CalculadoraComisiones({
     inicial?.tipoOperacion ?? "Venta",
   );
   const [modoComision, setModoComision] = useState<ModoComision>("tarifa");
-  const [pctComision, setPctComision] = useState<number>(PCT_VENTA_DEFAULT);
-  const [mesesRenta, setMesesRenta] = useState<number>(MESES_RENTA_DEFAULT);
+  const [pctComision, setPctComision] = useState<number>(
+    inicial ? tarifaDePropiedad(inicial).pctVenta : PCT_VENTA_DEFAULT,
+  );
+  const [mesesRenta, setMesesRenta] = useState<number>(
+    inicial ? tarifaDePropiedad(inicial).mesesRenta : MESES_RENTA_DEFAULT,
+  );
   const [montoComisionTexto, setMontoComisionTexto] = useState<string>("");
   const [modoIva, setModoIva] = useState<ModoIva>("sin");
+  // ¿La tarifa vino del CRM o es el default de la app? Se le dice al usuario.
+  const [tarifaDelCrm, setTarifaDelCrm] = useState(
+    inicial ? tarifaDePropiedad(inicial).delCrm : false,
+  );
 
   const [participantes, setParticipantes] = useState<Participante[]>(() =>
     conId(PLANTILLAS[0].participantes),
@@ -218,6 +227,14 @@ export default function CalculadoraComisiones({
     if (p) {
       setPrecioTexto(String(p.precio));
       setTipoOperacion(p.tipoOperacion);
+      // Si el CRM trae la comisión pactada de esta propiedad, esa manda:
+      // es el acuerdo real con el propietario, no un default.
+      const t = tarifaDePropiedad(p);
+      setPctComision(t.pctVenta);
+      setMesesRenta(t.mesesRenta);
+      setTarifaDelCrm(t.delCrm);
+    } else {
+      setTarifaDelCrm(false);
     }
   };
 
@@ -515,6 +532,13 @@ export default function CalculadoraComisiones({
                     />
                   </div>
                 </div>
+              )}
+
+              {tarifaDelCrm && (
+                <p className="rounded-lg bg-emerald-50 p-2.5 text-[11px] font-medium text-emerald-800">
+                  Esta tarifa viene de la comisión pactada en tu CRM para esta propiedad.
+                  Puedes cambiarla, pero por defecto usamos el acuerdo real.
+                </p>
               )}
 
               <div>

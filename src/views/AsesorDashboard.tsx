@@ -15,7 +15,7 @@ import ProyeccionComisiones from "../components/ProyeccionComisiones";
 import { ETAPAS_LEAD } from "../data/etapasLead";
 import { enlaceWhatsApp, mensajeParaLead } from "../lib/whatsapp";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
-import { clasificarLead, totalBant } from "../types";
+import { clasificarLead, puedeCargarPropiedades, totalBant } from "../types";
 
 interface Props {
   asesor: Usuario;
@@ -56,6 +56,8 @@ export default function AsesorDashboard({
     .slice(0, 4);
 
   const activas = misPropiedades.filter((p) => p.estatus === "Activa").length;
+  // El asesor de equipo no capta inventario: eso lo hace el broker.
+  const puedeCaptar = puedeCargarPropiedades(asesor.rol);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -92,12 +94,14 @@ export default function AsesorDashboard({
             </span>
           </h2>
           <div className="flex gap-2">
-            <button
-              onClick={onNuevaPropiedad}
-              className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <Plus className="size-3.5" /> Nueva
-            </button>
+            {puedeCaptar && (
+              <button
+                onClick={onNuevaPropiedad}
+                className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Plus className="size-3.5" /> Nueva
+              </button>
+            )}
             <button
               onClick={onVerPropiedades}
               className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900"
@@ -108,16 +112,30 @@ export default function AsesorDashboard({
         </div>
 
         {misPropiedades.length === 0 ? (
-          <button
-            onClick={onNuevaPropiedad}
-            className="flex w-full flex-col items-center rounded-xl border border-dashed border-slate-300 p-8 text-center hover:border-slate-400"
-          >
-            <Building2 className="size-6 text-slate-300" />
-            <span className="mt-2 text-sm font-semibold text-slate-700">
-              Todavía no tienes propiedades
-            </span>
-            <span className="mt-0.5 text-xs text-slate-400">Toca aquí para dar de alta la primera</span>
-          </button>
+          puedeCaptar ? (
+            <button
+              onClick={onNuevaPropiedad}
+              className="flex w-full flex-col items-center rounded-xl border border-dashed border-slate-300 p-8 text-center hover:border-slate-400"
+            >
+              <Building2 className="size-6 text-slate-300" />
+              <span className="mt-2 text-sm font-semibold text-slate-700">
+                Todavía no tienes propiedades
+              </span>
+              <span className="mt-0.5 text-xs text-slate-400">
+                Toca aquí para dar de alta la primera
+              </span>
+            </button>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+              <Building2 className="mx-auto size-6 text-slate-300" />
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                Todavía no tienes propiedades asignadas
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Tu broker es quien da de alta el inventario y te lo asigna.
+              </p>
+            </div>
+          )
         ) : (
           <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
             {misPropiedades.map((p) => (

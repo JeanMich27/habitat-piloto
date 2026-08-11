@@ -11,15 +11,22 @@
 // porque de él sale la acción siguiente.
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
-import type { CalificacionBANT, Lead, OpcionBant } from "../types";
+import type {
+  CalificacionBANT,
+  Lead,
+  OpcionBant,
+  PerfilProspecto,
+  Propiedad,
+} from "../types";
 import {
   ACCION_POR_CLASIFICACION,
   BANT_AUTORIDAD,
   BANT_NECESIDAD,
   BANT_PLAZO,
-  BANT_PRESUPUESTO,
+  catalogoPresupuesto,
   clasificarLead,
   formatoMXN,
+  perfilDesdeOperacion,
   puntajeBant,
 } from "../types";
 
@@ -33,12 +40,20 @@ interface Paso {
 }
 
 // Las preguntas están redactadas como se las harías al cliente en voz alta.
-const PASOS: Paso[] = [
+// El bloque de dinero cambia según el perfil; los otros tres son iguales para
+// todos porque ahí no hay diferencia real entre comprar y rentar.
+const pasosDe = (perfil: PerfilProspecto): Paso[] => [
   {
     campo: "presupuesto",
-    titulo: "¿Cómo va a pagar la propiedad?",
-    subtitulo: "Lo que buscamos saber es qué tan real y disponible es el dinero.",
-    opciones: BANT_PRESUPUESTO,
+    titulo:
+      perfil === "Inquilino"
+        ? "¿Puede sostener esta renta?"
+        : "¿Cómo va a pagar la propiedad?",
+    subtitulo:
+      perfil === "Inquilino"
+        ? "Lo que decide una renta es la solvencia y el respaldo, no el crédito."
+        : "Lo que buscamos saber es qué tan real y disponible es el dinero.",
+    opciones: catalogoPresupuesto(perfil),
   },
   {
     campo: "autoridad",
@@ -60,11 +75,19 @@ const PASOS: Paso[] = [
   },
 ];
 
-const FORMAS_PAGO = [
+const FORMAS_PAGO_COMPRA = [
   "Crédito hipotecario bancario",
   "Crédito Infonavit / Fovissste",
   "Contado",
   "Cofinanciamiento",
+  "Aún no está definido",
+];
+
+const RESPALDOS_RENTA = [
+  "Aval con propiedad",
+  "Póliza jurídica",
+  "Depósito en garantía",
+  "Fiador solidario",
   "Aún no está definido",
 ];
 
@@ -76,6 +99,8 @@ const COLOR_CLASIFICACION = {
 
 interface Props {
   lead: Lead;
+  /** Propiedad de interés: de ahí se deduce si compra o renta. */
+  propiedad?: Propiedad;
   nombreAsesor: string;
   onCancelar: () => void;
   onGuardar: (bant: CalificacionBANT) => void;
@@ -83,11 +108,16 @@ interface Props {
 
 export default function CalificarProspectoModal({
   lead,
+  propiedad,
   nombreAsesor,
   onCancelar,
   onGuardar,
 }: Props) {
   const previa = lead.bant;
+  // Perfil: el que ya tenía, o el que sugiere la propiedad que le interesa.
+  const [perfil, setPerfil] = useState<PerfilProspecto>(
+    previa?.perfil ?? perfilDesdeOperacion(propiedad?.tipoOperacion),
+  );
   const [paso, setPaso] = useState(0);
   const [respuestas, setRespuestas] = useState<Record<Campo, string>>({
     presupuesto: previa?.presupuesto ?? "",
@@ -103,6 +133,8 @@ export default function CalificarProspectoModal({
   const [requisitos, setRequisitos] = useState(previa?.requisitos ?? "");
   const [observaciones, setObservaciones] = useState(previa?.observaciones ?? "");
 
+  const PASOS = useMemo(() => pasosDe(perfil), [perfil]);
+  const esInquilino = perfil === "Inquilino";
   const enResumen = paso === PASOS.length;
   const pasoActual = PASOS[paso];
   const completo = PASOS.every((p) => respuestas[p.campo] !== "");
@@ -110,6 +142,7 @@ export default function CalificarProspectoModal({
   const borrador: CalificacionBANT = useMemo(
     () => ({
       ...respuestas,
+      perfil,
       montoMaximo: Number(montoMaximo.replace(/[^\d.]/g, "")) || undefined,
       formaPago: formaPago || undefined,
       quienMasDecide: quienMasDecide || undefined,
@@ -118,7 +151,16 @@ export default function CalificarProspectoModal({
       calificadoPor: nombreAsesor,
       calificadoEl: new Date().toISOString(),
     }),
-    [respuestas, montoMaximo, formaPago, quienMasDecide, requisitos, observaciones, nombreAsesor],
+    [
+      respuestas,
+      perfil,
+      montoMaximo,
+      formaPago,
+      quienMasDecide,
+      requisitos,
+      observaciones,
+      nombreAsesor,
+    ],
   );
 
   const desglose = puntajeBant(borrador);
@@ -140,7 +182,9 @@ export default function CalificarProspectoModal({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-600">
-                ¿Hasta cuánto puede pagar? (opcional)
+                {esInquilino
+                  ? "¿Hasta cuánto de renta mensual? (opcional)"
+                  : "¿Hasta cuánto puede pagar? (opcional)"}
               </label>
               <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
                 <span className="text-sm text-slate-400">$</span>
@@ -148,14 +192,14 @@ export default function CalificarProspectoModal({
                   inputMode="decimal"
                   value={montoMaximo}
                   onChange={(e) => setMontoMaximo(e.target.value)}
-                  placeholder="3000000"
+                  placeholder={esInquilino ? "18000" : "3000000"}
                   className="w-full py-2 text-sm text-slate-900 outline-none"
                 />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-600">
-                ¿Con qué lo va a pagar? (opcional)
+                {esInquilino ? "¿Con qué respaldo? (opcional)" : "¿Con qué lo va a pagar? (opcional)"}
               </label>
               <select
                 value={formaPago}
@@ -163,7 +207,7 @@ export default function CalificarProspectoModal({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
               >
                 <option value="">Selecciona…</option>
-                {FORMAS_PAGO.map((f) => (
+                {(esInquilino ? RESPALDOS_RENTA : FORMAS_PAGO_COMPRA).map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
@@ -244,6 +288,37 @@ export default function CalificarProspectoModal({
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {!enResumen ? (
             <div className="space-y-4">
+              {/* El perfil cambia el bloque de dinero. Solo se puede cambiar en
+                  la primera pregunta, para no invalidar respuestas ya dadas. */}
+              {paso === 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-600">
+                    Esta persona quiere…
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                    {(["Comprador", "Inquilino"] as PerfilProspecto[]).map((op) => (
+                      <button
+                        key={op}
+                        onClick={() => {
+                          if (op === perfil) return;
+                          setPerfil(op);
+                          // El presupuesto de un perfil no significa nada en el
+                          // otro: se limpia en vez de arrastrar un valor inválido.
+                          setRespuestas((prev) => ({ ...prev, presupuesto: "" }));
+                          setFormaPago("");
+                        }}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                          perfil === op
+                            ? "bg-white text-slate-900 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {op === "Comprador" ? "Comprar" : "Rentar"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <h3 className="text-lg font-bold text-slate-900">{pasoActual.titulo}</h3>
                 <p className="mt-1 text-sm text-slate-500">{pasoActual.subtitulo}</p>

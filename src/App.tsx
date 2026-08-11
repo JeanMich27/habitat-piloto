@@ -34,6 +34,7 @@ import type {
 import {
   ETAPAS_QUE_EXIGEN_BANT,
   clasificarLead,
+  puedeCargarPropiedades,
   totalBant,
 } from "./types";
 import AsesorDashboard from "./views/AsesorDashboard";
@@ -339,11 +340,13 @@ export default function App() {
     // Vistas internas alcanzables desde el menú:
     if (base.has("propiedades")) {
       base.add("detalle");
-      base.add("nueva");
+      // Dar de alta inventario es del broker y del independiente: el asesor
+      // de equipo no puede llegar a esta pantalla ni por navegación interna.
+      if (rol && puedeCargarPropiedades(rol)) base.add("nueva");
     }
     if (base.has("asesores")) base.add("perfil");
     return base;
-  }, [navItems]);
+  }, [navItems, rol]);
 
   useEffect(() => {
     if (usuarioActual && vista && !vistasPermitidas.has(vista)) {
@@ -881,7 +884,7 @@ export default function App() {
               onNuevaPropiedad={() => setVista("nueva")}
             />
           )}
-          {vista === "nueva" && (
+          {vista === "nueva" && puedeCargarPropiedades(yo.rol) && (
             <NuevaPropiedad
               usuario={yo}
               propiedades={propiedades}

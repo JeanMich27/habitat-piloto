@@ -28,6 +28,18 @@ export type UserRole =
   | "propietario"
   | "cliente";
 
+/**
+ * Quién puede dar de alta propiedades.
+ *
+ * El asesor de equipo pertenece a una inmobiliaria: captar y publicar
+ * inventario es responsabilidad del broker, no suya. El asesor
+ * independiente sí, porque es su propia operación.
+ *
+ * Fuente única: no repartir este `if` por las pantallas.
+ */
+export const puedeCargarPropiedades = (rol: UserRole) =>
+  rol === "broker" || rol === "asesor_independiente";
+
 export type DocumentName = "INE" | "Predial" | "Contrato";
 
 export interface Documento {
@@ -89,6 +101,30 @@ export interface Propiedad {
   // se llenan una vez que la propiedad tiene actividad registrada.
   eventos?: EventoCronologia[];
   comparables?: Comparable[];
+
+  // --- Datos que llegan del CRM (EasyBroker hoy; otros después) ---
+  // Nombres genéricos a propósito: la columna describe el dato, y
+  // `crmOrigen` describe de dónde vino.
+  imagenes?: string[];
+  amenidades?: string[];
+  m2Terreno?: number;
+  mediosBanos?: number;
+  estacionamientos?: number;
+  niveles?: number;
+  mantenimiento?: number;
+  videoUrl?: string;
+  tourVirtualUrl?: string;
+  colonia?: string;
+  calle?: string;
+  codigoPostal?: string;
+  /** Comisión pactada en el CRM. Si existe, manda sobre el default de la app. */
+  comisionTipo?: "porcentaje" | "meses";
+  comisionValor?: number;
+  comisionCompartidaPct?: number;
+  exclusiva?: boolean;
+  crmOrigen?: string;
+  crmIdInterno?: string;
+  urlPublica?: string;
 }
 
 export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";
@@ -148,6 +184,39 @@ export const BANT_PRESUPUESTO: OpcionBant[] = [
     valor: "sin_definir",
     etiqueta: "Todavía no sabe cuánto puede pagar",
     ayuda: "No conoce su capacidad de crédito ni tiene un monto claro",
+    puntos: 0,
+  },
+];
+
+// --- Presupuesto del inquilino ---
+// A un inquilino no se le pregunta por crédito hipotecario: no aplica. Lo que
+// determina si puede rentar es otra cosa — ingresos comprobables (la regla de
+// mercado es ~3x la renta), aval o póliza jurídica, y el depósito disponible.
+// Preguntarle por su crédito era la fuente principal de calificaciones sin
+// sentido en operaciones de renta.
+export const BANT_PRESUPUESTO_RENTA: OpcionBant[] = [
+  {
+    valor: "solvente_aval",
+    etiqueta: "Comprueba ingresos y tiene aval o póliza",
+    ayuda: "Ingresos demostrables de ~3x la renta y respaldo listo",
+    puntos: 30,
+  },
+  {
+    valor: "solvente_sin_aval",
+    etiqueta: "Comprueba ingresos, pero le falta el aval",
+    ayuda: "Puede pagar; todavía no resuelve aval, fiador o póliza jurídica",
+    puntos: 15,
+  },
+  {
+    valor: "ingresos_dificiles",
+    etiqueta: "Le cuesta comprobar ingresos",
+    ayuda: "Trabaja por su cuenta o sin recibos; requiere revisión caso por caso",
+    puntos: 5,
+  },
+  {
+    valor: "sin_solvencia",
+    etiqueta: "No alcanza para esta renta",
+    ayuda: "El monto está por encima de lo que puede sostener",
     puntos: 0,
   },
 ];
@@ -223,7 +292,24 @@ export const BANT_PLAZO: OpcionBant[] = [
 
 export type ClasificacionLead = "Hot" | "Warm" | "Cold";
 
+/**
+ * Qué quiere hacer la persona. Determina qué bloque de dinero se le pregunta.
+ * Se deduce del tipo de operación de la propiedad que le interesa, y el asesor
+ * lo puede corregir si el prospecto ve las dos cosas.
+ */
+export type PerfilProspecto = "Comprador" | "Inquilino";
+
+export const perfilDesdeOperacion = (op?: TipoOperacion): PerfilProspecto =>
+  op === "Renta" ? "Inquilino" : "Comprador";
+
+/** El catálogo de dinero que aplica a cada perfil. Autoridad, Necesidad y
+ *  Plazo son comunes: ahí la pregunta es idéntica para los dos. */
+export const catalogoPresupuesto = (perfil: PerfilProspecto): OpcionBant[] =>
+  perfil === "Inquilino" ? BANT_PRESUPUESTO_RENTA : BANT_PRESUPUESTO;
+
 export interface CalificacionBANT {
+  /** Si falta, se asume Comprador (calificaciones previas al cambio). */
+  perfil?: PerfilProspecto;
   presupuesto: string;
   autoridad: string;
   necesidad: string;
@@ -245,7 +331,9 @@ const puntosDe = (catalogo: OpcionBant[], valor: string) =>
 /** Único lugar donde se calcula el puntaje. No duplicar esta fórmula. */
 export function puntajeBant(b: CalificacionBANT) {
   return {
-    presupuesto: puntosDe(BANT_PRESUPUESTO, b.presupuesto),
+    // Los dos catálogos de dinero suman igual (30/15/5/0), así que el puntaje
+    // es comparable entre compradores e inquilinos aunque midan cosas distintas.
+    presupuesto: puntosDe(catalogoPresupuesto(b.perfil ?? "Comprador"), b.presupuesto),
     autoridad: puntosDe(BANT_AUTORIDAD, b.autoridad),
     necesidad: puntosDe(BANT_NECESIDAD, b.necesidad),
     plazo: puntosDe(BANT_PLAZO, b.plazo),

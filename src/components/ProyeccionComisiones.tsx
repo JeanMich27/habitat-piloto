@@ -34,6 +34,7 @@ import {
   MESES_RENTA_DEFAULT,
   PCT_VENTA_DEFAULT,
   comisionBase,
+  tarifaDePropiedad,
 } from "../lib/comisiones";
 
 type Corte = "etapa" | "calificacion" | "plazo";
@@ -80,13 +81,16 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
         // En renta, este valor es la renta MENSUAL.
         const valor = l.montoOferta ?? prop?.precio ?? 0;
         const tipoOperacion = prop?.tipoOperacion ?? "Venta";
+        // Tarifa pactada en el CRM para esa propiedad, si existe.
+        const tarifa = tarifaDePropiedad(prop);
         const puntaje = l.bant ? totalBant(l.bant) : null;
-        return { lead: l, valor, tipoOperacion, puntaje };
+        return { lead: l, valor, tipoOperacion, tarifa, puntaje };
       })
       .filter((x) => x.valor > 0);
   }, [leads, propiedades]);
 
   const hayRentas = base.some((x) => x.tipoOperacion === "Renta");
+  const conTarifaDelCrm = base.filter((x) => x.tarifa.delCrm).length;
 
   const sinValor = leads.length - base.length;
 
@@ -124,7 +128,7 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
       }),
     );
 
-    base.forEach(({ lead, valor, tipoOperacion, puntaje }) => {
+    base.forEach(({ lead, valor, tipoOperacion, tarifa, puntaje }) => {
       const clave =
         corte === "etapa"
           ? lead.etapa
@@ -138,11 +142,13 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
       if (!fila) return;
 
       // Venta: % del precio. Renta: meses de renta. Una sola fórmula compartida.
+      // Si el CRM trae la comisión pactada de la propiedad, esa manda sobre
+      // los controles de arriba: es el acuerdo real, no un promedio.
       const comision = comisionBase({
         valor,
         tipoOperacion,
-        pctVenta: pctComision,
-        mesesRenta,
+        pctVenta: tarifa.delCrm ? tarifa.pctVenta : pctComision,
+        mesesRenta: tarifa.delCrm ? tarifa.mesesRenta : mesesRenta,
       });
       fila.prospectos += 1;
       fila.bruto += comision;
@@ -269,10 +275,13 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
           </p>
           <p className="mt-1 text-lg font-bold text-slate-900">{formatoMXN(brutoTotal)}</p>
           <p className="text-[11px] text-slate-400">
-            Venta al {pctComision}%
-            {hayRentas
-              ? ` · renta a ${mesesRenta} ${mesesRenta === 1 ? "mes" : "meses"}`
-              : ""}
+            {conTarifaDelCrm > 0
+              ? `${conTarifaDelCrm} con comisión pactada en tu CRM`
+              : `Venta al ${pctComision}%${
+                  hayRentas
+                    ? ` · renta a ${mesesRenta} ${mesesRenta === 1 ? "mes" : "meses"}`
+                    : ""
+                }`}
           </p>
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
