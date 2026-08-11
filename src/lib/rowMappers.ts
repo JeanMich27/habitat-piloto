@@ -71,6 +71,9 @@ export function leadToRow(l: Lead) {
     primer_contacto_en: l.primerContactoEn ?? null,
     monto_oferta: l.montoOferta ?? null,
     cierre: l.cierre ?? null,
+    ocupacion: l.ocupacion ?? "",
+    bant: l.bant ?? null,
+    historial: l.historial ?? [],
   };
 }
 
@@ -89,6 +92,9 @@ export function rowToLead(r: any): Lead {
     primerContactoEn: r.primer_contacto_en ?? undefined,
     montoOferta: r.monto_oferta != null ? Number(r.monto_oferta) : undefined,
     cierre: r.cierre ?? undefined,
+    ocupacion: r.ocupacion ?? undefined,
+    bant: r.bant ?? undefined,
+    historial: r.historial ?? [],
   };
 }
 

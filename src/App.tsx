@@ -4,6 +4,7 @@ import {
   Building2,
   Calculator,
   ClipboardCheck,
+  Contact,
   Download,
   Home,
   LayoutDashboard,
@@ -18,18 +19,27 @@ import db from "./data/db.json";
 import { NOTIFICACIONES_DEFAULT } from "./data/configuracionOpciones";
 import type {
   AgenciaInfo,
+  CalificacionBANT,
   Comparable,
   DocumentName,
+  Interaccion,
   Lead,
   LeadStage,
   PropertyStatus,
   Propiedad,
+  TipoInteraccion,
   UserRole,
   Usuario,
+} from "./types";
+import {
+  ETAPAS_QUE_EXIGEN_BANT,
+  clasificarLead,
+  totalBant,
 } from "./types";
 import AsesorDashboard from "./views/AsesorDashboard";
 import Asesores from "./views/Asesores";
 import CalculadoraComisiones from "./views/CalculadoraComisiones";
+import Clientes from "./views/Clientes";
 import AuthScreen from "./views/AuthScreen";
 import BrokerDashboard from "./views/BrokerDashboard";
 import Configuracion from "./views/Configuracion";
@@ -82,6 +92,7 @@ type Vista =
   | "reportes"
   | "importar"
   | "comisiones"
+  | "clientes"
   | "configuracion";
 
 const ETIQUETAS_ROL: Record<UserRole, string> = {
@@ -217,6 +228,8 @@ export default function App() {
   const [asesorSeleccionadoId, setAsesorSeleccionadoId] = useState<string | null>(null);
   // Desde dónde se abrió la calculadora, para saber a dónde regresar.
   const [origenCalculadora, setOrigenCalculadora] = useState<Vista | null>(null);
+  // Aviso cuando alguien intenta avanzar un prospecto sin calificarlo.
+  const [avisoBant, setAvisoBant] = useState<string | null>(null);
 
   // Al entrar (o cambiar de cuenta), aterriza en la vista inicial de su rol.
   useEffect(() => {
@@ -234,6 +247,7 @@ export default function App() {
         return [
           { id: "broker", etiqueta: "Dashboard", Icono: ShieldCheck },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
+          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
           { id: "intake", etiqueta: "Validación", Icono: ClipboardCheck },
           { id: "asesores", etiqueta: "Asesores", Icono: Users },
           {
@@ -250,6 +264,7 @@ export default function App() {
       case "asesor_independiente":
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
+          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
           { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
           { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
@@ -259,6 +274,7 @@ export default function App() {
       case "asesor_equipo":
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
+          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
           { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
           { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
@@ -354,11 +370,78 @@ export default function App() {
   // ============================================================
   // Acciones (idénticas a antes; RLS valida cada escritura en la nube)
   // ============================================================
-  const moverLead = (leadId: string, etapa: LeadStage) => {
-    const next = leads.map((l) => (l.id === leadId ? { ...l, etapa } : l));
+  // Agrega un evento a la bitácora del prospecto. El historial solo crece:
+  // nunca se reescribe ni se borra (la base también lo impide con un trigger).
+  const conHistorial = (l: Lead, tipo: TipoInteraccion, descripcion: string): Lead => {
+    const evento: Interaccion = {
+      id: `int-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      fecha: new Date().toISOString(),
+      tipo,
+      descripcion,
+      autor: usuarioActual?.nombre ?? "Sistema",
+    };
+    return { ...l, historial: [...(l.historial ?? []), evento] };
+  };
+
+  const guardarLead = (next: Lead[], leadId: string) => {
     setLeads(next);
     const cambiado = next.find((l) => l.id === leadId);
     if (cambiado) upsertLead(cambiado);
+  };
+
+  const moverLead = (leadId: string, etapa: LeadStage) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+
+    // Regla dura: no se avanza a Visitado, Negociación o Cierre sin calificación.
+    // Está también en la base de datos; aquí se replica para explicar el porqué
+    // en vez de mostrar un error técnico de Postgres.
+    if (ETAPAS_QUE_EXIGEN_BANT.includes(etapa) && !lead.bant) {
+      setAvisoBant(
+        `Antes de mover a ${lead.nombre} necesitas calificarlo. Ve a Clientes y responde las cuatro preguntas: toma menos de un minuto.`,
+      );
+      return;
+    }
+
+    const next = leads.map((l) =>
+      l.id === leadId
+        ? conHistorial(
+            { ...l, etapa },
+            "Etapa",
+            `Pasó de "${l.etapa}" a "${etapa}"`,
+          )
+        : l,
+    );
+    guardarLead(next, leadId);
+  };
+
+  // Guarda la calificación BANT y la deja registrada en el historial.
+  const guardarCalificacion = (leadId: string, bant: CalificacionBANT) => {
+    const total = totalBant(bant);
+    const next = leads.map((l) =>
+      l.id === leadId
+        ? conHistorial(
+            { ...l, bant },
+            "Calificacion",
+            `Calificado en ${total}/100 puntos — nivel ${clasificarLead(total)}`,
+          )
+        : l,
+    );
+    guardarLead(next, leadId);
+  };
+
+  const registrarInteraccion = (
+    leadId: string,
+    tipo: TipoInteraccion,
+    descripcion: string,
+  ) => {
+    const next = leads.map((l) => {
+      if (l.id !== leadId) return l;
+      // El primer contacto registrado alimenta el KPI de tiempo de respuesta.
+      const base = l.primerContactoEn ? l : { ...l, primerContactoEn: new Date().toISOString() };
+      return conHistorial(base, tipo, descripcion);
+    });
+    guardarLead(next, leadId);
   };
 
   const enviarAValidacion = (propiedadId: string) => {
@@ -679,6 +762,21 @@ export default function App() {
         ) : null
       }
     >
+      {/* Aviso de calificación obligatoria antes de avanzar en el embudo. */}
+      {avisoBant && (
+        <div className="fixed inset-x-0 bottom-20 z-50 mx-auto max-w-md px-4 md:bottom-6">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-lg">
+            <p className="flex-1 text-sm font-medium text-amber-900">{avisoBant}</p>
+            <button
+              onClick={() => setAvisoBant(null)}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
       {cargandoNube ? (
         <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
           Cargando tu información…
@@ -766,6 +864,21 @@ export default function App() {
               onVerPropiedades={() => setVista("propiedades")}
             />
           )}
+          {/* Clientes: asesores y broker. Propietarios y clientes nunca la ven. */}
+          {vista === "clientes" &&
+            (yo.rol === "broker" ||
+              yo.rol === "asesor_independiente" ||
+              yo.rol === "asesor_equipo") && (
+              <Clientes
+                usuario={yo}
+                usuarios={usuarios}
+                leads={leads}
+                propiedades={propiedades}
+                onGuardarCalificacion={guardarCalificacion}
+                onRegistrarInteraccion={registrarInteraccion}
+                onCambiarEtapa={moverLead}
+              />
+            )}
           {/* Calculadora de comisiones: exclusiva de asesores. */}
           {vista === "comisiones" &&
             (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (

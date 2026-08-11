@@ -26,9 +26,18 @@
         "correo": "ana.beltran@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": true },
-        { "nombre": "Predial", "aprobado": true },
-        { "nombre": "Contrato", "aprobado": true }
+        {
+          "nombre": "INE",
+          "aprobado": true
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": true
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": true
+        }
       ],
       "capturadaEl": "2026-05-28T10:00:00",
       "publicadaEl": "2026-06-10T09:00:00",
@@ -104,9 +113,18 @@
         "correo": "jorge.villasenor@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": true },
-        { "nombre": "Predial", "aprobado": false },
-        { "nombre": "Contrato", "aprobado": false }
+        {
+          "nombre": "INE",
+          "aprobado": true
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": false
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": false
+        }
       ],
       "capturadaEl": "2026-07-14T10:00:00"
     },
@@ -131,9 +149,18 @@
         "correo": "marisol.camacho@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": false },
-        { "nombre": "Predial", "aprobado": false },
-        { "nombre": "Contrato", "aprobado": false }
+        {
+          "nombre": "INE",
+          "aprobado": false
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": false
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": false
+        }
       ],
       "capturadaEl": "2026-07-22T09:30:00"
     },
@@ -158,9 +185,18 @@
         "correo": "hector.najera@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": false },
-        { "nombre": "Predial", "aprobado": false },
-        { "nombre": "Contrato", "aprobado": false }
+        {
+          "nombre": "INE",
+          "aprobado": false
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": false
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": false
+        }
       ],
       "capturadaEl": "2026-07-20T15:00:00"
     },
@@ -185,9 +221,18 @@
         "correo": "rodrigo.cifuentes@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": true },
-        { "nombre": "Predial", "aprobado": true },
-        { "nombre": "Contrato", "aprobado": true }
+        {
+          "nombre": "INE",
+          "aprobado": true
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": true
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": true
+        }
       ],
       "capturadaEl": "2026-06-20T11:00:00",
       "publicadaEl": "2026-07-01T09:00:00",
@@ -214,9 +259,18 @@
         "correo": "patricia.olvera@example.com"
       },
       "documentos": [
-        { "nombre": "INE", "aprobado": true },
-        { "nombre": "Predial", "aprobado": true },
-        { "nombre": "Contrato", "aprobado": true }
+        {
+          "nombre": "INE",
+          "aprobado": true
+        },
+        {
+          "nombre": "Predial",
+          "aprobado": true
+        },
+        {
+          "nombre": "Contrato",
+          "aprobado": true
+        }
       ],
       "capturadaEl": "2026-06-05T10:00:00",
       "publicadaEl": "2026-06-15T09:00:00",
@@ -330,7 +384,17 @@
       "interesPropiedadId": "prop-001",
       "asesorId": "user-003",
       "creado": "2026-07-21T09:15:00",
-      "nota": "Pregunta si la casa acepta crédito Infonavit + bancario."
+      "nota": "Pregunta si la casa acepta crédito Infonavit + bancario.",
+      "ocupacion": "Directora de Operaciones",
+      "historial": [
+        {
+          "id": "int-nota-lead-001",
+          "fecha": "2026-07-21T09:15:00",
+          "tipo": "Nota",
+          "descripcion": "Pregunta si la casa acepta crédito Infonavit + bancario.",
+          "autor": "Mariana Solís"
+        }
+      ]
     },
     {
       "id": "lead-002",
@@ -342,7 +406,17 @@
       "asesorId": "user-003",
       "creado": "2026-07-19T17:40:00",
       "primerContactoEn": "2026-07-19T18:05:00",
-      "nota": "Le interesa el depto de Esmeralda, pide fotos del roof garden."
+      "nota": "Le interesa el depto de Esmeralda, pide fotos del roof garden.",
+      "ocupacion": "Arquitecto Independiente",
+      "historial": [
+        {
+          "id": "int-nota-lead-002",
+          "fecha": "2026-07-19T17:40:00",
+          "tipo": "Nota",
+          "descripcion": "Le interesa el depto de Esmeralda, pide fotos del roof garden.",
+          "autor": "Mariana Solís"
+        }
+      ]
     },
     {
       "id": "lead-003",
@@ -354,7 +428,36 @@
       "asesorId": "user-003",
       "creado": "2026-07-15T11:05:00",
       "primerContactoEn": "2026-07-15T11:20:00",
-      "nota": "Visita realizada sábado 26 de julio, 11:00 am. Le gustó, sigue comparando."
+      "nota": "Visita realizada sábado 26 de julio, 11:00 am. Le gustó, sigue comparando.",
+      "ocupacion": "Médica Especialista",
+      "historial": [
+        {
+          "id": "int-nota-lead-003",
+          "fecha": "2026-07-15T11:05:00",
+          "tipo": "Nota",
+          "descripcion": "Visita realizada sábado 26 de julio, 11:00 am. Le gustó, sigue comparando.",
+          "autor": "Mariana Solís"
+        },
+        {
+          "id": "int-seed-lead-003",
+          "fecha": "2026-07-15T11:20:00",
+          "tipo": "Calificacion",
+          "descripcion": "Calificación inicial registrada por el asesor",
+          "autor": "Mariana Solís"
+        }
+      ],
+      "bant": {
+        "presupuesto": "tramite",
+        "autoridad": "decide",
+        "necesidad": "clara",
+        "plazo": "corto",
+        "montoMaximo": 5200000,
+        "formaPago": "Crédito hipotecario bancario",
+        "requisitos": "3 recámaras, cerca de escuelas, en Naucalpan",
+        "observaciones": "Ya visitó dos veces. Le urge cerrar antes de que venza su renta.",
+        "calificadoPor": "Mariana Solís",
+        "calificadoEl": "2026-07-15T11:20:00"
+      }
     },
     {
       "id": "lead-004",
@@ -367,7 +470,36 @@
       "creado": "2026-07-08T13:30:00",
       "primerContactoEn": "2026-07-08T13:52:00",
       "montoOferta": 3050000,
-      "nota": "Ofertó $3,050,000. Espera contrapropuesta del propietario."
+      "nota": "Ofertó $3,050,000. Espera contrapropuesta del propietario.",
+      "ocupacion": "Empresario Inmobiliario",
+      "historial": [
+        {
+          "id": "int-nota-lead-004",
+          "fecha": "2026-07-08T13:30:00",
+          "tipo": "Nota",
+          "descripcion": "Ofertó $3,050,000. Espera contrapropuesta del propietario.",
+          "autor": "Mariana Solís"
+        },
+        {
+          "id": "int-seed-lead-004",
+          "fecha": "2026-07-08T13:52:00",
+          "tipo": "Calificacion",
+          "descripcion": "Calificación inicial registrada por el asesor",
+          "autor": "Mariana Solís"
+        }
+      ],
+      "bant": {
+        "presupuesto": "aprobado",
+        "autoridad": "decide",
+        "necesidad": "clara",
+        "plazo": "inmediato",
+        "montoMaximo": 3400000,
+        "formaPago": "Contado",
+        "requisitos": "Departamento con amenidades, listo para rentar",
+        "observaciones": "Inversionista. Compara rendimiento, no le importa el acabado.",
+        "calificadoPor": "Mariana Solís",
+        "calificadoEl": "2026-07-08T13:52:00"
+      }
     },
     {
       "id": "lead-005",
@@ -378,7 +510,16 @@
       "interesPropiedadId": "prop-003",
       "asesorId": "user-004",
       "creado": "2026-07-22T19:20:00",
-      "nota": "Busca casa en López Mateos, presupuesto máx $2.9M."
+      "nota": "Busca casa en López Mateos, presupuesto máx $2.9M.",
+      "historial": [
+        {
+          "id": "int-nota-lead-005",
+          "fecha": "2026-07-22T19:20:00",
+          "tipo": "Nota",
+          "descripcion": "Busca casa en López Mateos, presupuesto máx $2.9M.",
+          "autor": "Mariana Solís"
+        }
+      ]
     },
     {
       "id": "lead-006",
@@ -395,10 +536,22 @@
       "cierre": {
         "etapaActual": 2,
         "documentos": [
-          { "nombre": "INE", "estado": "Validado" },
-          { "nombre": "Comprobante de domicilio", "estado": "Validado" },
-          { "nombre": "Comprobante de ingresos", "estado": "Cargado" },
-          { "nombre": "Referencias personales", "estado": "Pendiente" }
+          {
+            "nombre": "INE",
+            "estado": "Validado"
+          },
+          {
+            "nombre": "Comprobante de domicilio",
+            "estado": "Validado"
+          },
+          {
+            "nombre": "Comprobante de ingresos",
+            "estado": "Cargado"
+          },
+          {
+            "nombre": "Referencias personales",
+            "estado": "Pendiente"
+          }
         ],
         "citas": [
           {
@@ -416,6 +569,35 @@
             "estado": "Programada"
           }
         ]
+      },
+      "historial": [
+        {
+          "id": "int-nota-lead-006",
+          "fecha": "2026-07-05T10:00:00",
+          "tipo": "Nota",
+          "descripcion": "Va a rentar el departamento de Satélite. Visita realizada, documentos enviados, en investigación de antecedentes.",
+          "autor": "Mariana Solís"
+        },
+        {
+          "id": "int-seed-lead-006",
+          "fecha": "2026-07-05T10:20:00",
+          "tipo": "Calificacion",
+          "descripcion": "Calificación inicial registrada por el asesor",
+          "autor": "Mariana Solís"
+        }
+      ],
+      "bant": {
+        "presupuesto": "aprobado",
+        "autoridad": "decide",
+        "necesidad": "clara",
+        "plazo": "inmediato",
+        "montoMaximo": 4900000,
+        "formaPago": "Crédito hipotecario bancario",
+        "quienMasDecide": "Su esposa Marcela",
+        "requisitos": "Planta baja por movilidad de su papá",
+        "observaciones": "Oferta aceptada, en proceso de firma.",
+        "calificadoPor": "Mariana Solís",
+        "calificadoEl": "2026-07-05T10:20:00"
       }
     },
     {
@@ -427,7 +609,16 @@
       "interesPropiedadId": "prop-006",
       "asesorId": "user-006",
       "creado": "2026-07-24T09:00:00",
-      "nota": "Pregunta por opciones de crédito hipotecario para Bosque Real."
+      "nota": "Pregunta por opciones de crédito hipotecario para Bosque Real.",
+      "historial": [
+        {
+          "id": "int-nota-lead-007",
+          "fecha": "2026-07-24T09:00:00",
+          "tipo": "Nota",
+          "descripcion": "Pregunta por opciones de crédito hipotecario para Bosque Real.",
+          "autor": "Mariana Solís"
+        }
+      ]
     },
     {
       "id": "lead-008",
@@ -440,7 +631,35 @@
       "creado": "2026-07-10T15:00:00",
       "primerContactoEn": "2026-07-10T15:25:00",
       "montoOferta": 8200000,
-      "nota": "Ofertó $8,200,000 de contado. Espera respuesta del propietario."
+      "nota": "Ofertó $8,200,000 de contado. Espera respuesta del propietario.",
+      "historial": [
+        {
+          "id": "int-nota-lead-008",
+          "fecha": "2026-07-10T15:00:00",
+          "tipo": "Nota",
+          "descripcion": "Ofertó $8,200,000 de contado. Espera respuesta del propietario.",
+          "autor": "Mariana Solís"
+        },
+        {
+          "id": "int-seed-lead-008",
+          "fecha": "2026-07-10T15:25:00",
+          "tipo": "Calificacion",
+          "descripcion": "Calificación inicial registrada por el asesor",
+          "autor": "Mariana Solís"
+        }
+      ],
+      "bant": {
+        "presupuesto": "tramite",
+        "autoridad": "decide",
+        "necesidad": "flexible",
+        "plazo": "corto",
+        "montoMaximo": 3100000,
+        "formaPago": "Cofinanciamiento",
+        "requisitos": "Dos recámaras, estacionamiento techado",
+        "observaciones": "Negociando el precio final. Diferencia de 120 mil.",
+        "calificadoPor": "Mariana Solís",
+        "calificadoEl": "2026-07-10T15:25:00"
+      }
     }
   ]
 }
