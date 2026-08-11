@@ -2,6 +2,7 @@ import { Building2, TrendingUp } from "lucide-react";
 import KanbanCard from "../components/KanbanCard";
 import KanbanColumn from "../components/KanbanColumn";
 import PropertyCard from "../components/PropertyCard";
+import ProyeccionComisiones from "../components/ProyeccionComisiones";
 import { ETAPAS_LEAD } from "../data/etapasLead";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
 
@@ -45,6 +46,9 @@ export default function AsesorDashboard({
           propiedades exclusivas
         </div>
       </header>
+
+      {/* Proyección de cierres y comisiones (solo dashboard de asesor) */}
+      <ProyeccionComisiones leads={misLeads} propiedades={propiedades} />
 
       {/* Panel de propiedades exclusivas */}
       <section>

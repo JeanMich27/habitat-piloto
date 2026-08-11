@@ -19,8 +19,14 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import type { Propiedad, Usuario } from "../types";
+import type { Propiedad, TipoOperacion, Usuario } from "../types";
 import { formatoMXN } from "../types";
+import {
+  MESES_RENTA_DEFAULT,
+  PCT_VENTA_DEFAULT,
+  comisionBase,
+  explicacionComision,
+} from "../lib/comisiones";
 
 const IVA = 0.16;
 
@@ -35,7 +41,8 @@ const COLORES = [
   "#14b8a6",
 ];
 
-type ModoComision = "porcentaje" | "monto";
+// "tarifa" = % del precio en venta, o meses de renta en renta.
+type ModoComision = "tarifa" | "monto";
 type ModoIva = "sin" | "mas" | "incluido";
 type ModoParticipante = "pct" | "monto";
 
@@ -122,8 +129,13 @@ export default function CalculadoraComisiones({
     inicial ? String(inicial.precio) : "",
   );
 
-  const [modoComision, setModoComision] = useState<ModoComision>("porcentaje");
-  const [pctComision, setPctComision] = useState<number>(5);
+  // La operación decide la fórmula: venta usa %, renta usa meses de renta.
+  const [tipoOperacion, setTipoOperacion] = useState<TipoOperacion>(
+    inicial?.tipoOperacion ?? "Venta",
+  );
+  const [modoComision, setModoComision] = useState<ModoComision>("tarifa");
+  const [pctComision, setPctComision] = useState<number>(PCT_VENTA_DEFAULT);
+  const [mesesRenta, setMesesRenta] = useState<number>(MESES_RENTA_DEFAULT);
   const [montoComisionTexto, setMontoComisionTexto] = useState<string>("");
   const [modoIva, setModoIva] = useState<ModoIva>("sin");
 
@@ -135,10 +147,12 @@ export default function CalculadoraComisiones({
   const propiedad = disponibles.find((p) => p.id === propiedadId);
   const precio = Number(precioTexto.replace(/[^\d.]/g, "")) || 0;
 
+  const esRenta = tipoOperacion === "Renta";
+
   // --- Comisión ---
   const comisionIngresada =
-    modoComision === "porcentaje"
-      ? (precio * pctComision) / 100
+    modoComision === "tarifa"
+      ? comisionBase({ valor: precio, tipoOperacion, pctVenta: pctComision, mesesRenta })
       : Number(montoComisionTexto.replace(/[^\d.]/g, "")) || 0;
 
   // Base a repartir = comisión sin IVA. El IVA nunca se reparte: se traslada.
@@ -147,7 +161,9 @@ export default function CalculadoraComisiones({
   const montoIva = modoIva === "sin" ? 0 : base * IVA;
   const totalConIva = base + montoIva;
 
+  // En venta esto es "% del precio"; en renta es "cuántos meses de renta".
   const pctSobrePrecio = precio > 0 ? (base / precio) * 100 : 0;
+  const mesesEquivalentes = precio > 0 ? base / precio : 0;
 
   // --- Reparto ---
   const filas = participantes.map((p, i) => {
@@ -199,7 +215,10 @@ export default function CalculadoraComisiones({
   const seleccionarPropiedad = (id: string) => {
     setPropiedadId(id);
     const p = disponibles.find((x) => x.id === id);
-    if (p) setPrecioTexto(String(p.precio));
+    if (p) {
+      setPrecioTexto(String(p.precio));
+      setTipoOperacion(p.tipoOperacion);
+    }
   };
 
   // --- Resumen en texto (para WhatsApp / correo) ---
@@ -207,9 +226,22 @@ export default function CalculadoraComisiones({
     const lineas: string[] = [];
     lineas.push("REPARTO DE COMISIÓN");
     if (propiedad) lineas.push(`Propiedad: ${propiedad.titulo} — ${propiedad.ubicacion}`);
-    lineas.push(`Valor de la operación: ${formatoMXN(precio)}`);
     lineas.push(
-      `Comisión: ${formatoMXN(base)}${precio > 0 ? ` (${pct(pctSobrePrecio)} del inmueble)` : ""}`,
+      esRenta
+        ? `Renta mensual: ${formatoMXN(precio)}`
+        : `Precio de venta: ${formatoMXN(precio)}`,
+    );
+    lineas.push(
+      `Comisión: ${formatoMXN(base)}${
+        precio > 0
+          ? ` (${explicacionComision({
+              valor: precio,
+              tipoOperacion,
+              pctVenta: pctSobrePrecio,
+              mesesRenta: mesesEquivalentes,
+            })})`
+          : ""
+      }`,
     );
     if (modoIva !== "sin") {
       lineas.push(`IVA (16%): ${formatoMXN(montoIva)}`);
@@ -333,7 +365,7 @@ export default function CalculadoraComisiones({
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">
-                  Precio de venta / renta del inmueble (MXN)
+                  {esRenta ? "Renta mensual (MXN)" : "Precio de venta (MXN)"}
                 </label>
                 <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
                   <span className="text-sm text-slate-400">$</span>
@@ -360,10 +392,32 @@ export default function CalculadoraComisiones({
             </h2>
 
             <div className="mt-4 space-y-4">
+              {/* Tipo de operación: define la fórmula, no es cosmético. */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                  Tipo de operación
+                </label>
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                  {(["Venta", "Renta"] as TipoOperacion[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTipoOperacion(t)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                        tipoOperacion === t
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
                 {(
                   [
-                    { key: "porcentaje", label: "Porcentaje (%)" },
+                    { key: "tarifa", label: esRenta ? "Meses de renta" : "Porcentaje (%)" },
                     { key: "monto", label: "Monto fijo ($)" },
                   ] as const
                 ).map((o) => (
@@ -381,7 +435,43 @@ export default function CalculadoraComisiones({
                 ))}
               </div>
 
-              {modoComision === "porcentaje" ? (
+              {modoComision === "tarifa" && esRenta ? (
+                /* ---- Renta: la comisión se cobra en meses de renta ---- */
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-600">
+                      Meses de renta que cobras
+                    </label>
+                    <span className="text-xs font-bold text-emerald-600">
+                      {mesesRenta} {mesesRenta === 1 ? "mes" : "meses"}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={0.25}
+                      value={mesesRenta}
+                      onChange={(e) => setMesesRenta(Number(e.target.value))}
+                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-slate-900"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.25}
+                      value={mesesRenta}
+                      onChange={(e) => setMesesRenta(Number(e.target.value) || 0)}
+                      className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-slate-500"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    En renta la comisión se cobra en meses, no como porcentaje del monto mensual.
+                    Lo habitual es 1 mes; ajústalo si tu acuerdo es distinto.
+                  </p>
+                </div>
+              ) : modoComision === "tarifa" ? (
+                /* ---- Venta: porcentaje sobre el precio ---- */
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-600">
@@ -448,9 +538,13 @@ export default function CalculadoraComisiones({
                   <span className="text-lg font-bold">{formatoMXN(base)}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-300">
-                  <span>Equivalencia del inmueble:</span>
+                  <span>Equivale a:</span>
                   <span className="font-semibold text-emerald-400">
-                    {pct(pctSobrePrecio)} del precio
+                    {esRenta
+                      ? `${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(
+                          mesesEquivalentes,
+                        )} ${mesesEquivalentes === 1 ? "mes" : "meses"} de renta`
+                      : `${pct(pctSobrePrecio)} del precio`}
                   </span>
                 </div>
                 {modoIva !== "sin" && (
@@ -657,7 +751,9 @@ export default function CalculadoraComisiones({
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="py-2 font-semibold">Participante / concepto</th>
                     <th className="py-2 text-right font-semibold">% comisión</th>
-                    <th className="py-2 text-right font-semibold">% inmueble</th>
+                    <th className="py-2 text-right font-semibold">
+                      {esRenta ? "Meses de renta" : "% inmueble"}
+                    </th>
                     <th className="py-2 text-right font-semibold">Monto a recibir</th>
                   </tr>
                 </thead>
@@ -674,7 +770,13 @@ export default function CalculadoraComisiones({
                         </span>
                       </td>
                       <td className="py-2.5 text-right text-slate-500">{pct(f.pctComisionReal)}</td>
-                      <td className="py-2.5 text-right text-slate-500">{pct(f.pctInmueble)}</td>
+                      <td className="py-2.5 text-right text-slate-500">
+                        {esRenta
+                          ? new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(
+                              precio > 0 ? f.monto / precio : 0,
+                            )
+                          : pct(f.pctInmueble)}
+                      </td>
                       <td className="py-2.5 text-right font-semibold text-slate-900">
                         {formatoMXN(f.monto)}
                       </td>
@@ -686,7 +788,11 @@ export default function CalculadoraComisiones({
                     <td className="rounded-l-lg px-3 py-3 font-bold">Total repartido</td>
                     <td className="py-3 text-right font-bold">{pct(pctRepartido)}</td>
                     <td className="py-3 text-right font-bold">
-                      {pct(precio > 0 ? (totalRepartido / precio) * 100 : 0)}
+                      {esRenta
+                        ? new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(
+                            precio > 0 ? totalRepartido / precio : 0,
+                          )
+                        : pct(precio > 0 ? (totalRepartido / precio) * 100 : 0)}
                     </td>
                     <td className="rounded-r-lg px-3 py-3 text-right font-bold text-emerald-400">
                       {formatoMXN(totalRepartido)}
