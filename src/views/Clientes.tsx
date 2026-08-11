@@ -6,18 +6,21 @@
 // Regla de la interfaz: todo lo que el asesor captura se muestra resumido.
 // Nada de volver a leer el cuestionario completo para entender al cliente —
 // la ficha responde en tres segundos: ¿qué tan bueno es y qué sigue?
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   Clock,
   Mail,
   Phone,
+  Plus,
   Search,
   Sparkles,
   Target,
   User as UserIcon,
 } from "lucide-react";
+import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
+import NuevoClienteModal from "../components/NuevoClienteModal";
 import { etiquetaEtapa } from "../lib/metrics";
 import type {
   CalificacionBANT,
@@ -100,6 +103,11 @@ interface Props {
     descripcion: string,
   ) => void;
   onCambiarEtapa: (leadId: string, etapa: LeadStage) => void;
+  onCrearCliente: (lead: Lead) => void;
+  /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
+  clienteInicialId?: string | null;
+  /** Filtro de etapa precargado (al tocar un número del embudo). */
+  etapaInicial?: LeadStage | null;
 }
 
 export default function Clientes({
@@ -110,6 +118,9 @@ export default function Clientes({
   onGuardarCalificacion,
   onRegistrarInteraccion,
   onCambiarEtapa,
+  onCrearCliente,
+  clienteInicialId,
+  etapaInicial,
 }: Props) {
   // El asesor de equipo ve su cartera; el broker y el independiente, todo su alcance.
   const visibles = useMemo(() => {
@@ -124,11 +135,26 @@ export default function Clientes({
   const [filtroClase, setFiltroClase] = useState<"Todas" | ClasificacionLead | "Sin calificar">(
     "Todas",
   );
-  const [filtroEtapa, setFiltroEtapa] = useState<"Todas" | LeadStage>("Todas");
-  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
+  const [filtroEtapa, setFiltroEtapa] = useState<"Todas" | LeadStage>(etapaInicial ?? "Todas");
+  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
+  const [creando, setCreando] = useState(false);
   const [tipoEvento, setTipoEvento] = useState<TipoInteraccion>("Nota");
   const [textoEvento, setTextoEvento] = useState("");
+
+  // Si llegan desde el dashboard o una notificación pidiendo un cliente
+  // concreto, se abre ese y se limpian los filtros que podrían esconderlo.
+  useEffect(() => {
+    if (!clienteInicialId) return;
+    setSeleccionadoId(clienteInicialId);
+    setBusqueda("");
+    setFiltroClase("Todas");
+    setFiltroEtapa("Todas");
+  }, [clienteInicialId]);
+
+  useEffect(() => {
+    if (etapaInicial) setFiltroEtapa(etapaInicial);
+  }, [etapaInicial]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -187,7 +213,7 @@ export default function Clientes({
             Tu cartera ordenada por qué tan cerca está cada persona de comprar.
           </p>
         </div>
-        <div className="flex gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700">
             {calientes} listos para cerrar
           </span>
@@ -196,6 +222,12 @@ export default function Clientes({
               {sinCalificar} sin calificar
             </span>
           )}
+          <button
+            onClick={() => setCreando(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+          >
+            <Plus className="size-3.5" /> Agregar cliente
+          </button>
         </div>
       </div>
 
@@ -255,48 +287,71 @@ export default function Clientes({
                 b.fecha.localeCompare(a.fecha),
               )[0];
               return (
-                <button
+                <div
                   key={l.id}
-                  onClick={() => setSeleccionadoId(l.id)}
-                  className={`w-full rounded-xl border bg-white p-4 text-left transition ${
-                    activo ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-400"
+                  className={`rounded-xl border bg-white transition ${
+                    activo
+                      ? "border-slate-900 ring-1 ring-slate-900"
+                      : "border-slate-200 hover:border-slate-400"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
-                        {l.nombre.slice(0, 2).toUpperCase()}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-bold text-slate-900">
-                          {l.nombre}
+                  <button
+                    onClick={() => setSeleccionadoId(l.id)}
+                    className="w-full p-4 pb-2 text-left"
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+                          {l.nombre.slice(0, 2).toUpperCase()}
                         </span>
-                        <span className="block truncate text-xs text-slate-500">
-                          {l.ocupacion || l.telefono || "Sin datos de contacto"}
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-slate-900">
+                            {l.nombre}
+                          </span>
+                          <span className="block truncate text-xs text-slate-500">
+                            {l.ocupacion || l.telefono || "Sin datos de contacto"}
+                          </span>
                         </span>
                       </span>
-                    </div>
-                    <Insignia lead={l} />
-                  </div>
+                      <Insignia lead={l} />
+                    </span>
 
-                  <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-xs">
-                    <p className="flex items-center justify-between gap-2 text-slate-500">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <Building2 className="size-3.5 shrink-0" />
-                        <span className="truncate">{prop?.titulo ?? "Sin propiedad de interés"}</span>
+                    <span className="mt-3 block space-y-1 border-t border-slate-100 pt-3 text-xs">
+                      <span className="flex items-center justify-between gap-2 text-slate-500">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Building2 className="size-3.5 shrink-0" />
+                          <span className="truncate">
+                            {prop?.titulo ?? "Sin propiedad de interés"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                          {etiquetaEtapa(l.etapa)}
+                        </span>
                       </span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                        {etiquetaEtapa(l.etapa)}
+                      <span className="flex items-start gap-1.5 text-slate-400">
+                        <Clock className="mt-0.5 size-3.5 shrink-0" />
+                        <span className="line-clamp-1">
+                          {ultimo
+                            ? `${ultimo.tipo}: ${ultimo.descripcion}`
+                            : l.nota || "Sin actividad registrada"}
+                        </span>
                       </span>
-                    </p>
-                    <p className="flex items-start gap-1.5 text-slate-400">
-                      <Clock className="mt-0.5 size-3.5 shrink-0" />
-                      <span className="line-clamp-1">
-                        {ultimo ? `${ultimo.tipo}: ${ultimo.descripcion}` : l.nota || "Sin actividad registrada"}
-                      </span>
-                    </p>
+                    </span>
+                  </button>
+
+                  {/* Contactar sin entrar a la ficha: un toque desde la lista. */}
+                  <div className="flex justify-end px-4 pb-3">
+                    <BotonWhatsApp
+                      lead={l}
+                      propiedad={prop}
+                      nombreAsesor={usuario.nombre}
+                      compacto
+                      onContactar={() =>
+                        onRegistrarInteraccion(l.id, "WhatsApp", "Se le escribió por WhatsApp")
+                      }
+                    />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -330,16 +385,30 @@ export default function Clientes({
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setCalificando(true)}
-                    className={`rounded-lg px-4 py-2 text-xs font-semibold ${
-                      bant
-                        ? "border border-slate-300 text-slate-700 hover:bg-slate-50"
-                        : "bg-slate-900 text-white hover:bg-slate-800"
-                    }`}
-                  >
-                    {bant ? "Volver a calificar" : "Calificar prospecto"}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <BotonWhatsApp
+                      lead={seleccionado}
+                      propiedad={propiedadInteres}
+                      nombreAsesor={usuario.nombre}
+                      onContactar={() =>
+                        onRegistrarInteraccion(
+                          seleccionado.id,
+                          "WhatsApp",
+                          "Se le escribió por WhatsApp",
+                        )
+                      }
+                    />
+                    <button
+                      onClick={() => setCalificando(true)}
+                      className={`rounded-lg px-4 py-2 text-xs font-semibold ${
+                        bant
+                          ? "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                          : "bg-slate-900 text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      {bant ? "Volver a calificar" : "Calificar prospecto"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
@@ -612,6 +681,24 @@ export default function Clientes({
           )}
         </div>
       </div>
+
+      {creando && (
+        <NuevoClienteModal
+          propiedades={propiedades}
+          asesorId={usuario.id}
+          onCancelar={() => setCreando(false)}
+          onGuardar={(nuevo) => {
+            onCrearCliente(nuevo);
+            setCreando(false);
+            // Se abre su ficha de inmediato: el asesor acaba de capturarlo,
+            // lo siguiente que quiere es calificarlo o escribirle.
+            setSeleccionadoId(nuevo.id);
+            setBusqueda("");
+            setFiltroClase("Todas");
+            setFiltroEtapa("Todas");
+          }}
+        />
+      )}
 
       {calificando && seleccionado && (
         <CalificarProspectoModal

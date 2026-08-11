@@ -27,6 +27,8 @@ interface Props {
   avisoNube?: string | null;
   onCerrarSesion: () => void;
   accionesExtra?: ReactNode;
+  /** Campana de notificaciones (se inyecta desde App con los datos del usuario). */
+  campana?: ReactNode;
   children: ReactNode;
 }
 
@@ -41,6 +43,7 @@ export default function AppShell({
   avisoNube,
   onCerrarSesion,
   accionesExtra,
+  campana,
   children,
 }: Props) {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -91,6 +94,7 @@ export default function AppShell({
           {/* Usuario */}
           <div className="relative flex shrink-0 items-center gap-2">
             {accionesExtra}
+            {campana}
             <button
               onClick={() => setPerfilAbierto((v) => !v)}
               className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-2.5 transition-colors hover:bg-slate-50"

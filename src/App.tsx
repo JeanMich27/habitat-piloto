@@ -56,6 +56,13 @@ import PropietarioPortal from "./views/PropietarioPortal";
 import Reportes from "./views/Reportes";
 import SolicitudesAcceso from "./views/SolicitudesAcceso";
 import AppShell, { type NavItem } from "./components/AppShell";
+import CampanaNotificaciones from "./components/CampanaNotificaciones";
+import {
+  construirNotificaciones,
+  guardarVistas,
+  leerVistas,
+  type Notificacion,
+} from "./lib/notificaciones";
 import { useAuth } from "./lib/authContext";
 import { isCloudEnabled } from "./lib/supabaseClient";
 import {
@@ -230,6 +237,11 @@ export default function App() {
   const [origenCalculadora, setOrigenCalculadora] = useState<Vista | null>(null);
   // Aviso cuando alguien intenta avanzar un prospecto sin calificarlo.
   const [avisoBant, setAvisoBant] = useState<string | null>(null);
+  // Cliente y filtro con los que debe abrirse la vista de Clientes.
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
+  const [etapaClientes, setEtapaClientes] = useState<LeadStage | null>(null);
+  // Notificaciones ya vistas (por usuario, en este navegador).
+  const [vistasNotif, setVistasNotif] = useState<Set<string>>(new Set());
 
   // Al entrar (o cambiar de cuenta), aterriza en la vista inicial de su rol.
   useEffect(() => {
@@ -239,6 +251,33 @@ export default function App() {
 
   const rol = usuarioActual?.rol;
   const solicitudesPendientes = usuarios.filter((u) => u.estadoCuenta === "Pendiente").length;
+
+  // --- Avisos de la campana: se derivan de los datos, no de una tabla aparte.
+  // (Ojo: `notificaciones` es otra cosa — son las preferencias de Configuración.)
+  const avisos: Notificacion[] = useMemo(
+    () => (usuarioActual ? construirNotificaciones(usuarioActual, leads, propiedades) : []),
+    [usuarioActual, leads, propiedades],
+  );
+
+  useEffect(() => {
+    setVistasNotif(usuarioActual ? leerVistas(usuarioActual.id) : new Set());
+  }, [usuarioActual?.id]);
+
+  const marcarNotifVista = (id: string) => {
+    if (!usuarioActual) return;
+    setVistasNotif((prev) => {
+      const next = new Set(prev).add(id);
+      guardarVistas(usuarioActual.id, next);
+      return next;
+    });
+  };
+
+  const marcarTodasVistas = () => {
+    if (!usuarioActual) return;
+    const next = new Set<string>(avisos.map((n) => n.id));
+    setVistasNotif(next);
+    guardarVistas(usuarioActual.id, next);
+  };
 
   // Menú según rol: nadie ve destinos ajenos.
   const navItems: NavItem[] = useMemo(() => {
@@ -566,6 +605,27 @@ export default function App() {
     setVista("detalle");
   };
 
+  // Abre la vista de Clientes en un cliente concreto (un solo toque desde
+  // el dashboard o desde una notificación: nunca "búscalo en la lista").
+  const irACliente = (leadId: string) => {
+    setClienteSeleccionadoId(leadId);
+    setEtapaClientes(null);
+    setVista("clientes");
+  };
+
+  // Abre Clientes filtrado por etapa (al tocar un número del embudo).
+  const irAClientes = (etapa?: LeadStage) => {
+    setClienteSeleccionadoId(null);
+    setEtapaClientes(etapa ?? null);
+    setVista("clientes");
+  };
+
+  const crearCliente = (nuevo: Lead) => {
+    const conAlta = conHistorial(nuevo, "Nota", "Cliente dado de alta");
+    setLeads((prev) => [...prev, conAlta]);
+    upsertLead(conAlta);
+  };
+
   // Abre la calculadora de comisiones con una propiedad precargada.
   const irACalculadora = (propiedadId: string) => {
     setPropiedadSeleccionadaId(propiedadId);
@@ -733,8 +793,26 @@ export default function App() {
       vistaActiva={vista ?? ""}
       onNavegar={(id) => {
         setOrigenCalculadora(null);
+        // Entrar por el menú siempre muestra la lista completa, sin filtros
+        // heredados de la última vez.
+        if (id === "clientes") {
+          setClienteSeleccionadoId(null);
+          setEtapaClientes(null);
+        }
         setVista(id as Vista);
       }}
+      campana={
+        <CampanaNotificaciones
+          notificaciones={avisos}
+          vistas={vistasNotif}
+          onMarcarTodasLeidas={marcarTodasVistas}
+          onAbrir={(n) => {
+            marcarNotifVista(n.id);
+            if (n.destino === "cliente") irACliente(n.refId);
+            else irADetalle(n.refId);
+          }}
+        />
+      }
       nombreUsuario={yo.nombre}
       iniciales={yo.iniciales || yo.nombre.slice(0, 2).toUpperCase()}
       etiquetaRol={ETIQUETAS_ROL[yo.rol]}
@@ -860,8 +938,11 @@ export default function App() {
               asesor={yo}
               leads={leads}
               propiedades={propiedades}
-              onMoveLead={moverLead}
               onVerPropiedades={() => setVista("propiedades")}
+              onVerPropiedad={irADetalle}
+              onVerClientes={irAClientes}
+              onVerCliente={irACliente}
+              onNuevaPropiedad={() => setVista("nueva")}
             />
           )}
           {/* Clientes: asesores y broker. Propietarios y clientes nunca la ven. */}
@@ -877,6 +958,9 @@ export default function App() {
                 onGuardarCalificacion={guardarCalificacion}
                 onRegistrarInteraccion={registrarInteraccion}
                 onCambiarEtapa={moverLead}
+                onCrearCliente={crearCliente}
+                clienteInicialId={clienteSeleccionadoId}
+                etapaInicial={etapaClientes}
               />
             )}
           {/* Calculadora de comisiones: exclusiva de asesores. */}
