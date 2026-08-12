@@ -1,8 +1,10 @@
 // Estructura responsive de la app una vez con sesión iniciada.
 //
-// - Desktop (md+): header con marca + usuario, y una fila de pestañas.
-// - Móvil: header compacto, barra de navegación inferior fija con los 4
-//   destinos principales del rol + botón "Más" que abre una hoja con el resto.
+// Rediseño Fase 1 (glass + neumórfico):
+// - Desktop (md+): header translúcido con marca + usuario y una fila de
+//   pestañas tipo píldora; la activa se marca con el acento violeta.
+// - Móvil: header compacto y barra inferior FLOTANTE de vidrio (estilo
+//   Samsung Health) con los 4 destinos principales + "Más" en hoja glass.
 // Cada rol recibe solo sus destinos: el menú nunca muestra pantallas ajenas.
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { CloudOff, LogOut, Menu, X } from "lucide-react";
@@ -61,12 +63,12 @@ export default function AppShell({
   const badgeTotalSecundarios = secundarios.reduce((acc, i) => acc + (i.badge ?? 0), 0);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       {/* ---------- Header ---------- */}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-white/50 bg-white/55 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-black tracking-tight text-white">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-xs font-black tracking-tight text-white shadow-md shadow-violet-300/50">
               RE
             </div>
             <div className="min-w-0 leading-tight">
@@ -81,10 +83,10 @@ export default function AppShell({
                   ? "Conectado a la base de datos compartida"
                   : "Modo local: los datos solo se guardan en este navegador"
               }
-              className={`ml-1 hidden shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold sm:flex ${
+              className={`ml-1 hidden shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold backdrop-blur sm:flex ${
                 modoNube && !avisoNube
-                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                  : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                  ? "bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-200/80"
+                  : "bg-amber-50/80 text-amber-700 ring-1 ring-amber-200/80"
               }`}
             >
               {modoNube && !avisoNube ? "● En vivo" : <><CloudOff className="size-3" /> Local</>}
@@ -97,9 +99,9 @@ export default function AppShell({
             {campana}
             <button
               onClick={() => setPerfilAbierto((v) => !v)}
-              className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-2.5 transition-colors hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-full border border-white/70 bg-white/60 py-1 pl-1 pr-2.5 shadow-sm backdrop-blur transition-colors hover:bg-white/90"
             >
-              <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+              <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[11px] font-bold text-white">
                 {iniciales}
               </span>
               <span className="hidden text-left leading-tight md:block">
@@ -112,14 +114,14 @@ export default function AppShell({
             {perfilAbierto && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setPerfilAbierto(false)} />
-                <div className="absolute right-0 top-11 z-50 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                  <div className="border-b border-slate-100 px-3 pb-2 pt-1 md:hidden">
+                <div className="glass-strong absolute right-0 top-11 z-50 w-56 rounded-2xl p-2">
+                  <div className="border-b border-slate-200/60 px-3 pb-2 pt-1 md:hidden">
                     <p className="truncate text-sm font-bold text-slate-900">{nombreUsuario}</p>
                     <p className="text-xs text-slate-400">{etiquetaRol}</p>
                   </div>
                   <button
                     onClick={onCerrarSesion}
-                    className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50/80"
                   >
                     <LogOut className="size-4" /> Cerrar sesión
                   </button>
@@ -131,16 +133,16 @@ export default function AppShell({
 
         {/* Pestañas de navegación — solo desktop/tablet */}
         {items.length > 1 && (
-          <div className="hidden border-t border-slate-100 md:block">
+          <div className="hidden border-t border-white/40 md:block">
             <div className="mx-auto flex max-w-7xl flex-wrap gap-1 px-4 py-1.5 sm:px-6">
               {items.map(({ id, etiqueta, Icono, badge }) => (
                 <button
                   key={id}
                   onClick={() => onNavegar(id)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                     vistaActiva === id
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                      ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
+                      : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
                   }`}
                 >
                   <Icono className="size-3.5" />
@@ -164,44 +166,53 @@ export default function AppShell({
       )}
 
       {/* ---------- Contenido ---------- */}
-      {/* pb-24 en móvil deja espacio para la barra inferior */}
-      <div key={vistaActiva} className="animate-vista pb-24 md:pb-8">{children}</div>
+      {/* pb-28 en móvil deja espacio para la barra inferior flotante */}
+      <div key={vistaActiva} className="animate-vista pb-28 md:pb-8">{children}</div>
 
-      {/* ---------- Barra inferior (solo móvil) ---------- */}
+      {/* ---------- Barra inferior flotante (solo móvil) ---------- */}
       {items.length > 1 && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-          <div className="mx-auto flex max-w-md items-stretch">
+        <nav className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 md:hidden">
+          <div className="glass-strong mx-auto flex max-w-md items-stretch rounded-[1.75rem] px-1.5 py-1">
             {principales.map(({ id, etiqueta, etiquetaCorta, Icono, badge }) => (
               <button
                 key={id}
                 onClick={() => onNavegar(id)}
-                className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
-                  vistaActiva === id ? "text-slate-900" : "text-slate-400"
+                className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
+                  vistaActiva === id ? "text-violet-700" : "text-slate-400"
                 }`}
               >
-                <Icono className="size-5" />
+                <span
+                  className={`flex size-8 items-center justify-center rounded-full transition ${
+                    vistaActiva === id ? "bg-violet-100 shadow-inner" : ""
+                  }`}
+                >
+                  <Icono className="size-5" />
+                </span>
                 {etiquetaCorta ?? etiqueta}
                 {badge ? (
-                  <span className="absolute right-1/4 top-1.5 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
+                  <span className="absolute right-1/4 top-1 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
                     {badge}
                   </span>
                 ) : null}
-                {vistaActiva === id && (
-                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-b bg-slate-900" />
-                )}
               </button>
             ))}
             {hayMas && (
               <button
                 onClick={() => setMenuAbierto(true)}
-                className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
-                  secundarios.some((i) => i.id === vistaActiva) ? "text-slate-900" : "text-slate-400"
+                className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
+                  secundarios.some((i) => i.id === vistaActiva) ? "text-violet-700" : "text-slate-400"
                 }`}
               >
-                <Menu className="size-5" />
+                <span
+                  className={`flex size-8 items-center justify-center rounded-full transition ${
+                    secundarios.some((i) => i.id === vistaActiva) ? "bg-violet-100 shadow-inner" : ""
+                  }`}
+                >
+                  <Menu className="size-5" />
+                </span>
                 Más
                 {badgeTotalSecundarios ? (
-                  <span className="absolute right-1/4 top-1.5 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
+                  <span className="absolute right-1/4 top-1 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
                     {badgeTotalSecundarios}
                   </span>
                 ) : null}
@@ -214,13 +225,17 @@ export default function AppShell({
       {/* Hoja "Más" (móvil) */}
       {menuAbierto && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMenuAbierto(false)} />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div
+            className="animate-backdrop absolute inset-0 bg-slate-900/25 backdrop-blur-sm"
+            onClick={() => setMenuAbierto(false)}
+          />
+          <div className="animate-modal glass-strong absolute inset-x-0 bottom-0 rounded-t-[2rem] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300/70" />
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-bold text-slate-900">Más opciones</p>
               <button
                 onClick={() => setMenuAbierto(false)}
-                className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                className="flex size-8 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-sm"
                 aria-label="Cerrar menú"
               >
                 <X className="size-4" />
@@ -231,10 +246,10 @@ export default function AppShell({
                 <button
                   key={id}
                   onClick={() => onNavegar(id)}
-                  className={`relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-center text-[11px] font-semibold leading-tight ${
+                  className={`relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center text-[11px] font-semibold leading-tight transition ${
                     vistaActiva === id
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
+                      : "bg-white/70 text-slate-600 shadow-sm hover:bg-white"
                   }`}
                 >
                   <Icono className="size-5" />

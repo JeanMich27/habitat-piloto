@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import EstadoPropiedadModal from "../components/EstadoPropiedadModal";
+import PropertyCard from "../components/PropertyCard";
+import AntiguedadBadge from "../components/AntiguedadBadge";
+import { ANTIGUEDAD_ESTILOS, ANTIGUEDAD_LEYENDA } from "../lib/antiguedad";
 import type {
   Lead,
   PropertyStatus,
@@ -175,15 +178,26 @@ export default function ListadoPropiedades({
         {puedeCargarPropiedades(usuario.rol) && (
           <button
             onClick={onNuevaPropiedad}
-            className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700"
           >
             <Plus className="size-4" /> Nueva propiedad
           </button>
         )}
       </header>
 
+      {/* Leyenda del termómetro de antigüedad */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500">
+        <span className="font-semibold text-slate-600">Tiempo publicada:</span>
+        {ANTIGUEDAD_LEYENDA.map(({ nivel, texto }) => (
+          <span key={nivel} className="flex items-center gap-1.5">
+            <span className={`size-2.5 rounded-full ${ANTIGUEDAD_ESTILOS[nivel].punto}`} />
+            {texto}
+          </span>
+        ))}
+      </div>
+
       {/* Buscador y filtros */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <div className="glass flex flex-wrap items-center gap-2 p-3">
         <div className="relative flex-1 min-w-[14rem]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -193,7 +207,7 @@ export default function ListadoPropiedades({
               setPagina(1);
             }}
             placeholder="Buscar por dirección o propietario…"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-slate-400 focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-white/70 bg-white/70 py-2 pl-9 pr-3 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
           />
         </div>
 
@@ -203,7 +217,7 @@ export default function ListadoPropiedades({
             setFiltroEstado(e.target.value as PropertyStatus | "Todos");
             setPagina(1);
           }}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
         >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
@@ -218,7 +232,7 @@ export default function ListadoPropiedades({
             setFiltroOperacion(e.target.value as TipoOperacion | "Todos");
             setPagina(1);
           }}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
         >
           {OPERACIONES.map((o) => (
             <option key={o} value={o}>
@@ -234,7 +248,7 @@ export default function ListadoPropiedades({
               setFiltroAsesor(e.target.value);
               setPagina(1);
             }}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
           >
             <option value="Todos">Todos los asesores</option>
             {usuarios
@@ -256,7 +270,7 @@ export default function ListadoPropiedades({
             }}
             placeholder="Precio mín."
             inputMode="numeric"
-            className="w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
           />
           <span className="text-slate-400">–</span>
           <input
@@ -267,15 +281,36 @@ export default function ListadoPropiedades({
             }}
             placeholder="Precio máx."
             inputMode="numeric"
-            className="w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
           />
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      {/* Tarjetas (solo móvil): la tabla es incómoda en pantalla chica. */}
+      <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 md:hidden">
+        {paginadas.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => onVerDetalle(p.id)}
+            className="text-left"
+            aria-label={`Abrir ${p.titulo}`}
+          >
+            <PropertyCard propiedad={p} />
+          </button>
+        ))}
+        {paginadas.length === 0 && (
+          <p className="glass col-span-full px-4 py-14 text-center text-sm text-slate-400">
+            {base.length === 0
+              ? "Aún no tienes propiedades."
+              : "Ningún resultado coincide con los filtros."}
+          </p>
+        )}
+      </div>
+
+      {/* Tabla (desktop) */}
+      <div className="glass hidden overflow-x-auto md:block">
         <table className="w-full min-w-[64rem] text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-slate-200/70 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Foto</th>
               {th("Dirección", "direccion")}
@@ -291,9 +326,8 @@ export default function ListadoPropiedades({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginadas.map((p) => {
-              const dias = p.publicadaEl ? diasDesde(p.publicadaEl, ahora) : null;
               return (
-                <tr key={p.id} className="hover:bg-slate-50">
+                <tr key={p.id} className="hover:bg-white/60">
                   <td className="px-4 py-3">
                     <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500">
                       <Building2 className="size-4 text-white/70" />
@@ -313,7 +347,9 @@ export default function ListadoPropiedades({
                   {alcanceTodos && (
                     <td className="px-4 py-3 text-slate-600">{nombreAsesor(p.asesorId)}</td>
                   )}
-                  <td className="px-4 py-3 text-slate-600">{dias === null ? "—" : `${dias} días`}</td>
+                  <td className="px-4 py-3">
+                    <AntiguedadBadge propiedad={p} ahora={ahora} compacta />
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{leadsDe(p.id).length}</td>
                   <td className="px-4 py-3 text-slate-600">{visitasDe(p.id)}</td>
                   <td className="relative px-4 py-3 text-right">
@@ -324,7 +360,7 @@ export default function ListadoPropiedades({
                       <MoreVertical className="size-4" />
                     </button>
                     {menuAbierto === p.id && (
-                      <div className="absolute right-4 top-10 z-10 w-48 rounded-lg border border-slate-200 bg-white py-1 text-left shadow-sm">
+                      <div className="glass-strong absolute right-4 top-10 z-10 w-48 rounded-2xl py-1 text-left">
                         <button
                           onClick={() => {
                             onVerDetalle(p.id);
@@ -383,7 +419,7 @@ export default function ListadoPropiedades({
               setPorPagina(Number(e.target.value) as (typeof POR_PAGINA_OPCIONES)[number]);
               setPagina(1);
             }}
-            className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:border-slate-400 focus:outline-none"
+            className="rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm focus:border-violet-400 focus:outline-none"
           >
             {POR_PAGINA_OPCIONES.map((n) => (
               <option key={n} value={n}>
@@ -397,7 +433,7 @@ export default function ListadoPropiedades({
           <button
             disabled={paginaSegura <= 1}
             onClick={() => setPagina((p) => Math.max(1, p - 1))}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-full bg-white/70 px-4 py-1.5 font-semibold shadow-sm hover:bg-white disabled:opacity-40"
           >
             Anterior
           </button>
@@ -407,7 +443,7 @@ export default function ListadoPropiedades({
           <button
             disabled={paginaSegura >= totalPaginas}
             onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-full bg-white/70 px-4 py-1.5 font-semibold shadow-sm hover:bg-white disabled:opacity-40"
           >
             Siguiente
           </button>

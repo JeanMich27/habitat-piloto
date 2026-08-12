@@ -1,10 +1,50 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Sistema de diseño — Fase 1 del rediseño (glass + neumórfico)
+   Base pastel suave con acento violeta. Las vistas consumen las
+   clases .glass / .neu / .glass-strong en lugar de repetir
+   borde+fondo+sombra en cada tarjeta.
+   ============================================================ */
+
 body {
-  @apply bg-white text-slate-900 antialiased;
+  @apply text-slate-900 antialiased;
+  /* Fondo pastel tipo Samsung Health: azul claro → lila → verde suave. */
+  background: linear-gradient(165deg, #e9f3fb 0%, #eef0fb 40%, #f2f7ef 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
-/* Transición sutil al cambiar de vista (se aplica vía key={vistaActiva} en AppShell). */
+/* --- Tarjeta de vidrio (glassmorphism) --- */
+.glass {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 32px rgba(85, 95, 160, 0.1);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* Vidrio más opaco: para modales superpuestos donde hay que leer. */
+.glass-strong {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 64px rgba(60, 70, 140, 0.22);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* --- Tarjeta neumórfica: relieve suave, sin marcos pesados --- */
+.neu {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    7px 7px 18px rgba(163, 177, 198, 0.32),
+    -7px -7px 18px rgba(255, 255, 255, 0.9);
+}
+
+/* Transición sutil al cambiar de vista (key={vistaActiva} en AppShell). */
 @keyframes vista-entrada {
   from {
     opacity: 0;
@@ -20,8 +60,39 @@ body {
   animation: vista-entrada 0.25s ease-out;
 }
 
+/* --- Animaciones del glass modal (tarjeta de detalles superpuesta) --- */
+@keyframes modal-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-entrada {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-modal {
+  animation: modal-entrada 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-backdrop {
+  animation: backdrop-entrada 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-vista {
+  .animate-vista,
+  .animate-modal,
+  .animate-backdrop {
     animation: none;
   }
 }
@@ -38,9 +109,7 @@ button {
    sobre utilidades como w-auto/pl-9 puestas junto a "input" en el mismo
    elemento, aunque vengan "después" en el atributo className. Si un input
    necesita ancho o padding distinto al default, no combines "input" con esa
-   utilidad — escribe las clases sueltas (border, rounded-lg, py-2, text-sm,
-   focus:...) sin pasar por esta clase. Ya pasó dos veces (w-auto en Reportes,
-   pl-9 en NuevaPropiedad). */
+   utilidad — escribe las clases sueltas sin pasar por esta clase. */
 .input {
-  @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors focus:border-slate-500 focus:outline-none;
+  @apply w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm transition-colors focus:border-violet-400 focus:bg-white focus:outline-none;
 }
