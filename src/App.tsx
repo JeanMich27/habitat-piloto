@@ -37,6 +37,7 @@ import {
   puedeCargarPropiedades,
   totalBant,
 } from "./types";
+import AnalisisComisiones from "./views/AnalisisComisiones";
 import AsesorDashboard from "./views/AsesorDashboard";
 import Asesores from "./views/Asesores";
 import CalculadoraComisiones from "./views/CalculadoraComisiones";
@@ -100,6 +101,7 @@ type Vista =
   | "reportes"
   | "importar"
   | "comisiones"
+  | "analisis-comisiones"
   | "clientes"
   | "configuracion";
 
@@ -250,6 +252,41 @@ export default function App() {
     else setVista(null);
   }, [usuarioActual?.id, usuarioActual?.rol]);
 
+  // --- Historial del navegador ---
+  // Cada cambio de vista se registra en window.history para que el botón
+  // "atrás" (del navegador o del teléfono) regrese a la vista anterior en
+  // vez de cerrar la aplicación. `desdePopstate` evita registrar de nuevo
+  // la vista cuando el cambio vino precisamente de ese botón.
+  const desdePopstate = useRef(false);
+
+  useEffect(() => {
+    if (!vista) return;
+    if (desdePopstate.current) {
+      desdePopstate.current = false;
+      return;
+    }
+    const estadoActual = (window.history.state ?? {}) as { vista?: Vista };
+    if (estadoActual.vista === vista) return;
+    if (estadoActual.vista == null) {
+      // Primera vista de la sesión: se reemplaza la entrada actual.
+      window.history.replaceState({ vista }, "");
+    } else {
+      window.history.pushState({ vista }, "");
+    }
+  }, [vista]);
+
+  useEffect(() => {
+    const alRegresar = (e: PopStateEvent) => {
+      const anterior = (e.state as { vista?: Vista } | null)?.vista;
+      if (anterior) {
+        desdePopstate.current = true;
+        setVista(anterior);
+      }
+    };
+    window.addEventListener("popstate", alRegresar);
+    return () => window.removeEventListener("popstate", alRegresar);
+  }, []);
+
   const rol = usuarioActual?.rol;
   const solicitudesPendientes = usuarios.filter((u) => u.estadoCuenta === "Pendiente").length;
 
@@ -345,6 +382,9 @@ export default function App() {
       if (rol && puedeCargarPropiedades(rol)) base.add("nueva");
     }
     if (base.has("asesores")) base.add("perfil");
+    // Análisis de cierres y comisiones: se abre desde la tarjeta del
+    // dashboard del asesor, sin icono propio en el menú (decisión de diseño).
+    if (base.has("comisiones")) base.add("analisis-comisiones");
     return base;
   }, [navItems, rol]);
 
@@ -946,8 +986,19 @@ export default function App() {
               onVerClientes={irAClientes}
               onVerCliente={irACliente}
               onNuevaPropiedad={() => setVista("nueva")}
+              onVerAnalisis={() => setVista("analisis-comisiones")}
             />
           )}
+          {/* Análisis de cierres y comisiones: exclusivo de asesores, solo lectura. */}
+          {vista === "analisis-comisiones" &&
+            (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
+              <AnalisisComisiones
+                asesor={yo}
+                leads={leads}
+                propiedades={propiedades}
+                onVolver={() => setVista("asesor")}
+              />
+            )}
           {/* Clientes: asesores y broker. Propietarios y clientes nunca la ven. */}
           {vista === "clientes" &&
             (yo.rol === "broker" ||

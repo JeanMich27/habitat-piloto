@@ -65,18 +65,25 @@ export default function AppShell({
   return (
     <div className="min-h-screen">
       {/* ---------- Header ---------- */}
-      <header className="sticky top-0 z-40 border-b border-white/50 bg-white/55 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-white/60 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-xs font-black tracking-tight text-white shadow-md shadow-violet-300/50">
-              RE
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-bold text-slate-900">Real Estate</p>
-              <p className="hidden text-[10px] uppercase tracking-widest text-slate-400 sm:block">
-                Plataforma Inmobiliaria
-              </p>
-            </div>
+            {/* El logo siempre regresa al inicio del rol (primer destino del menú). */}
+            <button
+              onClick={() => items[0] && onNavegar(items[0].id)}
+              title="Ir al inicio"
+              className="flex min-w-0 items-center gap-2 text-left"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-xs font-black tracking-tight text-white shadow-md shadow-violet-300/50">
+                RE
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-bold text-slate-900">Real Estate</span>
+                <span className="hidden text-[10px] uppercase tracking-widest text-slate-400 sm:block">
+                  Plataforma Inmobiliaria
+                </span>
+              </span>
+            </button>
             <span
               title={
                 modoNube
@@ -172,7 +179,9 @@ export default function AppShell({
       {/* ---------- Barra inferior flotante (solo móvil) ---------- */}
       {items.length > 1 && (
         <nav className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 md:hidden">
-          <div className="glass-strong mx-auto flex max-w-md items-stretch rounded-[1.75rem] px-1.5 py-1">
+          {/* Fondo casi sólido: con vidrio muy translúcido la barra se perdía
+              sobre el contenido al hacer scroll. */}
+          <div className="mx-auto flex max-w-md items-stretch rounded-[1.75rem] border border-slate-200/80 bg-white px-1.5 py-1 shadow-xl shadow-slate-400/25">
             {principales.map(({ id, etiqueta, etiquetaCorta, Icono, badge }) => (
               <button
                 key={id}
@@ -229,7 +238,7 @@ export default function AppShell({
             className="animate-backdrop absolute inset-0 bg-slate-900/25 backdrop-blur-sm"
             onClick={() => setMenuAbierto(false)}
           />
-          <div className="animate-modal glass-strong absolute inset-x-0 bottom-0 rounded-t-[2rem] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="animate-modal absolute inset-x-0 bottom-0 rounded-t-[2rem] border-t border-slate-200/80 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300/70" />
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-bold text-slate-900">Más opciones</p>
