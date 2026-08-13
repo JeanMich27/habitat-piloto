@@ -131,6 +131,8 @@ export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";
 
 export interface Usuario {
   id: string;
+  /** Oficina (tenant) a la que pertenece. Una cuenta = una oficina. */
+  agenciaId?: string;
   nombre: string;
   correo: string;
   telefono: string;
@@ -467,9 +469,16 @@ export interface ProcesoCierre {
 
 // --- Configuración (Broker) ---
 export interface AgenciaInfo {
+  /** Identificador del tenant. Lo asigna la plataforma, no la oficina. */
+  id?: string;
   nombre: string;
   direccion: string;
   logoUrl?: string;
+  slug?: string;
+  /** activa | suspendida | prueba. Solo lectura desde la app. */
+  estado?: string;
+  /** Código que el broker comparte con su equipo para que puedan registrarse. */
+  codigoInvitacion?: string;
 }
 
 export const formatoMXN = (valor: number) =>

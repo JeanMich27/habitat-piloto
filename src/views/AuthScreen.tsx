@@ -22,6 +22,7 @@ export default function AuthScreen() {
   const [telefono, setTelefono] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [rol, setRol] = useState<UserRole>("asesor_equipo");
+  const [codigoInvitacion, setCodigoInvitacion] = useState("");
   const [verContrasena, setVerContrasena] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,14 @@ export default function AuthScreen() {
           setError("Escribe tu nombre completo.");
           return;
         }
-        const r = await registrarse({ nombre, correo, telefono, contrasena, rolSolicitado: rol });
+        const r = await registrarse({
+          nombre,
+          correo,
+          telefono,
+          contrasena,
+          rolSolicitado: rol,
+          codigoInvitacion,
+        });
         if (r.error) {
           setError(r.error);
         } else if (r.requiereConfirmacion) {
@@ -139,6 +147,22 @@ export default function AuthScreen() {
                     inputMode="tel"
                     autoComplete="tel"
                   />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                    Código de invitación
+                  </label>
+                  <input
+                    className={`${inputBase} uppercase tracking-wider`}
+                    value={codigoInvitacion}
+                    onChange={(e) => setCodigoInvitacion(e.target.value.toUpperCase())}
+                    placeholder="INV-XXXXXXXX"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Te lo da el broker de tu oficina. Si ya te invitaron por correo, déjalo vacío.
+                  </p>
                 </div>
               </>
             )}

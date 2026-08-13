@@ -10,3 +10,8 @@ tsconfig.tsbuildinfo
 .vercel
 .env*
 .fuse_hidden*
+# Carpeta temporal: builds de verificación que no se pueden borrar desde el
+# entorno remoto. Es seguro eliminarla a mano.
+_to_delete
+dist-verificacion-mt
+dist-vmt2

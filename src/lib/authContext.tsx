@@ -15,6 +15,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { rowToUsuario } from "./rowMappers";
+import { setAgenciaActual } from "./agenciaActual";
 import type { UserRole, Usuario } from "../types";
 
 interface AuthContextValue {
@@ -29,6 +30,8 @@ interface AuthContextValue {
     telefono: string;
     contrasena: string;
     rolSolicitado: UserRole;
+    /** Código de la oficina. Obligatorio salvo que el correo ya haya sido invitado. */
+    codigoInvitacion: string;
   }) => Promise<{ error?: string; requiereConfirmacion?: boolean }>;
   iniciarSesion: (correo: string, contrasena: string) => Promise<{ error?: string }>;
   cerrarSesion: () => Promise<void>;
@@ -48,6 +51,10 @@ function traducirError(mensaje?: string): string {
   if (m.includes("already registered")) return "Ya existe una cuenta con ese correo. Inicia sesión.";
   if (m.includes("password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
   if (m.includes("rate limit")) return "Demasiados intentos. Espera un minuto e intenta de nuevo.";
+  // Errores que lanza el trigger de alta multi-tenant.
+  if (m.includes("código de invitación") || m.includes("codigo de invitacion"))
+    return "El código de invitación no es válido. Pídeselo al broker de tu oficina.";
+  if (m.includes("se requiere un código")) return "Necesitas el código de invitación de tu oficina para registrarte.";
   return mensaje;
 }
 
@@ -60,23 +67,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cargarPerfil = useCallback(async (s: Session | null) => {
     if (!supabase || !s?.user) {
       setPerfil(null);
+      setAgenciaActual(null);
       return;
     }
-    // Primero por auth_id (vínculo directo), luego por correo (respaldo).
-    let { data } = await supabase
+    // Solo por auth_id. El respaldo por correo se eliminó: con RLS multi-tenant
+    // una sesión sin perfil vinculado no ve ninguna fila, así que esa consulta
+    // siempre devolvía null; y buscar por correo entre oficinas es justo el
+    // patrón que se quiere evitar. El trigger de alta vincula el auth_id.
+    const { data } = await supabase
       .from("usuarios")
       .select("*")
       .eq("auth_id", s.user.id)
       .maybeSingle();
-    if (!data && s.user.email) {
-      const res = await supabase
-        .from("usuarios")
-        .select("*")
-        .ilike("correo", s.user.email)
-        .maybeSingle();
-      data = res.data;
-    }
-    setPerfil(data ? rowToUsuario(data) : null);
+
+    const usuario = data ? rowToUsuario(data) : null;
+    setPerfil(usuario);
+    // Debe fijarse ANTES de cualquier escritura: los mappers lo leen de aquí.
+    setAgenciaActual(usuario?.agenciaId ?? null);
   }, []);
 
   useEffect(() => {
@@ -100,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     telefono,
     contrasena,
     rolSolicitado,
+    codigoInvitacion,
   }) => {
     if (!supabase) return { error: "Sin conexión a la nube." };
     const { data, error } = await supabase.auth.signUp({
@@ -107,7 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: contrasena,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { nombre: nombre.trim(), telefono: telefono.trim(), rol_solicitado: rolSolicitado },
+        data: {
+          nombre: nombre.trim(),
+          telefono: telefono.trim(),
+          rol_solicitado: rolSolicitado,
+          codigo_invitacion: codigoInvitacion.trim().toUpperCase(),
+        },
       },
     });
     if (error) return { error: traducirError(error.message) };
@@ -128,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     await supabase.auth.signOut();
     setPerfil(null);
+    setAgenciaActual(null);
     setEnRecuperacion(false);
   };
 

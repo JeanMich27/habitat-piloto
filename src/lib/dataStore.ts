@@ -9,6 +9,7 @@
 // guardamos una "foto" completa del estado en localStorage para que al menos
 // no se pierda al recargar la pestaña de esa persona.
 import { isCloudEnabled, supabase } from "./supabaseClient";
+import { agenciaActualONull, hayAgencia } from "./agenciaActual";
 import {
   agenciaToRow,
   configuracionToRow,
@@ -62,6 +63,18 @@ export function exportarSnapshotJSON(estado: EstadoCompleto) {
   URL.revokeObjectURL(url);
 }
 
+// Una cuenta pendiente de aprobación no tiene oficina asignada todavía. Sin
+// ella los conversores de fila lanzan, así que se corta antes y se registra el
+// motivo en lugar de dejar reventar una promesa sin manejar.
+function sinAgencia(operacion: string): boolean {
+  if (hayAgencia()) return false;
+  console.error(
+    `[Supabase] ${operacion}: la sesión no tiene oficina asignada. ` +
+      "La cuenta está pendiente de aprobación o la sesión expiró.",
+  );
+  return true;
+}
+
 // --- Modo nube (Supabase) ---
 export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   if (!supabase) return null;
@@ -69,8 +82,10 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
     supabase.from("propiedades").select("*"),
     supabase.from("leads").select("*"),
     supabase.from("usuarios").select("*"),
-    supabase.from("agencia").select("*").eq("id", "default").maybeSingle(),
-    supabase.from("configuracion").select("*").eq("id", "default").maybeSingle(),
+    // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
+    // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
+    supabase.from("agencias").select("*").limit(1).maybeSingle(),
+    supabase.from("configuracion").select("*").limit(1).maybeSingle(),
   ]);
   for (const r of [pRes, lRes, uRes, aRes, cRes]) {
     if (r.error) throw r.error;
@@ -88,49 +103,49 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
 // Siembra la base de datos compartida con los datos de ejemplo la primera
 // vez que alguien abre la app y las tablas están vacías.
 export async function sembrarDatosDeEjemplo(estado: EstadoCompleto) {
-  if (!supabase) return;
+  if (!supabase || sinAgencia("sembrarDatosDeEjemplo")) return;
   await supabase.from("usuarios").upsert(estado.usuarios.map(usuarioToRow));
   await supabase.from("propiedades").upsert(estado.propiedades.map(propiedadToRow));
   await supabase.from("leads").upsert(estado.leads.map(leadToRow));
-  await supabase.from("agencia").upsert(agenciaToRow(estado.agencia));
+  await supabase.from("agencias").upsert(agenciaToRow(estado.agencia));
   await supabase
     .from("configuracion")
     .upsert(configuracionToRow(estado.permisoEquipoVerTodas, estado.notificaciones));
 }
 
 export async function upsertPropiedad(p: Propiedad) {
-  if (!supabase) return;
+  if (!supabase || sinAgencia("upsertPropiedad")) return;
   const { error } = await supabase.from("propiedades").upsert(propiedadToRow(p));
   if (error) console.error("[Supabase] upsertPropiedad", error);
 }
 
 export async function bulkUpsertPropiedades(lista: Propiedad[]) {
-  if (!supabase || lista.length === 0) return;
+  if (!supabase || lista.length === 0 || sinAgencia("bulkUpsertPropiedades")) return;
   const { error } = await supabase.from("propiedades").upsert(lista.map(propiedadToRow));
   if (error) console.error("[Supabase] bulkUpsertPropiedades", error);
 }
 
 export async function upsertLead(l: Lead) {
-  if (!supabase) return;
+  if (!supabase || sinAgencia("upsertLead")) return;
   const { error } = await supabase.from("leads").upsert(leadToRow(l));
   if (error) console.error("[Supabase] upsertLead", error);
 }
 
 export async function bulkUpsertLeads(lista: Lead[]) {
-  if (!supabase || lista.length === 0) return;
+  if (!supabase || lista.length === 0 || sinAgencia("bulkUpsertLeads")) return;
   const { error } = await supabase.from("leads").upsert(lista.map(leadToRow));
   if (error) console.error("[Supabase] bulkUpsertLeads", error);
 }
 
 export async function upsertUsuario(u: Usuario) {
-  if (!supabase) return;
+  if (!supabase || sinAgencia("upsertUsuario")) return;
   const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
   if (error) console.error("[Supabase] upsertUsuario", error);
 }
 
 export async function upsertAgencia(a: AgenciaInfo) {
-  if (!supabase) return;
-  const { error } = await supabase.from("agencia").upsert(agenciaToRow(a));
+  if (!supabase || sinAgencia("upsertAgencia")) return;
+  const { error } = await supabase.from("agencias").upsert(agenciaToRow(a));
   if (error) console.error("[Supabase] upsertAgencia", error);
 }
 
@@ -138,7 +153,7 @@ export async function upsertConfiguracion(
   permisoEquipoVerTodas: boolean,
   notificaciones: Record<string, boolean>,
 ) {
-  if (!supabase) return;
+  if (!supabase || sinAgencia("upsertConfiguracion")) return;
   const { error } = await supabase
     .from("configuracion")
     .upsert(configuracionToRow(permisoEquipoVerTodas, notificaciones));
@@ -158,25 +173,31 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
   const client = supabase;
   if (!client) return () => {};
 
+  // Realtime respeta RLS, pero filtrar en el servidor evita recibir y descartar
+  // eventos de otras oficinas. Si aún no hay agencia, no se filtra: RLS igual
+  // impide que llegue algo ajeno.
+  const agencia = agenciaActualONull();
+  const soloMiAgencia = agencia ? { filter: `agencia_id=eq.${agencia}` } : {};
+
   const canal = client
-    .channel("habitat-piloto-sync")
-    .on("postgres_changes", { event: "*", schema: "public", table: "propiedades" }, (payload) => {
+    .channel(`sync-${agencia ?? "sin-agencia"}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "propiedades", ...soloMiAgencia }, (payload) => {
       if (payload.eventType === "DELETE") {
         handlers.onPropiedadEliminada((payload.old as any).id);
       } else {
         handlers.onPropiedad(rowToPropiedad(payload.new));
       }
     })
-    .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, (payload) => {
+    .on("postgres_changes", { event: "*", schema: "public", table: "leads", ...soloMiAgencia }, (payload) => {
       if (payload.eventType !== "DELETE") handlers.onLead(rowToLead(payload.new));
     })
-    .on("postgres_changes", { event: "*", schema: "public", table: "usuarios" }, (payload) => {
+    .on("postgres_changes", { event: "*", schema: "public", table: "usuarios", ...soloMiAgencia }, (payload) => {
       if (payload.eventType !== "DELETE") handlers.onUsuario(rowToUsuario(payload.new));
     })
-    .on("postgres_changes", { event: "*", schema: "public", table: "agencia" }, (payload) => {
+    .on("postgres_changes", { event: "*", schema: "public", table: "agencias" }, (payload) => {
       if (payload.eventType !== "DELETE") handlers.onAgencia(rowToAgencia(payload.new));
     })
-    .on("postgres_changes", { event: "*", schema: "public", table: "configuracion" }, (payload) => {
+    .on("postgres_changes", { event: "*", schema: "public", table: "configuracion", ...soloMiAgencia }, (payload) => {
       if (payload.eventType !== "DELETE") handlers.onConfiguracion(rowToConfiguracion(payload.new));
     })
     .subscribe();
