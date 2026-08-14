@@ -3,7 +3,7 @@
 // (propietario, documentos, eventos, comparables, cierre, notificaciones) se
 // guardan tal cual en columnas JSONB, así que no requieren transformación.
 import { getAgenciaActual } from "./agenciaActual";
-import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, Usuario } from "../types";
+import type { AgenciaInfo, Lead, Propiedad, Usuario } from "../types";
 
 // Toda fila que se escribe lleva la oficina de la sesión. Ver agenciaActual.ts.
 
@@ -231,46 +231,5 @@ export function rowToConfiguracion(r: any): {
   return {
     permisoEquipoVerTodas: r.permiso_equipo_ver_todas ?? false,
     notificaciones: r.notificaciones ?? {},
-  };
-}
-
-// --- Agenda -----------------------------------------------------------------
-
-export function citaToRow(c: CitaAgenda) {
-  return {
-    id: c.id,
-    agencia_id: getAgenciaActual(),
-    asesor_id: c.asesorId,
-    lead_id: c.leadId ?? null,
-    propiedad_id: c.propiedadId ?? null,
-    titulo: c.titulo,
-    tipo: c.tipo,
-    inicio: c.inicio,
-    fin: c.fin,
-    ubicacion: c.ubicacion ?? "",
-    notas: c.notas ?? "",
-    estado: c.estado,
-    creada_por: c.creadaPor ?? null,
-    // `actualizado_en` lo pone un trigger; enviarlo desde el cliente permitiria
-    // falsear el orden de los cambios.
-  };
-}
-
-export function rowToCita(r: any): CitaAgenda {
-  return {
-    id: r.id,
-    agenciaId: r.agencia_id ?? undefined,
-    asesorId: r.asesor_id,
-    leadId: r.lead_id ?? undefined,
-    propiedadId: r.propiedad_id ?? undefined,
-    titulo: r.titulo,
-    tipo: r.tipo,
-    inicio: r.inicio,
-    fin: r.fin,
-    ubicacion: r.ubicacion ?? "",
-    notas: r.notas ?? "",
-    estado: r.estado,
-    creadaPor: r.creada_por ?? undefined,
-    creadoEn: r.creado_en ?? undefined,
   };
 }

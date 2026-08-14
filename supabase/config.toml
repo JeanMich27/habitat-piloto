@@ -1,0 +1,16 @@
+# Configuración de las Edge Functions.
+#
+# `agenda-ics` DEBE ir con verify_jwt = false. Los clientes de calendario
+# (Google, Apple, Outlook) piden la URL sin sesión y sin cabeceras: con el JWT
+# de plataforma activado, la petición muere en 401 antes de llegar al código de
+# la función y ningún calendario puede leer el feed.
+#
+# La autorización la hace la propia función con un token UUID opaco resuelto
+# contra `agenda_feeds`; `citas_por_token` tiene EXECUTE revocado a `anon` y a
+# `authenticated`, así que ningún navegador puede llamarla directamente.
+#
+# Este archivo existe para que `supabase functions deploy agenda-ics` sin la
+# bandera `--no-verify-jwt` no vuelva a romper el feed sin avisar.
+
+[functions.agenda-ics]
+verify_jwt = false

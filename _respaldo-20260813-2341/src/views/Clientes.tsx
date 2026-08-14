@@ -10,7 +10,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Building2,
-  CalendarPlus,
   Clock,
   Mail,
   Phone,
@@ -106,8 +105,6 @@ interface Props {
   ) => void;
   onCambiarEtapa: (leadId: string, etapa: LeadStage) => void;
   onCrearCliente: (lead: Lead) => void;
-  /** Abre el modal de agenda con este prospecto precargado. */
-  onAgendarVisita: (leadId: string) => void;
   /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
@@ -123,7 +120,6 @@ export default function Clientes({
   onRegistrarInteraccion,
   onCambiarEtapa,
   onCrearCliente,
-  onAgendarVisita,
   clienteInicialId,
   etapaInicial,
 }: Props) {
@@ -437,14 +433,6 @@ export default function Clientes({
                         )
                       }
                     />
-                    {/* Agendar desde aquí, no desde la Agenda: el asesor está
-                        mirando al prospecto justo cuando cuelga la llamada. */}
-                    <button
-                      onClick={() => onAgendarVisita(seleccionado.id)}
-                      className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-violet-700"
-                    >
-                      <CalendarPlus className="size-3.5" /> Agendar visita
-                    </button>
                     <button
                       onClick={() => setCalificando(true)}
                       className={`rounded-lg px-4 py-2 text-xs font-semibold ${

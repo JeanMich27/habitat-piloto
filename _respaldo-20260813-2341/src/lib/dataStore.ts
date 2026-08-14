@@ -12,19 +12,17 @@ import { isCloudEnabled, supabase } from "./supabaseClient";
 import { agenciaActualONull, hayAgencia } from "./agenciaActual";
 import {
   agenciaToRow,
-  citaToRow,
   configuracionToRow,
   leadToRow,
   propiedadToRow,
   rowToAgencia,
-  rowToCita,
   rowToConfiguracion,
   rowToLead,
   rowToPropiedad,
   rowToUsuario,
   usuarioToRow,
 } from "./rowMappers";
-import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, Usuario } from "../types";
+import type { AgenciaInfo, Lead, Propiedad, Usuario } from "../types";
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
@@ -32,7 +30,6 @@ export interface EstadoCompleto {
   propiedades: Propiedad[];
   leads: Lead[];
   usuarios: Usuario[];
-  citas: CitaAgenda[];
   agencia: AgenciaInfo;
   permisoEquipoVerTodas: boolean;
   notificaciones: Record<string, boolean>;
@@ -81,12 +78,7 @@ function sinAgencia(operacion: string): boolean {
 // --- Modo nube (Supabase) ---
 export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   if (!supabase) return null;
-  // La agenda solo se trae hacia adelante y un mes hacia atras: el historico
-  // completo crece sin limite y no se usa en ninguna pantalla.
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 30);
-
-  const [pRes, lRes, uRes, aRes, cRes, ciRes] = await Promise.all([
+  const [pRes, lRes, uRes, aRes, cRes] = await Promise.all([
     supabase.from("propiedades").select("*"),
     supabase.from("leads").select("*"),
     supabase.from("usuarios").select("*"),
@@ -94,19 +86,14 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
     supabase.from("configuracion").select("*").limit(1).maybeSingle(),
-    supabase.from("citas").select("*").gte("inicio", desde.toISOString()).order("inicio"),
   ]);
   for (const r of [pRes, lRes, uRes, aRes, cRes]) {
     if (r.error) throw r.error;
   }
-  // La agenda no rompe la carga: si la migracion 07 aun no corre en esta
-  // instancia, la app entra igual y simplemente no muestra citas.
-  if (ciRes.error) console.warn("[Supabase] citas no disponibles todavia", ciRes.error.message);
   return {
     propiedades: (pRes.data ?? []).map(rowToPropiedad),
     leads: (lRes.data ?? []).map(rowToLead),
     usuarios: (uRes.data ?? []).map(rowToUsuario),
-    citas: (ciRes.data ?? []).map(rowToCita),
     agencia: aRes.data ? rowToAgencia(aRes.data) : { nombre: "", direccion: "" },
     permisoEquipoVerTodas: cRes.data ? rowToConfiguracion(cRes.data).permisoEquipoVerTodas : false,
     notificaciones: cRes.data ? rowToConfiguracion(cRes.data).notificaciones : {},
@@ -173,46 +160,6 @@ export async function upsertConfiguracion(
   if (error) console.error("[Supabase] upsertConfiguracion", error);
 }
 
-export async function upsertCita(c: CitaAgenda) {
-  if (!supabase || sinAgencia("upsertCita")) return;
-  const { error } = await supabase.from("citas").upsert(citaToRow(c));
-  if (error) console.error("[Supabase] upsertCita", error);
-}
-
-export async function eliminarCita(id: string) {
-  if (!supabase || sinAgencia("eliminarCita")) return;
-  const { error } = await supabase.from("citas").delete().eq("id", id);
-  if (error) console.error("[Supabase] eliminarCita", error);
-}
-
-/**
- * Token del feed ICS del usuario. La funcion `mi_token_agenda()` lo crea la
- * primera vez y despues devuelve siempre el mismo. Vive en su propia tabla,
- * no en `usuarios`, porque la politica de lectura de `usuarios` alcanza a toda
- * la oficina: ahi el token seria visible para los companeros y cualquiera
- * podria suscribirse a la agenda del broker.
- */
-export async function obtenerTokenAgenda(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("mi_token_agenda");
-  if (error) {
-    console.error("[Supabase] mi_token_agenda", error);
-    return null;
-  }
-  return (data as string) ?? null;
-}
-
-/** Invalida la URL anterior. Se usa cuando un asesor deja la oficina. */
-export async function rotarTokenAgenda(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("rotar_token_agenda");
-  if (error) {
-    console.error("[Supabase] rotar_token_agenda", error);
-    return null;
-  }
-  return (data as string) ?? null;
-}
-
 type RealtimeHandlers = {
   onPropiedad: (p: Propiedad) => void;
   onPropiedadEliminada: (id: string) => void;
@@ -220,8 +167,6 @@ type RealtimeHandlers = {
   onUsuario: (u: Usuario) => void;
   onAgencia: (a: AgenciaInfo) => void;
   onConfiguracion: (c: { permisoEquipoVerTodas: boolean; notificaciones: Record<string, boolean> }) => void;
-  onCita: (c: CitaAgenda) => void;
-  onCitaEliminada: (id: string) => void;
 };
 
 export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
@@ -254,10 +199,6 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "configuracion", ...soloMiAgencia }, (payload) => {
       if (payload.eventType !== "DELETE") handlers.onConfiguracion(rowToConfiguracion(payload.new));
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "citas", ...soloMiAgencia }, (payload) => {
-      if (payload.eventType === "DELETE") handlers.onCitaEliminada((payload.old as any).id);
-      else handlers.onCita(rowToCita(payload.new));
     })
     .subscribe();
 

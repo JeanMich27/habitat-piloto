@@ -1,19 +1,16 @@
 {
-  "name": "HomeID · Plataforma Inmobiliaria",
-  "short_name": "HomeID",
-  "description": "HomeID: propiedades, prospectos, agenda de visitas y equipo de asesores.",
+  "name": "Real Estate · Plataforma Inmobiliaria",
+  "short_name": "Real Estate",
+  "description": "Plataforma de gestión inmobiliaria: propiedades, prospectos y equipo de asesores.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#6D28D9",
+  "theme_color": "#0f172a",
   "lang": "es",
   "dir": "ltr",
-  "categories": [
-    "business",
-    "productivity"
-  ],
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",

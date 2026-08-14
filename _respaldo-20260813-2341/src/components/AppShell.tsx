@@ -8,7 +8,6 @@
 // Cada rol recibe solo sus destinos: el menú nunca muestra pantallas ajenas.
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { CloudOff, LogOut, Menu, X } from "lucide-react";
-import LogoHomeID from "./LogoHomeID";
 
 export interface NavItem {
   id: string;
@@ -75,7 +74,15 @@ export default function AppShell({
               title="Ir al inicio"
               className="flex min-w-0 items-center gap-2 text-left"
             >
-              <LogoHomeID />
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-xs font-black tracking-tight text-white shadow-md shadow-violet-300/50">
+                RE
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-bold text-slate-900">Real Estate</span>
+                <span className="hidden text-[10px] uppercase tracking-widest text-slate-400 sm:block">
+                  Plataforma Inmobiliaria
+                </span>
+              </span>
             </button>
             <span
               title={

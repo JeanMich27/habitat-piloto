@@ -2,6 +2,7 @@
 // Mobile-first: una sola columna, inputs grandes (44px+), sin scroll horizontal.
 import { useState, type FormEvent } from "react";
 import { Building2, Eye, EyeOff, Home, KeyRound, Loader2, Mail, User as UserIcon, Users } from "lucide-react";
+import { MarcaHomeID } from "../components/LogoHomeID";
 import { useAuth } from "../lib/authContext";
 import type { UserRole } from "../types";
 
@@ -88,14 +89,16 @@ export default function AuthScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white px-4 py-8">
       <div className="w-full max-w-md">
-        {/* Marca */}
-        <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black tracking-tight text-white">
-            RE
-          </div>
+        {/* Marca — vertical y centrada, en la proporción del logotipo original. */}
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <MarcaHomeID className="size-20" />
           <div>
-            <p className="text-lg font-bold text-slate-900">Real Estate</p>
-            <p className="text-[11px] uppercase tracking-widest text-slate-400">Plataforma Inmobiliaria</p>
+            <p className="text-2xl font-bold tracking-[0.22em] text-slate-900">
+              HOME<span className="text-violet-600">ID</span>
+            </p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-slate-400">
+              Plataforma inmobiliaria
+            </p>
           </div>
         </div>
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Building2,
-  CalendarDays,
   Calculator,
   ClipboardCheck,
   Contact,
@@ -21,8 +20,6 @@ import { NOTIFICACIONES_DEFAULT } from "./data/configuracionOpciones";
 import type {
   AgenciaInfo,
   CalificacionBANT,
-  CitaAgenda,
-  EstadoCitaAgenda,
   Comparable,
   DocumentName,
   Interaccion,
@@ -38,10 +35,8 @@ import {
   ETAPAS_QUE_EXIGEN_BANT,
   clasificarLead,
   puedeCargarPropiedades,
-  tieneAgenda,
   totalBant,
 } from "./types";
-import Agenda from "./views/Agenda";
 import AnalisisComisiones from "./views/AnalisisComisiones";
 import AsesorDashboard from "./views/AsesorDashboard";
 import Asesores from "./views/Asesores";
@@ -64,7 +59,6 @@ import Reportes from "./views/Reportes";
 import SolicitudesAcceso from "./views/SolicitudesAcceso";
 import AppShell, { type NavItem } from "./components/AppShell";
 import CampanaNotificaciones from "./components/CampanaNotificaciones";
-import AgendarVisitaModal from "./components/AgendarVisitaModal";
 import {
   construirNotificaciones,
   guardarVistas,
@@ -77,17 +71,13 @@ import {
   bulkUpsertLeads,
   bulkUpsertPropiedades,
   cargarSnapshotLocal,
-  eliminarCita,
   exportarSnapshotJSON,
   fetchInitialData,
   guardarSnapshotLocal,
-  obtenerTokenAgenda,
   reemplazarEnArreglo,
-  rotarTokenAgenda,
   sembrarDatosDeEjemplo,
   suscribirCambiosEnVivo,
   upsertAgencia,
-  upsertCita,
   upsertConfiguracion,
   upsertLead,
   upsertPropiedad,
@@ -113,7 +103,6 @@ type Vista =
   | "comisiones"
   | "analisis-comisiones"
   | "clientes"
-  | "agenda"
   | "configuracion";
 
 const ETIQUETAS_ROL: Record<UserRole, string> = {
@@ -139,9 +128,6 @@ const snapshotDeFabrica: EstadoCompleto = {
   propiedades: db.propiedades as Propiedad[],
   leads: db.leads as Lead[],
   usuarios: db.usuarios as Usuario[],
-  // La agenda arranca vacia: sembrar citas de ejemplo con fechas fijas se ve
-  // roto a los pocos dias y no ensena nada.
-  citas: [],
   agencia: db.agencia as AgenciaInfo,
   permisoEquipoVerTodas: false,
   notificaciones: NOTIFICACIONES_DEFAULT,
@@ -159,7 +145,6 @@ export default function App() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>(inicial.propiedades);
   const [leads, setLeads] = useState<Lead[]>(inicial.leads);
   const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
-  const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
   const [agencia, setAgencia] = useState<AgenciaInfo>(inicial.agencia);
   const [permisoEquipoVerTodas, setPermisoEquipoVerTodas] = useState(inicial.permisoEquipoVerTodas);
   const [notificaciones, setNotificaciones] = useState<Record<string, boolean>>(
@@ -203,7 +188,6 @@ export default function App() {
         setPropiedades(datos.propiedades);
         setLeads(datos.leads);
         setUsuarios(datos.usuarios);
-        setCitas(datos.citas);
         setAgencia(datos.agencia);
         setPermisoEquipoVerTodas(datos.permisoEquipoVerTodas);
         setNotificaciones(datos.notificaciones);
@@ -232,8 +216,6 @@ export default function App() {
         setPermisoEquipoVerTodas(c.permisoEquipoVerTodas);
         setNotificaciones(c.notificaciones);
       },
-      onCita: (c) => setCitas((prev) => reemplazarEnArreglo(prev, c)),
-      onCitaEliminada: (id) => setCitas((prev) => prev.filter((c) => c.id !== id)),
     });
   }, [sesionActiva]);
 
@@ -244,12 +226,11 @@ export default function App() {
       propiedades,
       leads,
       usuarios,
-      citas,
       agencia,
       permisoEquipoVerTodas,
       notificaciones,
     });
-  }, [propiedades, leads, usuarios, citas, agencia, permisoEquipoVerTodas, notificaciones]);
+  }, [propiedades, leads, usuarios, agencia, permisoEquipoVerTodas, notificaciones]);
 
   // --- Navegación ---
   const [vista, setVista] = useState<Vista | null>(null);
@@ -264,15 +245,6 @@ export default function App() {
   const [etapaClientes, setEtapaClientes] = useState<LeadStage | null>(null);
   // Notificaciones ya vistas (por usuario, en este navegador).
   const [vistasNotif, setVistasNotif] = useState<Set<string>>(new Set());
-  // Modal de agendar: null = cerrado. Se abre desde la Agenda y desde la ficha
-  // de un prospecto, por eso vive aquí y no dentro de una vista.
-  const [agendando, setAgendando] = useState<{
-    cita?: CitaAgenda | null;
-    leadId?: string | null;
-    fecha?: Date | null;
-  } | null>(null);
-  // Token del feed ICS. Se pide una sola vez, cuando el usuario abre la agenda.
-  const [tokenAgenda, setTokenAgenda] = useState<string | null>(null);
 
   // Al entrar (o cambiar de cuenta), aterriza en la vista inicial de su rol.
   useEffect(() => {
@@ -329,14 +301,6 @@ export default function App() {
     setVistasNotif(usuarioActual ? leerVistas(usuarioActual.id) : new Set());
   }, [usuarioActual?.id]);
 
-  // El token del feed ICS se pide la primera vez que alguien abre la Agenda,
-  // no al iniciar sesión: crear una fila de suscripción para quien nunca va a
-  // usar la sincronización es basura en la base.
-  useEffect(() => {
-    if (vista !== "agenda" || !isCloudEnabled || tokenAgenda) return;
-    obtenerTokenAgenda().then(setTokenAgenda);
-  }, [vista, tokenAgenda]);
-
   const marcarNotifVista = (id: string) => {
     if (!usuarioActual) return;
     setVistasNotif((prev) => {
@@ -353,23 +317,6 @@ export default function App() {
     guardarVistas(usuarioActual.id, next);
   };
 
-  // Citas de hoy todavía abiertas — es el badge de la Agenda.
-  const citasHoy = useMemo(() => {
-    if (!usuarioActual) return 0;
-    const hoy = new Date().toISOString().slice(0, 10);
-    const mias =
-      usuarioActual.rol === "broker"
-        ? citas
-        : citas.filter((c) => c.asesorId === usuarioActual.id);
-    return mias.filter(
-      (c) =>
-        c.inicio.slice(0, 10) === hoy &&
-        c.estado !== "Cancelada" &&
-        c.estado !== "Realizada" &&
-        c.estado !== "No asistió",
-    ).length;
-  }, [citas, usuarioActual]);
-
   // Menú según rol: nadie ve destinos ajenos.
   const navItems: NavItem[] = useMemo(() => {
     switch (rol) {
@@ -378,7 +325,6 @@ export default function App() {
           { id: "broker", etiqueta: "Dashboard", Icono: ShieldCheck },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
           { id: "clientes", etiqueta: "Clientes", Icono: Contact },
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
           { id: "intake", etiqueta: "Validación", Icono: ClipboardCheck },
           { id: "asesores", etiqueta: "Asesores", Icono: Users },
           {
@@ -395,9 +341,6 @@ export default function App() {
       case "asesor_independiente":
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
-          // La agenda va en la barra inferior a propósito: es lo que un asesor
-          // en campo abre varias veces al día.
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
           { id: "clientes", etiqueta: "Clientes", Icono: Contact },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
           { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
@@ -408,7 +351,6 @@ export default function App() {
       case "asesor_equipo":
         return [
           { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
           { id: "clientes", etiqueta: "Clientes", Icono: Contact },
           { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
           { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
@@ -427,7 +369,7 @@ export default function App() {
       default:
         return [];
     }
-  }, [rol, solicitudesPendientes, citasHoy]);
+  }, [rol, solicitudesPendientes]);
 
   // Guardia: si la vista actual no pertenece al rol, regresa a su inicio.
   const vistasPermitidas = useMemo(() => {
@@ -727,45 +669,6 @@ export default function App() {
     upsertLead(conAlta);
   };
 
-  // --- Agenda ---------------------------------------------------------------
-  // Toda cita queda registrada también en la bitácora del prospecto. Sin eso,
-  // la agenda sería un calendario aparte y el historial del cliente seguiría
-  // incompleto — que es justo el problema que se quiere resolver.
-  const guardarCita = (cita: CitaAgenda) => {
-    const existe = citas.some((c) => c.id === cita.id);
-    setCitas((prev) => reemplazarEnArreglo(prev, cita));
-    upsertCita(cita);
-    if (!existe && cita.leadId) {
-      const cuando = new Date(cita.inicio).toLocaleString("es-MX", {
-        day: "numeric",
-        month: "long",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      registrarInteraccion(cita.leadId, "Nota", `Cita agendada para el ${cuando}`);
-    }
-  };
-
-  const cambiarEstadoCita = (citaId: string, estado: EstadoCitaAgenda) => {
-    const cita = citas.find((c) => c.id === citaId);
-    if (!cita) return;
-    const actualizada = { ...cita, estado };
-    setCitas((prev) => reemplazarEnArreglo(prev, actualizada));
-    upsertCita(actualizada);
-    if (cita.leadId && (estado === "Realizada" || estado === "No asistió")) {
-      registrarInteraccion(
-        cita.leadId,
-        estado === "Realizada" ? "Visita" : "Nota",
-        estado === "Realizada" ? "Visita realizada" : "El cliente no asistió a la cita",
-      );
-    }
-  };
-
-  const borrarCita = (citaId: string) => {
-    setCitas((prev) => prev.filter((c) => c.id !== citaId));
-    eliminarCita(citaId);
-  };
-
   // Abre la calculadora de comisiones con una propiedad precargada.
   const irACalculadora = (propiedadId: string) => {
     setPropiedadSeleccionadaId(propiedadId);
@@ -967,7 +870,6 @@ export default function App() {
                 propiedades,
                 leads,
                 usuarios,
-                citas,
                 agencia,
                 permisoEquipoVerTodas,
                 notificaciones,
@@ -994,22 +896,6 @@ export default function App() {
             </button>
           </div>
         </div>
-      )}
-
-      {/* Agendar: disponible desde cualquier vista de un rol con agenda. */}
-      {agendando && tieneAgenda(yo.rol) && (
-        <AgendarVisitaModal
-          usuario={yo}
-          usuarios={usuarios}
-          leads={leads}
-          propiedades={propiedades}
-          citas={citas}
-          citaExistente={agendando.cita ?? null}
-          leadInicialId={agendando.leadId ?? null}
-          fechaInicial={agendando.fecha ?? null}
-          onGuardar={guardarCita}
-          onCerrar={() => setAgendando(null)}
-        />
       )}
 
       {cargandoNube ? (
@@ -1127,28 +1013,10 @@ export default function App() {
                 onRegistrarInteraccion={registrarInteraccion}
                 onCambiarEtapa={moverLead}
                 onCrearCliente={crearCliente}
-                onAgendarVisita={(leadId) => setAgendando({ leadId })}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
               />
             )}
-          {vista === "agenda" && tieneAgenda(yo.rol) && (
-            <Agenda
-              usuario={yo}
-              usuarios={usuarios}
-              citas={citas}
-              leads={leads}
-              propiedades={propiedades}
-              onNueva={(fecha) => setAgendando({ fecha: fecha ?? null })}
-              onEditar={(cita) => setAgendando({ cita })}
-              onCambiarEstado={cambiarEstadoCita}
-              onEliminar={borrarCita}
-              onVerCliente={irACliente}
-              tokenAgenda={tokenAgenda}
-              urlSupabase={import.meta.env.VITE_SUPABASE_URL ?? null}
-              onRotarToken={() => rotarTokenAgenda().then(setTokenAgenda)}
-            />
-          )}
           {/* Calculadora de comisiones: exclusiva de asesores. */}
           {vista === "comisiones" &&
             (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
