@@ -129,7 +129,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
       telefono: pTelefono,
     };
     const ahora = new Date().toISOString();
-    const publicandose = estatus === "Activa";
+    const publicandose = estatus === "Publicada";
     return {
       id: `prop-${Date.now()}`,
       titulo: direccion,
@@ -156,23 +156,21 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
           fecha: ahora,
           tipo: "Publicacion",
           descripcion:
-            estatus === "Activa"
+            estatus === "Publicada"
               ? "Propiedad capturada y publicada directamente por el asesor independiente"
-              : estatus === "Intake"
-                ? "Propiedad capturada, enviada a validación del Broker/Administrador"
-                : "Propiedad guardada como borrador",
+              : "Propiedad capturada, pendiente de validación del Broker/Administrador",
         },
       ],
     };
   };
 
-  const guardarBorrador = () => onGuardar(construirPropiedad("Intake"));
+  const guardarBorrador = () => onGuardar(construirPropiedad("No publicada"));
   const guardarFinal = () => {
     if (usuario.rol === "asesor_independiente") {
       if (!documentosCompletos) return;
-      onGuardar(construirPropiedad("Activa"));
+      onGuardar(construirPropiedad("Publicada"));
     } else {
-      onGuardar(construirPropiedad("Intake"));
+      onGuardar(construirPropiedad("No publicada"));
     }
   };
 

@@ -249,7 +249,9 @@ Deno.serve(async () => {
           const ins = await sb.from("propiedades").insert({
             id: `eb-${publicId.toLowerCase()}`,
             ...camposEB,
-            estatus: "Activa",
+            // Estados comerciales (migración 08). Lo que EasyBroker publica
+            // entra como "Publicada"; el broker la mueve desde la app.
+            estatus: "Publicada",
             propietario: { nombre: "", correo: "", telefono: "" },
             documentos: [],
             eventos: [],

@@ -34,7 +34,7 @@ export default function PerfilDesempeno({
   const [modalPermisos, setModalPermisos] = useState(false);
 
   const propiedadesAsesor = propiedades.filter((p) => p.asesorId === asesor.id);
-  const propiedadesActivas = propiedadesAsesor.filter((p) => p.estatus === "Activa");
+  const propiedadesActivas = propiedadesAsesor.filter((p) => p.estatus === "Publicada");
   const leadsAsesor = leads.filter((l) => l.asesorId === asesor.id);
   const leadsActivos = leadsAsesor.filter((l) => l.etapa !== "Cierre");
   const visitas = leadsAsesor.filter((l) =>

@@ -3,7 +3,15 @@
 // (propietario, documentos, eventos, comparables, cierre, notificaciones) se
 // guardan tal cual en columnas JSONB, así que no requieren transformación.
 import { getAgenciaActual } from "./agenciaActual";
-import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, Usuario } from "../types";
+import { normalizarEstatus } from "../types";
+import type {
+  AgenciaInfo,
+  CitaAgenda,
+  Lead,
+  Propiedad,
+  SolicitudEstado,
+  Usuario,
+} from "../types";
 
 // Toda fila que se escribe lleva la oficina de la sesión. Ver agenciaActual.ts.
 
@@ -55,6 +63,7 @@ export function propiedadToRow(p: Propiedad) {
     exclusiva: p.exclusiva ?? false,
     crm_origen: p.crmOrigen ?? null,
     crm_id_interno: p.crmIdInterno ?? null,
+    enlaces_promocion: p.enlacesPromocion ?? [],
 
     // NO se escriben a propósito — son propiedad de la sincronización con
     // EasyBroker y la app no los edita:
@@ -76,7 +85,8 @@ export function rowToPropiedad(r: any): Propiedad {
     banos: Number(r.banos) || 0,
     m2: Number(r.m2) || 0,
     descripcion: r.descripcion,
-    estatus: r.estatus,
+    // Normaliza valores previos a la migración 08 (Activa, Intake, …).
+    estatus: normalizarEstatus(r.estatus),
     tipoInmueble: r.tipo_inmueble,
     tipoOperacion: r.tipo_operacion,
     asesorId: r.asesor_id,
@@ -108,6 +118,24 @@ export function rowToPropiedad(r: any): Propiedad {
     crmOrigen: r.crm_origen ?? undefined,
     crmIdInterno: r.crm_id_interno ?? undefined,
     urlPublica: r.eb_public_url ?? undefined,
+    enlacesPromocion: r.enlaces_promocion ?? [],
+  };
+}
+
+// --- Solicitudes de cambio de estado ---------------------------------------
+
+export function rowToSolicitud(r: any): SolicitudEstado {
+  return {
+    id: r.id,
+    propiedadId: r.propiedad_id,
+    solicitanteId: r.solicitante_id,
+    estadoActual: r.estado_actual,
+    estadoSolicitado: r.estado_solicitado,
+    motivo: r.motivo ?? undefined,
+    estatus: r.estatus,
+    resueltoPor: r.resuelto_por ?? undefined,
+    resueltoEn: r.resuelto_en ?? undefined,
+    creadoEn: r.creado_en,
   };
 }
 

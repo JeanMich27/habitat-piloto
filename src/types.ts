@@ -1,9 +1,39 @@
+// Estados comerciales de una propiedad (definidos con Jean, ago 2026).
+// "No publicada" cubre también la captación en curso (antes Intake/Validación):
+// la bandeja de Validación distingue por documentos, no por sub-estado.
 export type PropertyStatus =
-  | "Intake"
-  | "Validacion"
-  | "Activa"
-  | "Pausada"
-  | "Cerrada";
+  | "Publicada"
+  | "No publicada"
+  | "Reservada"
+  | "Vendida o Rentada"
+  | "Suspendida";
+
+export const ESTADOS_PROPIEDAD: PropertyStatus[] = [
+  "Publicada",
+  "No publicada",
+  "Reservada",
+  "Vendida o Rentada",
+  "Suspendida",
+];
+
+/** Traduce los valores previos a la migración (datos locales o importaciones viejas). */
+export function normalizarEstatus(valor: string): PropertyStatus {
+  switch (valor) {
+    case "Activa":
+      return "Publicada";
+    case "Intake":
+    case "Validacion":
+      return "No publicada";
+    case "Pausada":
+      return "Suspendida";
+    case "Cerrada":
+      return "Vendida o Rentada";
+    default:
+      return (ESTADOS_PROPIEDAD as string[]).includes(valor)
+        ? (valor as PropertyStatus)
+        : "No publicada";
+  }
+}
 
 export type LeadStage =
   | "Nuevo"
@@ -39,6 +69,38 @@ export type UserRole =
  */
 export const puedeCargarPropiedades = (rol: UserRole) =>
   rol === "broker" || rol === "asesor_independiente";
+
+/** Editar la información de una propiedad sigue la misma regla que darla de alta. */
+export const puedeEditarPropiedades = puedeCargarPropiedades;
+
+/**
+ * El asesor de equipo no cambia el estado directamente: lo SOLICITA y el
+ * broker lo aprueba (el cambio se aplica solo al aprobarse — trigger en la
+ * base). Broker e independiente sí aplican el cambio de inmediato.
+ */
+export const solicitaCambioDeEstado = (rol: UserRole) => rol === "asesor_equipo";
+
+// --- Solicitudes de cambio de estado (tabla solicitudes_estado) ---
+export type EstatusSolicitud = "pendiente" | "aprobada" | "rechazada";
+
+export interface SolicitudEstado {
+  id: string;
+  propiedadId: string;
+  solicitanteId: string;
+  estadoActual: string;
+  estadoSolicitado: PropertyStatus;
+  motivo?: string;
+  estatus: EstatusSolicitud;
+  resueltoPor?: string;
+  resueltoEn?: string;
+  creadoEn: string;
+}
+
+/** Dónde se promociona una propiedad (además del enlace de EasyBroker). */
+export interface EnlacePromocion {
+  portal: string;
+  url: string;
+}
 
 export type DocumentName = "INE" | "Predial" | "Contrato";
 
@@ -93,7 +155,7 @@ export interface Propiedad {
   // Fecha en que el asesor la dio de alta (Intake). Existe siempre; alimenta
   // el tab "Captaciones" de Reportes. Distinta de publicadaEl (cuando pasó a Activa).
   capturadaEl: string;
-  // Solo se llenan cuando estatus = "Activa" — alimentan el KPI "días en
+  // Solo se llenan cuando estatus = "Publicada" — alimentan el KPI "días en
   // mercado" y la alerta de "propiedad sin actividad" del Dashboard del Broker.
   publicadaEl?: string;
   ultimaActividad?: string;
@@ -124,7 +186,10 @@ export interface Propiedad {
   exclusiva?: boolean;
   crmOrigen?: string;
   crmIdInterno?: string;
+  /** Enlace público que genera EasyBroker (lo llena la sincronización). */
   urlPublica?: string;
+  /** Portales/medios donde se promociona, capturados por el broker. */
+  enlacesPromocion?: EnlacePromocion[];
 }
 
 export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";

@@ -46,7 +46,7 @@ export default function Asesores({
 
   const metricasDe = (u: Usuario) => {
     const propiedadesActivas = propiedades.filter(
-      (p) => p.asesorId === u.id && p.estatus === "Activa",
+      (p) => p.asesorId === u.id && p.estatus === "Publicada",
     ).length;
     const leadsAsesor = leads.filter((l) => l.asesorId === u.id);
     const cierresMes = leadsAsesor.filter(

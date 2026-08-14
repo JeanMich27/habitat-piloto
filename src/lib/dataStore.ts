@@ -21,10 +21,19 @@ import {
   rowToConfiguracion,
   rowToLead,
   rowToPropiedad,
+  rowToSolicitud,
   rowToUsuario,
   usuarioToRow,
 } from "./rowMappers";
-import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, Usuario } from "../types";
+import type {
+  AgenciaInfo,
+  CitaAgenda,
+  Lead,
+  Propiedad,
+  PropertyStatus,
+  SolicitudEstado,
+  Usuario,
+} from "../types";
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
@@ -213,6 +222,72 @@ export async function rotarTokenAgenda(): Promise<string | null> {
   return (data as string) ?? null;
 }
 
+// --- Solicitudes de cambio de estado ----------------------------------------
+// El asesor de equipo solicita; el broker resuelve. Al aprobar, un trigger en
+// la base aplica el cambio a la propiedad y notifica al solicitante — el
+// frontend nunca escribe el estatus por su cuenta en este flujo.
+
+/** Pendientes de la oficina + resueltas de los últimos 14 días (para avisos). */
+export async function fetchSolicitudes(): Promise<SolicitudEstado[]> {
+  if (!supabase) return [];
+  const desde = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("solicitudes_estado")
+    .select("*")
+    .or(`estatus.eq.pendiente,creado_en.gte.${desde}`)
+    .order("creado_en", { ascending: false });
+  if (error) {
+    // La tabla puede no existir aún en una instancia sin la migración 07.
+    console.warn("[Supabase] solicitudes_estado no disponible", error.message);
+    return [];
+  }
+  return (data ?? []).map(rowToSolicitud);
+}
+
+export async function crearSolicitudEstado(s: {
+  id: string;
+  propiedadId: string;
+  solicitanteId: string;
+  estadoActual: string;
+  estadoSolicitado: PropertyStatus;
+  motivo?: string;
+}): Promise<string | null> {
+  if (!supabase || sinAgencia("crearSolicitudEstado")) return null;
+  const { error } = await supabase.from("solicitudes_estado").insert({
+    id: s.id,
+    agencia_id: agenciaActualONull(),
+    propiedad_id: s.propiedadId,
+    solicitante_id: s.solicitanteId,
+    estado_actual: s.estadoActual,
+    estado_solicitado: s.estadoSolicitado,
+    motivo: s.motivo ?? null,
+  });
+  if (error) {
+    console.error("[Supabase] crearSolicitudEstado", error);
+    return /pendiente_unica|duplicate/i.test(error.message)
+      ? "Esta propiedad ya tiene una solicitud en revisión."
+      : "No se pudo enviar la solicitud. Intenta de nuevo.";
+  }
+  return null;
+}
+
+/** Solo broker (RLS). El trigger de la base aplica el cambio si se aprueba. */
+export async function resolverSolicitudEstado(
+  solicitudId: string,
+  resultado: "aprobada" | "rechazada",
+): Promise<string | null> {
+  if (!supabase || sinAgencia("resolverSolicitudEstado")) return null;
+  const { error } = await supabase
+    .from("solicitudes_estado")
+    .update({ estatus: resultado })
+    .eq("id", solicitudId);
+  if (error) {
+    console.error("[Supabase] resolverSolicitudEstado", error);
+    return "No se pudo resolver la solicitud. Intenta de nuevo.";
+  }
+  return null;
+}
+
 type RealtimeHandlers = {
   onPropiedad: (p: Propiedad) => void;
   onPropiedadEliminada: (id: string) => void;
@@ -222,6 +297,7 @@ type RealtimeHandlers = {
   onConfiguracion: (c: { permisoEquipoVerTodas: boolean; notificaciones: Record<string, boolean> }) => void;
   onCita: (c: CitaAgenda) => void;
   onCitaEliminada: (id: string) => void;
+  onSolicitud?: (s: SolicitudEstado) => void;
 };
 
 export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
@@ -259,6 +335,13 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
       if (payload.eventType === "DELETE") handlers.onCitaEliminada((payload.old as any).id);
       else handlers.onCita(rowToCita(payload.new));
     })
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "solicitudes_estado", ...soloMiAgencia },
+      (payload) => {
+        if (payload.eventType !== "DELETE") handlers.onSolicitud?.(rowToSolicitud(payload.new));
+      },
+    )
     .subscribe();
 
   return () => {

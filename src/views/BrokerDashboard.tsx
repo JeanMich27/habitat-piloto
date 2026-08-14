@@ -55,7 +55,7 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
   );
 
   // --- KPIs ---
-  const propiedadesActivas = propiedades.filter((p) => p.estatus === "Activa");
+  const propiedadesActivas = propiedades.filter((p) => p.estatus === "Publicada");
   const cierres = leadsPeriodo.filter((l) => l.etapa === "Cierre");
   const tasaConversion = leadsPeriodo.length
     ? Math.round((cierres.length / leadsPeriodo.length) * 100)

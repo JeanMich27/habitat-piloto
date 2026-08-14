@@ -30,6 +30,7 @@ import type {
   LeadStage,
   PropertyStatus,
   Propiedad,
+  SolicitudEstado,
   TipoInteraccion,
   UserRole,
   Usuario,
@@ -77,12 +78,15 @@ import {
   bulkUpsertLeads,
   bulkUpsertPropiedades,
   cargarSnapshotLocal,
+  crearSolicitudEstado,
   eliminarCita,
   exportarSnapshotJSON,
   fetchInitialData,
+  fetchSolicitudes,
   guardarSnapshotLocal,
   obtenerTokenAgenda,
   reemplazarEnArreglo,
+  resolverSolicitudEstado,
   rotarTokenAgenda,
   sembrarDatosDeEjemplo,
   suscribirCambiosEnVivo,
@@ -160,6 +164,8 @@ export default function App() {
   const [leads, setLeads] = useState<Lead[]>(inicial.leads);
   const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
   const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
+  // Solicitudes de cambio de estado (pendientes + resueltas recientes).
+  const [solicitudes, setSolicitudes] = useState<SolicitudEstado[]>([]);
   const [agencia, setAgencia] = useState<AgenciaInfo>(inicial.agencia);
   const [permisoEquipoVerTodas, setPermisoEquipoVerTodas] = useState(inicial.permisoEquipoVerTodas);
   const [notificaciones, setNotificaciones] = useState<Record<string, boolean>>(
@@ -200,6 +206,7 @@ export default function App() {
           datos = await fetchInitialData();
         }
         if (!vivo || !datos) return;
+        fetchSolicitudes().then((s) => vivo && setSolicitudes(s));
         setPropiedades(datos.propiedades);
         setLeads(datos.leads);
         setUsuarios(datos.usuarios);
@@ -234,6 +241,7 @@ export default function App() {
       },
       onCita: (c) => setCitas((prev) => reemplazarEnArreglo(prev, c)),
       onCitaEliminada: (id) => setCitas((prev) => prev.filter((c) => c.id !== id)),
+      onSolicitud: (s) => setSolicitudes((prev) => reemplazarEnArreglo(prev, s)),
     });
   }, [sesionActiva]);
 
@@ -321,8 +329,11 @@ export default function App() {
   // --- Avisos de la campana: se derivan de los datos, no de una tabla aparte.
   // (Ojo: `notificaciones` es otra cosa — son las preferencias de Configuración.)
   const avisos: Notificacion[] = useMemo(
-    () => (usuarioActual ? construirNotificaciones(usuarioActual, leads, propiedades) : []),
-    [usuarioActual, leads, propiedades],
+    () =>
+      usuarioActual
+        ? construirNotificaciones(usuarioActual, leads, propiedades, solicitudes, usuarios)
+        : [],
+    [usuarioActual, leads, propiedades, solicitudes, usuarios],
   );
 
   useEffect(() => {
@@ -584,15 +595,6 @@ export default function App() {
     guardarLead(next, leadId);
   };
 
-  const enviarAValidacion = (propiedadId: string) => {
-    const next = propiedades.map((p) =>
-      p.id === propiedadId ? { ...p, estatus: "Validacion" as PropertyStatus } : p,
-    );
-    setPropiedades(next);
-    const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
-  };
-
   const toggleDocumento = (propiedadId: string, documento: DocumentName) => {
     const next = propiedades.map((p) =>
       p.id === propiedadId
@@ -609,13 +611,9 @@ export default function App() {
     if (cambiada) upsertPropiedad(cambiada);
   };
 
+  // Aprobación de documentos completada: la propiedad sale al mercado.
   const activarPropiedad = (propiedadId: string) => {
-    const next = propiedades.map((p) =>
-      p.id === propiedadId ? { ...p, estatus: "Activa" as PropertyStatus } : p,
-    );
-    setPropiedades(next);
-    const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    cambiarEstadoPropiedad(propiedadId, "Publicada", "Documentos validados por el broker");
   };
 
   const registrarEvento = (
@@ -644,18 +642,17 @@ export default function App() {
     nuevoEstado: PropertyStatus,
     motivo?: string,
   ) => {
-    const etiqueta = nuevoEstado === "Validacion" ? "En validación" : nuevoEstado;
     const descripcionEvento = motivo
-      ? `Cambió a estado "${etiqueta}" — motivo: ${motivo}`
-      : `Cambió a estado "${etiqueta}"`;
+      ? `Cambió a estado "${nuevoEstado}" — motivo: ${motivo}`
+      : `Cambió a estado "${nuevoEstado}"`;
     const next = propiedades.map((p) => {
       if (p.id !== propiedadId) return p;
-      const activandose = nuevoEstado === "Activa" && p.estatus !== "Activa";
+      const publicandose = nuevoEstado === "Publicada" && p.estatus !== "Publicada";
       const ahora = new Date().toISOString();
       return {
         ...p,
         estatus: nuevoEstado,
-        publicadaEl: activandose ? ahora : p.publicadaEl,
+        publicadaEl: publicandose ? ahora : p.publicadaEl,
         ultimaActividad: ahora,
         eventos: [
           ...(p.eventos ?? []),
@@ -666,6 +663,83 @@ export default function App() {
     setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
     if (cambiada) upsertPropiedad(cambiada);
+  };
+
+  // --- Flujo de solicitudes (asesor de equipo → broker) ---------------------
+  // El asesor no escribe el estatus: crea una solicitud. En la nube, el broker
+  // la aprueba y un trigger aplica el cambio; en modo local se simula igual.
+  const solicitarCambioEstado = async (
+    propiedadId: string,
+    nuevoEstado: PropertyStatus,
+    motivo?: string,
+  ) => {
+    const propiedad = propiedades.find((p) => p.id === propiedadId);
+    if (!propiedad || !usuarioActual) return;
+    const solicitud: SolicitudEstado = {
+      id: (crypto.randomUUID?.() ?? `sol-${Date.now()}`) as string,
+      propiedadId,
+      solicitanteId: usuarioActual.id,
+      estadoActual: propiedad.estatus,
+      estadoSolicitado: nuevoEstado,
+      motivo,
+      estatus: "pendiente",
+      creadoEn: new Date().toISOString(),
+    };
+    if (isCloudEnabled) {
+      const error = await crearSolicitudEstado(solicitud);
+      if (error) {
+        setAvisoBant(error);
+        return;
+      }
+    }
+    setSolicitudes((prev) => reemplazarEnArreglo(prev, solicitud));
+    // Queda en la cronología de la propiedad desde el momento de pedirlo.
+    registrarEvento(
+      propiedadId,
+      "Estado",
+      `${usuarioActual.nombre} solicitó cambiar el estado a "${nuevoEstado}"${
+        motivo ? ` — motivo: ${motivo}` : ""
+      } (en revisión del broker)`,
+    );
+  };
+
+  // Solo broker. Al aprobar, el cambio de estado se aplica de inmediato.
+  // (Ojo: `resolverSolicitud`, más abajo, es otra cosa — solicitudes de acceso
+  // de cuentas nuevas. Estas son de cambio de estado de una propiedad.)
+  const resolverSolicitudCambio = async (
+    solicitud: SolicitudEstado,
+    resultado: "aprobada" | "rechazada",
+  ) => {
+    if (isCloudEnabled) {
+      const error = await resolverSolicitudEstado(solicitud.id, resultado);
+      if (error) {
+        setAvisoBant(error);
+        return;
+      }
+    }
+    setSolicitudes((prev) =>
+      reemplazarEnArreglo(prev, {
+        ...solicitud,
+        estatus: resultado,
+        resueltoPor: usuarioActual?.id,
+        resueltoEn: new Date().toISOString(),
+      }),
+    );
+    if (resultado === "aprobada") {
+      cambiarEstadoPropiedad(
+        solicitud.propiedadId,
+        solicitud.estadoSolicitado,
+        `solicitud aprobada por ${usuarioActual?.nombre ?? "el broker"}`,
+      );
+    } else {
+      registrarEvento(
+        solicitud.propiedadId,
+        "Estado",
+        `Solicitud de cambio a "${solicitud.estadoSolicitado}" rechazada por ${
+          usuarioActual?.nombre ?? "el broker"
+        }`,
+      );
+    }
   };
 
   const guardarInformacionPropiedad = (propiedadId: string, cambios: Partial<Propiedad>) => {
@@ -1033,7 +1107,9 @@ export default function App() {
               usuarios={usuarios}
               propiedades={propiedades}
               leads={leads}
+              solicitudes={solicitudes}
               onCambiarEstado={cambiarEstadoPropiedad}
+              onSolicitarCambio={solicitarCambioEstado}
               onVerDetalle={irADetalle}
               onNuevaPropiedad={() => setVista("nueva")}
             />
@@ -1052,8 +1128,12 @@ export default function App() {
               usuario={yo}
               usuarios={usuarios}
               leads={leads}
+              citas={citas}
+              solicitudes={solicitudes}
               onVolver={() => setVista("propiedades")}
               onCambiarEstado={cambiarEstadoPropiedad}
+              onSolicitarCambio={solicitarCambioEstado}
+              onResolverSolicitud={resolverSolicitudCambio}
               onGuardarInformacion={guardarInformacionPropiedad}
               onAgregarEvento={(id, desc) => registrarEvento(id, "Nota", desc)}
               onAgregarComparable={agregarComparable}
@@ -1201,7 +1281,6 @@ export default function App() {
             <IntakeValidacion
               propiedades={propiedades}
               usuarios={usuarios}
-              onEnviarValidacion={enviarAValidacion}
               onToggleDocumento={toggleDocumento}
               onActivar={activarPropiedad}
             />

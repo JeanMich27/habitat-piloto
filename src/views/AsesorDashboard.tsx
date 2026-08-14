@@ -90,7 +90,7 @@ export default function AsesorDashboard({
   const misLeads = leads.filter((l) => l.asesorId === asesor.id);
   const misPropiedades = propiedades.filter((p) => p.asesorId === asesor.id);
 
-  const activas = misPropiedades.filter((p) => p.estatus === "Activa").length;
+  const activas = misPropiedades.filter((p) => p.estatus === "Publicada").length;
   // El asesor de equipo no capta inventario: eso lo hace el broker.
   const puedeCaptar = puedeCargarPropiedades(asesor.rol);
 

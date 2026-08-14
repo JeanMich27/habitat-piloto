@@ -8,7 +8,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import StatusBadge from "../components/StatusBadge";
+import StatusBadge, { EnRevisionBadge } from "../components/StatusBadge";
 import EstadoPropiedadModal from "../components/EstadoPropiedadModal";
 import PropertyCard from "../components/PropertyCard";
 import AntiguedadBadge from "../components/AntiguedadBadge";
@@ -17,10 +17,17 @@ import type {
   Lead,
   PropertyStatus,
   Propiedad,
+  SolicitudEstado,
   TipoOperacion,
   Usuario,
 } from "../types";
-import { formatoMXN, puedeCargarPropiedades } from "../types";
+import {
+  ESTADOS_PROPIEDAD,
+  formatoMXN,
+  puedeCargarPropiedades,
+  puedeEditarPropiedades,
+  solicitaCambioDeEstado,
+} from "../types";
 
 type Columna = "direccion" | "precio" | "dias" | "leads" | "visitas" | "estado";
 
@@ -28,14 +35,7 @@ const MS_DIA = 1000 * 60 * 60 * 24;
 const diasDesde = (fechaISO: string, ahora: number) =>
   Math.floor((ahora - new Date(fechaISO).getTime()) / MS_DIA);
 
-const ESTADOS: (PropertyStatus | "Todos")[] = [
-  "Todos",
-  "Intake",
-  "Validacion",
-  "Activa",
-  "Pausada",
-  "Cerrada",
-];
+const ESTADOS: (PropertyStatus | "Todos")[] = ["Todos", ...ESTADOS_PROPIEDAD];
 const OPERACIONES: (TipoOperacion | "Todos")[] = ["Todos", "Venta", "Renta"];
 const POR_PAGINA_OPCIONES = [25, 50, 100] as const;
 
@@ -44,7 +44,9 @@ interface Props {
   usuarios: Usuario[];
   propiedades: Propiedad[];
   leads: Lead[];
+  solicitudes: SolicitudEstado[];
   onCambiarEstado: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
+  onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
   onVerDetalle: (propiedadId: string) => void;
   onNuevaPropiedad: () => void;
 }
@@ -54,7 +56,9 @@ export default function ListadoPropiedades({
   usuarios,
   propiedades,
   leads,
+  solicitudes,
   onCambiarEstado,
+  onSolicitarCambio,
   onVerDetalle,
   onNuevaPropiedad,
 }: Props) {
@@ -77,6 +81,10 @@ export default function ListadoPropiedades({
   const [propiedadEstado, setPropiedadEstado] = useState<Propiedad | null>(null);
 
   const nombreAsesor = (id: string) => usuarios.find((u) => u.id === id)?.nombre ?? "Sin asignar";
+
+  const esAsesorEquipo = solicitaCambioDeEstado(usuario.rol);
+  const solicitudPendienteDe = (propiedadId: string) =>
+    solicitudes.find((s) => s.propiedadId === propiedadId && s.estatus === "pendiente") ?? null;
 
   const leadsDe = (propiedadId: string) => leads.filter((l) => l.interesPropiedadId === propiedadId);
   const visitasDe = (propiedadId: string) =>
@@ -221,7 +229,7 @@ export default function ListadoPropiedades({
         >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
-              {e === "Todos" ? "Todos los estados" : e === "Validacion" ? "En validación" : e}
+              {e === "Todos" ? "Todos los estados" : e}
             </option>
           ))}
         </select>
@@ -342,7 +350,12 @@ export default function ListadoPropiedades({
                   <td className="px-4 py-3 text-slate-600">{p.municipio}</td>
                   <td className="px-4 py-3 font-medium text-slate-700">{formatoMXN(p.precio)}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge estatus={p.estatus} />
+                    <div className="flex flex-col items-start gap-1">
+                      <StatusBadge estatus={p.estatus} />
+                      {solicitudPendienteDe(p.id) && (
+                        <EnRevisionBadge destino={solicitudPendienteDe(p.id)!.estadoSolicitado} />
+                      )}
+                    </div>
                   </td>
                   {alcanceTodos && (
                     <td className="px-4 py-3 text-slate-600">{nombreAsesor(p.asesorId)}</td>
@@ -370,15 +383,19 @@ export default function ListadoPropiedades({
                         >
                           Ver detalle
                         </button>
-                        <button
-                          onClick={() => {
-                            onVerDetalle(p.id);
-                            setMenuAbierto(null);
-                          }}
-                          className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          Editar
-                        </button>
+                        {/* Editar es del broker y del independiente; el asesor
+                            de equipo solo consulta y solicita cambios. */}
+                        {puedeEditarPropiedades(usuario.rol) && (
+                          <button
+                            onClick={() => {
+                              onVerDetalle(p.id);
+                              setMenuAbierto(null);
+                            }}
+                            className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          >
+                            Editar
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setPropiedadEstado(p);
@@ -386,7 +403,11 @@ export default function ListadoPropiedades({
                           }}
                           className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                         >
-                          Cambiar estado
+                          {esAsesorEquipo
+                            ? solicitudPendienteDe(p.id)
+                              ? "Cambio en revisión"
+                              : "Solicitar cambio de estado"
+                            : "Cambiar estado"}
                         </button>
                       </div>
                     )}
@@ -454,9 +475,14 @@ export default function ListadoPropiedades({
         <EstadoPropiedadModal
           propiedad={propiedadEstado}
           rolUsuario={usuario.rol}
+          solicitudPendiente={solicitudPendienteDe(propiedadEstado.id)}
           onCerrar={() => setPropiedadEstado(null)}
           onGuardar={(nuevoEstado, motivo) => {
             onCambiarEstado(propiedadEstado.id, nuevoEstado, motivo);
+            setPropiedadEstado(null);
+          }}
+          onSolicitar={(nuevoEstado, motivo) => {
+            onSolicitarCambio(propiedadEstado.id, nuevoEstado, motivo);
             setPropiedadEstado(null);
           }}
         />

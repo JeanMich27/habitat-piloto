@@ -244,7 +244,7 @@ export default function Clientes({
           )}
           <button
             onClick={() => setCreando(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700"
           >
             <Plus className="size-3.5" /> Agregar cliente
           </button>
@@ -258,21 +258,21 @@ export default function Clientes({
             panelMovil === "ficha" ? "hidden" : ""
           }`}
         >
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
-            <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
+          <div className="glass space-y-2 p-3">
+            <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
               <Search className="size-4 shrink-0 text-slate-400" />
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por nombre, correo o teléfono"
-                className="w-full py-2 text-sm text-slate-900 outline-none"
+                className="w-full bg-transparent py-2 text-sm text-slate-900 outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={filtroClase}
                 onChange={(e) => setFiltroClase(e.target.value as typeof filtroClase)}
-                className="rounded-lg border border-slate-300 px-2 py-2 text-xs text-slate-700 outline-none focus:border-slate-500"
+                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
               >
                 <option value="Todas">Todas las calificaciones</option>
                 <option value="Hot">Hot — listos para cerrar</option>
@@ -283,7 +283,7 @@ export default function Clientes({
               <select
                 value={filtroEtapa}
                 onChange={(e) => setFiltroEtapa(e.target.value as typeof filtroEtapa)}
-                className="rounded-lg border border-slate-300 px-2 py-2 text-xs text-slate-700 outline-none focus:border-slate-500"
+                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
               >
                 <option value="Todas">Todas las etapas</option>
                 {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
@@ -299,7 +299,7 @@ export default function Clientes({
 
           <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
             {filtrados.length === 0 && (
-              <p className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+              <p className="glass border-dashed p-8 text-center text-sm text-slate-400">
                 No hay clientes que coincidan con lo que buscas.
               </p>
             )}
@@ -313,10 +313,10 @@ export default function Clientes({
               return (
                 <div
                   key={l.id}
-                  className={`rounded-xl border bg-white transition ${
+                  className={`glass transition ${
                     activo
-                      ? "border-slate-900 ring-1 ring-slate-900"
-                      : "border-slate-200 hover:border-slate-400"
+                      ? "ring-2 ring-violet-400"
+                      : "hover:-translate-y-0.5"
                   }`}
                 >
                   <button
@@ -325,7 +325,7 @@ export default function Clientes({
                   >
                     <span className="flex items-start justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[11px] font-bold text-white">
                           {l.nombre.slice(0, 2).toUpperCase()}
                         </span>
                         <span className="min-w-0">
@@ -396,7 +396,7 @@ export default function Clientes({
           </button>
 
           {!seleccionado ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-12 text-center">
+            <div className="glass border-dashed p-12 text-center">
               <UserIcon className="mx-auto size-8 text-slate-300" />
               <p className="mt-3 text-sm text-slate-400">
                 Selecciona un cliente para ver su ficha completa.
@@ -405,10 +405,10 @@ export default function Clientes({
           ) : (
             <>
               {/* --- Identidad --- */}
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
+              <section className="glass p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-sm font-bold text-white">
                       {seleccionado.nombre.slice(0, 2).toUpperCase()}
                     </span>
                     <div className="min-w-0">
@@ -441,16 +441,16 @@ export default function Clientes({
                         mirando al prospecto justo cuando cuelga la llamada. */}
                     <button
                       onClick={() => onAgendarVisita(seleccionado.id)}
-                      className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-violet-700"
+                      className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700"
                     >
                       <CalendarPlus className="size-3.5" /> Agendar visita
                     </button>
                     <button
                       onClick={() => setCalificando(true)}
-                      className={`rounded-lg px-4 py-2 text-xs font-semibold ${
+                      className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
                         bant
-                          ? "border border-slate-300 text-slate-700 hover:bg-slate-50"
-                          : "bg-slate-900 text-white hover:bg-slate-800"
+                          ? "border border-slate-200 bg-white/70 text-slate-700 hover:bg-white"
+                          : "bg-slate-900 text-white hover:bg-slate-700"
                       }`}
                     >
                       {bant ? "Volver a calificar" : "Calificar prospecto"}
@@ -484,7 +484,7 @@ export default function Clientes({
                     <select
                       value={seleccionado.etapa}
                       onChange={(e) => onCambiarEtapa(seleccionado.id, e.target.value as LeadStage)}
-                      className="mt-0.5 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-800 outline-none focus:border-slate-500"
+                      className="mt-0.5 w-full rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-violet-400 focus:bg-white"
                     >
                       {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
                         (e) => (
@@ -514,7 +514,7 @@ export default function Clientes({
               </section>
 
               {/* --- Calificación --- */}
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
+              <section className="glass p-5">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                   <Target className="size-4 text-slate-400" /> Qué tan listo está para comprar
                 </h3>
@@ -530,7 +530,7 @@ export default function Clientes({
                     </p>
                     <button
                       onClick={() => setCalificando(true)}
-                      className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                      className="mt-3 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
                     >
                       Calificar ahora
                     </button>
@@ -586,7 +586,7 @@ export default function Clientes({
                           max: 20,
                         },
                       ].map((f) => (
-                        <div key={f.etiqueta} className="rounded-lg bg-slate-50 p-3">
+                        <div key={f.etiqueta} className="rounded-xl bg-white/70 p-3 ring-1 ring-slate-200/70">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                               {f.etiqueta}
@@ -612,7 +612,7 @@ export default function Clientes({
                       bant.quienMasDecide ||
                       bant.requisitos ||
                       bant.observaciones) && (
-                      <div className="space-y-1 rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+                      <div className="space-y-1 rounded-xl bg-white/70 p-3 text-xs text-slate-600 ring-1 ring-slate-200/70">
                         {bant.montoMaximo ? (
                           <p>
                             <span className="font-semibold text-slate-800">
@@ -665,7 +665,7 @@ export default function Clientes({
               </section>
 
               {/* --- Historial --- */}
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
+              <section className="glass p-5">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                     <Clock className="size-4 text-slate-400" /> Historial del cliente
@@ -679,7 +679,7 @@ export default function Clientes({
                   <select
                     value={tipoEvento}
                     onChange={(e) => setTipoEvento(e.target.value as TipoInteraccion)}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-500 sm:w-36"
+                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white sm:w-36"
                   >
                     {TIPOS_INTERACCION.map((t) => (
                       <option key={t.valor} value={t.valor}>
@@ -692,12 +692,12 @@ export default function Clientes({
                     onChange={(e) => setTextoEvento(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && registrar()}
                     placeholder="¿Qué pasó con este cliente?"
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
                   />
                   <button
                     onClick={registrar}
                     disabled={!textoEvento.trim()}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                   >
                     Registrar
                   </button>
@@ -705,7 +705,7 @@ export default function Clientes({
 
                 <div className="mt-4">
                   {historial.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+                    <p className="rounded-xl border border-dashed border-slate-300/80 p-6 text-center text-xs text-slate-400">
                       Todavía no hay nada registrado. Cada llamada, visita o mensaje que anotes aquí
                       queda como evidencia del seguimiento.
                     </p>

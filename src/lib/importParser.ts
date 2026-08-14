@@ -109,7 +109,7 @@ const OPERACIONES_VALIDAS: TipoOperacion[] = ["Venta", "Renta"];
 const ORIGENES_VALIDOS: LeadOrigin[] = ["Portal", "Referido", "Redes", "Directo"];
 const DOCS: DocumentName[] = ["INE", "Predial", "Contrato"];
 
-// Construye Propiedades listas para insertarse. Todas entran como "Intake"
+// Construye Propiedades listas para insertarse. Todas entran como "No publicada"
 // (van a Validación) para no saltarse el control de calidad del broker.
 export function filasAPropiedades(
   filas: FilaImportada[],
@@ -135,7 +135,7 @@ export function filasAPropiedades(
       banos: numerico(val("banos")),
       m2: numerico(val("m2")),
       descripcion: val("descripcion"),
-      estatus: "Intake",
+      estatus: "No publicada",
       tipoInmueble: TIPOS_VALIDOS.includes(tipoRaw as TipoInmueble) ? (tipoRaw as TipoInmueble) : "Casa",
       tipoOperacion: OPERACIONES_VALIDAS.includes(opRaw as TipoOperacion) ? (opRaw as TipoOperacion) : "Venta",
       asesorId,

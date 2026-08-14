@@ -8,7 +8,7 @@
 //
 // Cada aviso responde a "¿qué pasó?" y lleva directo al registro que lo
 // originó: nunca es un mensaje sin destino.
-import type { Lead, Propiedad, Usuario } from "../types";
+import type { Lead, Propiedad, SolicitudEstado, Usuario } from "../types";
 import { totalBant } from "../types";
 
 export type DestinoNotificacion = "cliente" | "propiedad";
@@ -42,6 +42,8 @@ export function construirNotificaciones(
   usuario: Usuario,
   leads: Lead[],
   propiedades: Propiedad[],
+  solicitudes: SolicitudEstado[] = [],
+  usuarios: Usuario[] = [],
   ahora = Date.now(),
 ): Notificacion[] {
   const esBroker = usuario.rol === "broker";
@@ -51,6 +53,44 @@ export function construirNotificaciones(
     : propiedades.filter((p) => p.asesorId === usuario.id);
 
   const avisos: Notificacion[] = [];
+
+  const tituloProp = (id: string) => propiedades.find((p) => p.id === id)?.titulo ?? "una propiedad";
+  const nombreDe = (id: string) => usuarios.find((u) => u.id === id)?.nombre ?? "Un asesor";
+
+  // --- Solicitudes de cambio de estado ---
+  // Broker: cada solicitud pendiente exige su aprobación (se aplica sola al
+  // aprobar). Solicitante: el resultado de lo que pidió.
+  solicitudes.forEach((s) => {
+    if (esBroker && s.estatus === "pendiente") {
+      avisos.push({
+        id: `solicitud-${s.id}`,
+        titulo: "Solicitud de cambio de estado",
+        detalle: `${nombreDe(s.solicitanteId)} pide pasar "${tituloProp(s.propiedadId)}" de ${s.estadoActual} a ${s.estadoSolicitado}.${s.motivo ? ` Motivo: ${s.motivo}` : ""}`,
+        fecha: s.creadoEn,
+        destino: "propiedad",
+        refId: s.propiedadId,
+        urgente: true,
+      });
+    }
+    if (s.solicitanteId === usuario.id && s.estatus !== "pendiente") {
+      const cuando = fechaValida(s.resueltoEn);
+      if (cuando === null || (ahora - cuando) / DIAS > 14) return;
+      avisos.push({
+        id: `solicitud-${s.id}-${s.estatus}`,
+        titulo:
+          s.estatus === "aprobada"
+            ? "Tu cambio de estado fue aprobado"
+            : "Tu solicitud fue rechazada",
+        detalle: `"${tituloProp(s.propiedadId)}" → ${s.estadoSolicitado}${
+          s.estatus === "rechazada" ? " (no aplicado)" : ""
+        }.`,
+        fecha: s.resueltoEn ?? s.creadoEn,
+        destino: "propiedad",
+        refId: s.propiedadId,
+        urgente: s.estatus === "rechazada",
+      });
+    }
+  });
 
   // --- Clientes nuevos sin contactar ---
   misLeads.forEach((l) => {
@@ -125,7 +165,7 @@ export function construirNotificaciones(
       .forEach((e) => {
         const cuando = fechaValida(e.fecha);
         if (cuando === null || (ahora - cuando) / DIAS > 14) return;
-        const baja = /pausada|cerrada/i.test(e.descripcion);
+        const baja = /suspendida|vendida|rentada|pausada|cerrada/i.test(e.descripcion);
         avisos.push({
           id: `prop-estado-${p.id}-${e.id}`,
           titulo: baja ? "Se dio de baja una propiedad" : "Cambió el estado de una propiedad",
@@ -138,9 +178,9 @@ export function construirNotificaciones(
       });
   });
 
-  // --- Propiedades activas sin movimiento ---
+  // --- Propiedades publicadas sin movimiento ---
   misPropiedades.forEach((p) => {
-    if (p.estatus !== "Activa") return;
+    if (p.estatus !== "Publicada") return;
     const ultima = fechaValida(p.ultimaActividad ?? p.publicadaEl);
     if (ultima === null) return;
     const dias = Math.floor((ahora - ultima) / DIAS);
