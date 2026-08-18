@@ -72,6 +72,7 @@ import {
   leerVistas,
   type Notificacion,
 } from "./lib/notificaciones";
+import { citasDeHoy } from "./lib/agenda";
 import type { NivelAntiguedad } from "./lib/antiguedad";
 import { claseParaFiltro, type NivelCartera } from "./lib/cartera";
 import type { RangoRespuesta } from "./lib/respuesta";
@@ -374,20 +375,13 @@ export default function App() {
   };
 
   // Citas de hoy todavía abiertas — es el badge de la Agenda.
+  // Usa la MISMA función que la franja "tu día" del dashboard: si cada una
+  // contara por su cuenta, el badge diría 3 y el dashboard 2.
   const citasHoy = useMemo(() => {
     if (!usuarioActual) return 0;
-    const hoy = new Date().toISOString().slice(0, 10);
-    const mias =
-      usuarioActual.rol === "broker"
-        ? citas
-        : citas.filter((c) => c.asesorId === usuarioActual.id);
-    return mias.filter(
-      (c) =>
-        c.inicio.slice(0, 10) === hoy &&
-        c.estado !== "Cancelada" &&
-        c.estado !== "Realizada" &&
-        c.estado !== "No asistió",
-    ).length;
+    // El broker ve la agenda de toda la oficina; el asesor, solo la suya.
+    const soloDe = usuarioActual.rol === "broker" ? undefined : usuarioActual.id;
+    return citasDeHoy(citas, soloDe).length;
   }, [citas, usuarioActual]);
 
   // Menú según rol: nadie ve destinos ajenos.
@@ -1158,6 +1152,7 @@ export default function App() {
               propiedades={propiedades}
               leads={leads}
               onVerAsesor={irAPerfil}
+              onVerClientes={irAClientes}
             />
           )}
           {vista === "propiedades" && (
@@ -1235,12 +1230,14 @@ export default function App() {
               asesor={yo}
               leads={leads}
               propiedades={propiedades}
+              citas={citas}
               onVerPropiedades={irAPropiedades}
               onVerPropiedad={irADetalle}
               onVerClientes={irAClientes}
               onVerCliente={irACliente}
               onNuevaPropiedad={() => setVista("nueva")}
               onVerSalud={irASalud}
+              onVerAgenda={() => setVista("agenda")}
             />
           )}
           {/* Salud inmobiliaria: exclusiva de asesores. No se edita nada, pero

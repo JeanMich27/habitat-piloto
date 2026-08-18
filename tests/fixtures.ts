@@ -1,6 +1,13 @@
 // Datos de prueba compartidos. Se construyen a mano (no se leen de db.json)
 // para que un cambio en los datos de ejemplo no rompa las pruebas.
-import type { CalificacionBANT, Lead, LeadStage, Propiedad, Usuario } from "../src/types";
+import type {
+  CalificacionBANT,
+  CitaAgenda,
+  Lead,
+  LeadStage,
+  Propiedad,
+  Usuario,
+} from "../src/types";
 
 const MS_DIA = 1000 * 60 * 60 * 24;
 export const haceDias = (d: number) => new Date(Date.now() - d * MS_DIA).toISOString();
@@ -83,3 +90,22 @@ export function propiedad(over: Partial<Propiedad> & { id: string }): Propiedad 
     ...over,
   };
 }
+
+const enMinutos = (m: number) => new Date(Date.now() + m * 60000).toISOString();
+
+export function cita(over: Partial<CitaAgenda> & { id: string }): CitaAgenda {
+  return {
+    asesorId: "u-asesor",
+    titulo: "Cita",
+    tipo: "visita",
+    inicio: enMinutos(120),
+    fin: enMinutos(180),
+    ubicacion: "",
+    notas: "",
+    estado: "Agendada",
+    ...over,
+  };
+}
+
+/** Fecha ISO a N minutos de ahora (negativo = en el pasado). */
+export const enMinutosISO = enMinutos;

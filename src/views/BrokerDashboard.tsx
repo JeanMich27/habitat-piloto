@@ -1,9 +1,16 @@
-// Dashboard del broker — rediseño Fase 1 (glass + neumórfico).
+// Dashboard del broker — glass + neumórfico.
 //
-// Criterio: la pantalla muestra SOLO lo esencial (panel guía, tarjetas
-// métricas y el embudo). Los desgloses (alertas, ranking, cierres,
-// comisiones) NO son pantallas nuevas: emergen como tarjetas de detalle
-// translúcidas (GlassModal) sobre la pantalla, que queda desenfocada detrás.
+// Criterio: la pantalla muestra SOLO lo esencial y cada dato aparece UNA vez.
+// De la auditoría de duplicados (ago 2026) salieron tres cosas:
+//   · "Leads del periodo" era la suma de las barras del pipeline.
+//   · "Cierres del periodo" era la barra de Cierre del mismo pipeline.
+//   · "Alertas" estaba dos veces: el botón guía del panel y una tarjeta.
+// Se quedaron las cifras que NO se pueden leer en el pipeline (razones y
+// promedios) y el pipeline pasó a ser navegable: cada barra abre Clientes
+// filtrado por esa etapa, que es más útil que el modal que sustituye.
+//
+// Los desgloses que quedan (alertas, ranking, comisiones) NO son pantallas
+// nuevas: emergen como tarjetas translúcidas (GlassModal) sobre la pantalla.
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -12,9 +19,7 @@ import {
   Clock,
   DollarSign,
   Percent,
-  Target,
   Trophy,
-  Users,
 } from "lucide-react";
 import GlassModal from "../components/GlassModal";
 import KpiCard from "../components/KpiCard";
@@ -24,7 +29,7 @@ import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
 
 type Periodo = "hoy" | "semana" | "mes";
-type Detalle = "alertas" | "ranking" | "cierres" | "comisiones" | null;
+type Detalle = "alertas" | "ranking" | "comisiones" | null;
 
 const PERIODOS: { key: Periodo; label: string; dias: number }[] = [
   { key: "hoy", label: "Hoy", dias: 1 },
@@ -41,9 +46,18 @@ interface Props {
   propiedades: Propiedad[];
   leads: Lead[];
   onVerAsesor: (asesorId: string) => void;
+  /** Abre Clientes filtrado por etapa (al tocar una barra del pipeline). */
+  onVerClientes: (etapa?: LeadStage) => void;
 }
 
-export default function BrokerDashboard({ broker, usuarios, propiedades, leads, onVerAsesor }: Props) {
+export default function BrokerDashboard({
+  broker,
+  usuarios,
+  propiedades,
+  leads,
+  onVerAsesor,
+  onVerClientes,
+}: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [detalle, setDetalle] = useState<Detalle>(null);
   const ahora = useMemo(() => Date.now(), []);
@@ -167,8 +181,10 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
         </div>
       </section>
 
-      {/* ---------- Tarjetas métricas ---------- */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+      {/* ---------- Tarjetas métricas ----------
+          Solo razones y promedios: los conteos por etapa (y su total) se leen
+          en el pipeline de abajo, no hace falta repetirlos aquí. */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KpiCard
           label="Propiedades activas"
           value={String(propiedadesActivas.length)}
@@ -177,26 +193,11 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
           circulo="bg-sky-100"
         />
         <KpiCard
-          label="Leads del periodo"
-          value={String(leadsPeriodo.length)}
-          icon={Users}
-          accent="text-blue-600"
-          circulo="bg-blue-100"
-        />
-        <KpiCard
           label="Tasa de conversión"
           value={`${tasaConversion}%`}
           icon={Percent}
           accent="text-violet-600"
           circulo="bg-violet-100"
-        />
-        <KpiCard
-          label="Cierres del periodo"
-          value={String(cierres.length)}
-          icon={Target}
-          accent="text-emerald-600"
-          circulo="bg-emerald-100"
-          onClick={() => setDetalle("cierres")}
         />
         <KpiCard
           label="Tiempo de respuesta"
@@ -218,24 +219,43 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
         {/* ---------- Pipeline agregado ---------- */}
         <section className="glass p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-bold text-slate-900">Pipeline agregado</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-slate-900">Pipeline agregado</h2>
+            <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+              {leadsPeriodo.length} lead{leadsPeriodo.length === 1 ? "" : "s"} · toca una etapa
+            </span>
+          </div>
+          {/* Cada barra abre Clientes filtrado por esa etapa: la gráfica que no
+              deja llegar al registro es un adorno. */}
           <div className="flex items-end gap-3">
             {pipeline.map((e) => (
-              <div key={e.etapa} className="flex flex-1 flex-col items-center gap-2">
+              <button
+                key={e.etapa}
+                onClick={() => e.cantidad > 0 && onVerClientes(e.etapa)}
+                disabled={e.cantidad === 0}
+                aria-label={`Ver los ${e.cantidad} leads en etapa ${e.titulo}`}
+                className={`group flex flex-1 flex-col items-center gap-2 rounded-2xl p-1.5 transition ${
+                  e.cantidad === 0 ? "cursor-default opacity-50" : "hover:bg-white/70"
+                }`}
+              >
                 <span className="text-sm font-bold text-slate-800">{e.cantidad}</span>
-                <div className="flex h-24 w-full items-end overflow-hidden rounded-xl bg-white/60 shadow-inner">
-                  <div
-                    className={`w-full rounded-xl ${e.acento}`}
+                <span className="flex h-24 w-full items-end overflow-hidden rounded-xl bg-white/60 shadow-inner">
+                  <span
+                    className={`block w-full rounded-xl ${e.acento}`}
                     style={{ height: `${(e.cantidad / maxPipeline) * 100}%` }}
                   />
-                </div>
-                <span className="text-center text-[11px] font-medium text-slate-500">{e.titulo}</span>
-              </div>
+                </span>
+                <span className="text-center text-[11px] font-medium text-slate-500">
+                  {e.titulo}
+                </span>
+              </button>
             ))}
           </div>
         </section>
 
-        {/* ---------- Equipo (abre el ranking en glass modal) ---------- */}
+        {/* ---------- Equipo (abre el ranking en glass modal) ----------
+            La tarjeta de Alertas que vivía aquí se quitó: el botón guía del
+            panel de arriba abre exactamente el mismo detalle. */}
         <section className="flex flex-col gap-3">
           <button
             onClick={() => setDetalle("ranking")}
@@ -261,31 +281,6 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
               <p className="mt-0.5 text-xs text-slate-500">
                 {asesores.length} asesor{asesores.length === 1 ? "" : "es"} · toca para ver leads,
                 visitas y cierres de cada uno
-              </p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => totalAlertas > 0 && setDetalle("alertas")}
-            className={`neu flex items-center gap-3 p-4 text-left transition-transform ${
-              totalAlertas > 0 ? "hover:-translate-y-0.5" : "opacity-70"
-            }`}
-          >
-            <span
-              className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-                totalAlertas > 0 ? "bg-amber-100" : "bg-emerald-100"
-              }`}
-            >
-              {totalAlertas > 0 ? (
-                <AlertTriangle className="size-5 text-amber-600" />
-              ) : (
-                <CheckCircle2 className="size-5 text-emerald-600" />
-              )}
-            </span>
-            <div>
-              <p className="text-sm font-bold text-slate-900">Alertas</p>
-              <p className="text-xs text-slate-500">
-                {totalAlertas > 0 ? `${totalAlertas} activa${totalAlertas === 1 ? "" : "s"}` : "Sin alertas"}
               </p>
             </div>
           </button>
@@ -367,38 +362,6 @@ export default function BrokerDashboard({ broker, usuarios, propiedades, leads, 
               </tbody>
             </table>
           </div>
-        </GlassModal>
-      )}
-
-      {detalle === "cierres" && (
-        <GlassModal
-          titulo="Cierres del periodo"
-          subtitulo={`${cierres.length} operación${cierres.length === 1 ? "" : "es"} cerrada${cierres.length === 1 ? "" : "s"}`}
-          onCerrar={() => setDetalle(null)}
-        >
-          <ul className="space-y-2">
-            {cierres.map((l) => (
-              <li
-                key={l.id}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-4 py-3 shadow-sm"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900">{l.nombre}</p>
-                  <p className="text-xs text-slate-500">
-                    Asesor: {usuarios.find((u) => u.id === l.asesorId)?.nombre ?? "—"}
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm font-bold text-emerald-700">
-                  {l.montoOferta ? formatoMXN(l.montoOferta) : "—"}
-                </span>
-              </li>
-            ))}
-            {cierres.length === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-slate-400">
-                Sin cierres en este periodo.
-              </p>
-            )}
-          </ul>
         </GlassModal>
       )}
 

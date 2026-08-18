@@ -98,6 +98,56 @@ export function ordenarPorInicio(citas: CitaAgenda[]): CitaAgenda[] {
   return [...citas].sort((a, b) => a.inicio.localeCompare(b.inicio));
 }
 
+/**
+ * Una cita "abierta" es la que todavía puede pasar: ni cancelada, ni ya
+ * ocurrida, ni plantón. Es lo que cuenta el badge de la Agenda y lo que
+ * muestra el dashboard — si cada pantalla decidiera esto por su cuenta, el
+ * badge diría 3 y el dashboard 2.
+ */
+export const esCitaAbierta = (c: CitaAgenda) =>
+  c.estado !== "Cancelada" && c.estado !== "Realizada" && c.estado !== "No asistió";
+
+/**
+ * Citas abiertas de hoy, ordenadas. `asesorId` omitido = todas (broker).
+ *
+ * OJO con la zona horaria: se compara el día LOCAL (esMismoDia), no el prefijo
+ * del ISO. En México (UTC-6) una cita de las 7 p.m. se guarda como la 1 a.m.
+ * del día siguiente en UTC; comparar cadenas la mandaba a mañana.
+ */
+export function citasDeHoy(
+  citas: CitaAgenda[],
+  asesorId?: string,
+  ahora = new Date(),
+): CitaAgenda[] {
+  return ordenarPorInicio(
+    citas.filter(
+      (c) =>
+        (!asesorId || c.asesorId === asesorId) &&
+        esCitaAbierta(c) &&
+        esMismoDia(new Date(c.inicio), ahora),
+    ),
+  );
+}
+
+/**
+ * La siguiente cita que todavía no empieza. Es la respuesta a la pregunta que
+ * un asesor en campo se hace varias veces al día; el dashboard la muestra para
+ * que no tenga que entrar a la Agenda a averiguarla.
+ */
+export function proximaCita(
+  citas: CitaAgenda[],
+  asesorId?: string,
+  ahora = new Date(),
+): CitaAgenda | null {
+  const desde = ahora.toISOString();
+  const candidatas = ordenarPorInicio(
+    citas.filter(
+      (c) => (!asesorId || c.asesorId === asesorId) && esCitaAbierta(c) && c.inicio >= desde,
+    ),
+  );
+  return candidatas[0] ?? null;
+}
+
 export function agruparPorDia(citas: CitaAgenda[]): { dia: string; citas: CitaAgenda[] }[] {
   const mapa = new Map<string, CitaAgenda[]>();
   for (const c of ordenarPorInicio(citas)) {
