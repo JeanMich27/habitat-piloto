@@ -291,17 +291,21 @@ export default function CalculadoraComisiones({
   };
 
   const inputBase =
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500";
+    "w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white";
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
       {/* ---------- Encabezado ---------- */}
-      <div className="flex flex-wrap items-start justify-between gap-3 print:block">
-        <div className="min-w-0">
+      {/* Mismo panel de vidrio con degradado pastel que abre el resto de la
+          app, para que la calculadora no parezca una pantalla de otro
+          producto pegada dentro. */}
+      <section className="glass relative flex flex-wrap items-start justify-between gap-3 overflow-hidden p-5 sm:p-6 print:block">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-100/60 via-sky-100/40 to-violet-100/40" />
+        <div className="relative min-w-0">
           {onVolver && (
             <button
               onClick={onVolver}
-              className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 print:hidden"
+              className="mb-2 flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-white hover:text-slate-900 print:hidden"
             >
               <ArrowLeft className="size-4" /> Volver
             </button>
@@ -314,31 +318,31 @@ export default function CalculadoraComisiones({
             valores personalizados.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 print:hidden">
+        <div className="relative flex flex-wrap gap-2 print:hidden">
           <button
             onClick={copiarResumen}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
           >
             <ClipboardCopy className="size-3.5" />
             {copiado ? "¡Copiado!" : "Copiar resumen"}
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-300/60 transition hover:bg-violet-700"
           >
             <Printer className="size-3.5" /> Imprimir
           </button>
         </div>
-      </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ================= Columna izquierda ================= */}
         <div className="space-y-5 lg:col-span-5 xl:col-span-4">
           {/* --- 1. Propiedad --- */}
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <section className="glass p-5">
             <div className="flex items-center justify-between gap-2">
               <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Building2 className="size-4 text-slate-400" />
+                <Building2 className="size-4 text-violet-600" />
                 1. Seleccionar propiedad cargada
               </h2>
               <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
@@ -366,10 +370,10 @@ export default function CalculadoraComisiones({
               </div>
 
               {propiedad && (
-                <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                <div className="rounded-2xl bg-white/70 p-3 text-xs text-slate-600 shadow-sm">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-900">{propiedad.titulo}</p>
-                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
                       {propiedad.estatus}
                     </span>
                   </div>
@@ -384,7 +388,7 @@ export default function CalculadoraComisiones({
                 <label className="mb-1 block text-xs font-semibold text-slate-600">
                   {esRenta ? "Renta mensual (MXN)" : "Precio de venta (MXN)"}
                 </label>
-                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
+                <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
                   <span className="text-sm text-slate-400">$</span>
                   <input
                     inputMode="decimal"
@@ -402,9 +406,9 @@ export default function CalculadoraComisiones({
           </section>
 
           {/* --- 2. Comisión global --- */}
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <section className="glass p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <Receipt className="size-4 text-slate-400" />
+              <Receipt className="size-4 text-violet-600" />
               2. Definir comisión global
             </h2>
 
@@ -414,15 +418,15 @@ export default function CalculadoraComisiones({
                 <label className="mb-1 block text-xs font-semibold text-slate-600">
                   Tipo de operación
                 </label>
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                <div className="grid grid-cols-2 gap-1 rounded-full bg-white/60 p-1 shadow-inner backdrop-blur">
                   {(["Venta", "Renta"] as TipoOperacion[]).map((t) => (
                     <button
                       key={t}
                       onClick={() => setTipoOperacion(t)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                         tipoOperacion === t
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
+                          ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
                       {t}
@@ -431,7 +435,7 @@ export default function CalculadoraComisiones({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+              <div className="grid grid-cols-2 gap-1 rounded-full bg-white/60 p-1 shadow-inner backdrop-blur">
                 {(
                   [
                     { key: "tarifa", label: esRenta ? "Meses de renta" : "Porcentaje (%)" },
@@ -441,10 +445,10 @@ export default function CalculadoraComisiones({
                   <button
                     key={o.key}
                     onClick={() => setModoComision(o.key)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                       modoComision === o.key
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {o.label}
@@ -471,7 +475,7 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={mesesRenta}
                       onChange={(e) => setMesesRenta(Number(e.target.value))}
-                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-slate-900"
+                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/70 shadow-inner accent-violet-600"
                     />
                     <input
                       type="number"
@@ -479,7 +483,7 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={mesesRenta}
                       onChange={(e) => setMesesRenta(Number(e.target.value) || 0)}
-                      className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-slate-500"
+                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
                     />
                   </div>
                   <p className="mt-1.5 text-[11px] text-slate-400">
@@ -504,7 +508,7 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={pctComision}
                       onChange={(e) => setPctComision(Number(e.target.value))}
-                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-slate-900"
+                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/70 shadow-inner accent-violet-600"
                     />
                     <input
                       type="number"
@@ -512,7 +516,7 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={pctComision}
                       onChange={(e) => setPctComision(Number(e.target.value) || 0)}
-                      className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-slate-500"
+                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
                     />
                   </div>
                 </div>
@@ -521,7 +525,7 @@ export default function CalculadoraComisiones({
                   <label className="mb-1 block text-xs font-semibold text-slate-600">
                     Monto total de comisión (MXN)
                   </label>
-                  <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
+                  <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
                     <span className="text-sm text-slate-400">$</span>
                     <input
                       inputMode="decimal"
@@ -535,7 +539,7 @@ export default function CalculadoraComisiones({
               )}
 
               {tarifaDelCrm && (
-                <p className="rounded-lg bg-emerald-50 p-2.5 text-[11px] font-medium text-emerald-800">
+                <p className="rounded-2xl bg-emerald-50/90 p-2.5 text-[11px] font-medium text-emerald-800 ring-1 ring-emerald-200">
                   Esta tarifa viene de la comisión pactada en tu CRM para esta propiedad.
                   Puedes cambiarla, pero por defecto usamos el acuerdo real.
                 </p>
@@ -556,7 +560,7 @@ export default function CalculadoraComisiones({
                 </select>
               </div>
 
-              <div className="rounded-xl bg-slate-900 p-4 text-white">
+              <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-violet-950 p-4 text-white shadow-lg shadow-slate-900/20">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm">Comisión base a repartir:</span>
                   <span className="text-lg font-bold">{formatoMXN(base)}</span>
@@ -593,7 +597,7 @@ export default function CalculadoraComisiones({
         </div>
 
         {/* ================= Columna derecha ================= */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-7 xl:col-span-8">
+        <section className="glass p-5 lg:col-span-7 xl:col-span-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900">
@@ -608,13 +612,13 @@ export default function CalculadoraComisiones({
               <button
                 onClick={ajustarAl100}
                 title="Asigna lo que falta al último participante en porcentaje"
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
               >
                 <Wand2 className="size-3.5" /> Ajustar al 100%
               </button>
               <button
                 onClick={agregar}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-300/60 transition hover:bg-emerald-700"
               >
                 <Plus className="size-3.5" /> Agregar integrante
               </button>
@@ -631,7 +635,7 @@ export default function CalculadoraComisiones({
                 <button
                   key={t.etiqueta}
                   onClick={() => aplicarPlantilla(t)}
-                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-400 hover:text-slate-900"
+                  className="rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-white hover:text-slate-900"
                 >
                   {t.etiqueta}
                 </button>
@@ -647,7 +651,7 @@ export default function CalculadoraComisiones({
                 {pct(pctRepartido)} / 100%
               </span>
             </div>
-            <div className="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="mt-1.5 flex h-2.5 w-full overflow-hidden rounded-full bg-white/70 shadow-inner">
               {filas.map((f) => (
                 <div
                   key={f.id}
@@ -662,10 +666,10 @@ export default function CalculadoraComisiones({
 
           {/* Validación */}
           <div
-            className={`mt-3 flex items-start gap-2 rounded-lg border p-3 text-xs font-semibold ${
+            className={`mt-3 flex items-start gap-2 rounded-2xl p-3 text-xs font-semibold ring-1 ${
               exacto
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-amber-200 bg-amber-50 text-amber-700"
+                ? "bg-emerald-50/90 text-emerald-700 ring-emerald-200"
+                : "bg-amber-50/90 text-amber-700 ring-amber-200"
             }`}
           >
             <CheckCircle2 className="mt-px size-4 shrink-0" />
@@ -689,13 +693,13 @@ export default function CalculadoraComisiones({
           {/* Participantes */}
           <div className="mt-4 space-y-3">
             {filas.length === 0 && (
-              <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+              <p className="glass border-dashed p-6 text-center text-xs text-slate-400">
                 No hay participantes. Agrega el primero o usa una plantilla.
               </p>
             )}
 
             {filas.map((f) => (
-              <div key={f.id} className="rounded-xl border border-slate-200 p-4">
+              <div key={f.id} className="neu p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 flex-1 items-start gap-2">
                     <span
@@ -707,13 +711,13 @@ export default function CalculadoraComisiones({
                         value={f.nombre}
                         onChange={(e) => actualizar(f.id, { nombre: e.target.value })}
                         placeholder="Nombre del participante"
-                        className="w-full rounded-md border border-transparent px-1 py-0.5 text-sm font-bold text-slate-900 outline-none hover:border-slate-200 focus:border-slate-400"
+                        className="w-full rounded-lg border border-transparent px-1.5 py-0.5 text-sm font-bold text-slate-900 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:bg-white"
                       />
                       <input
                         value={f.nota}
                         onChange={(e) => actualizar(f.id, { nota: e.target.value })}
                         placeholder="Rol o concepto (opcional)"
-                        className="mt-0.5 w-full rounded-md border border-transparent px-1 py-0.5 text-xs text-slate-500 outline-none hover:border-slate-200 focus:border-slate-400"
+                        className="mt-0.5 w-full rounded-lg border border-transparent px-1.5 py-0.5 text-xs text-slate-500 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:bg-white"
                       />
                     </div>
                   </div>
@@ -724,12 +728,12 @@ export default function CalculadoraComisiones({
                       onChange={(e) =>
                         actualizar(f.id, { modo: e.target.value as ModoParticipante })
                       }
-                      className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-slate-500"
+                      className="rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
                     >
                       <option value="pct">% de comisión</option>
                       <option value="monto">Monto fijo ($)</option>
                     </select>
-                    <div className="flex items-center rounded-lg border border-slate-300 px-2 focus-within:border-slate-500">
+                    <div className="flex items-center rounded-xl border border-white/70 bg-white/70 px-2 transition-colors focus-within:border-violet-400 focus-within:bg-white">
                       {f.modo === "monto" && <span className="text-xs text-slate-400">$</span>}
                       <input
                         type="number"
@@ -744,14 +748,14 @@ export default function CalculadoraComisiones({
                     <button
                       onClick={() => eliminar(f.id)}
                       title="Eliminar participante"
-                      className="rounded-lg p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 print:hidden"
+                      className="rounded-full p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 print:hidden"
                     >
                       <Trash2 className="size-4" />
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2 shadow-sm">
                   <span className="text-xs text-slate-500">Monto asignado</span>
                   <span className="text-sm font-bold text-slate-900">
                     {formatoMXN(f.monto)}{" "}
@@ -765,7 +769,7 @@ export default function CalculadoraComisiones({
           </div>
 
           {/* Resumen final */}
-          <div className="mt-6 border-t border-slate-200 pt-5">
+          <div className="mt-6 border-t border-white/70 pt-5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Resumen final de pagos
             </p>
@@ -808,7 +812,7 @@ export default function CalculadoraComisiones({
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-slate-900 text-white">
+                  <tr className="bg-gradient-to-r from-slate-900 to-violet-950 text-white">
                     <td className="rounded-l-lg px-3 py-3 font-bold">Total repartido</td>
                     <td className="py-3 text-right font-bold">{pct(pctRepartido)}</td>
                     <td className="py-3 text-right font-bold">

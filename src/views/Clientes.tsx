@@ -19,11 +19,18 @@ import {
   Sparkles,
   Target,
   User as UserIcon,
+  X,
 } from "lucide-react";
 import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
 import NuevoClienteModal from "../components/NuevoClienteModal";
 import { etiquetaEtapa } from "../lib/metrics";
+import {
+  RANGOS_RESPUESTA,
+  etiquetaRango,
+  rangoDeLead,
+  type RangoRespuesta,
+} from "../lib/respuesta";
 import type {
   CalificacionBANT,
   ClasificacionLead,
@@ -112,6 +119,10 @@ interface Props {
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
   etapaInicial?: LeadStage | null;
+  /** Filtro de calificación precargado (al tocar un nivel en Salud inmobiliaria). */
+  claseInicial?: ClasificacionLead | "Sin calificar" | null;
+  /** Filtro de velocidad de primer contacto (al tocar una barra en Salud inmobiliaria). */
+  respuestaInicial?: RangoRespuesta | null;
 }
 
 export default function Clientes({
@@ -126,6 +137,8 @@ export default function Clientes({
   onAgendarVisita,
   clienteInicialId,
   etapaInicial,
+  claseInicial,
+  respuestaInicial,
 }: Props) {
   // El asesor de equipo ve su cartera; el broker y el independiente, todo su alcance.
   const visibles = useMemo(() => {
@@ -138,9 +151,14 @@ export default function Clientes({
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroClase, setFiltroClase] = useState<"Todas" | ClasificacionLead | "Sin calificar">(
-    "Todas",
+    claseInicial ?? "Todas",
   );
   const [filtroEtapa, setFiltroEtapa] = useState<"Todas" | LeadStage>(etapaInicial ?? "Todas");
+  // Velocidad de primer contacto: el filtro con el que aterriza el asesor
+  // cuando toca una barra en Salud inmobiliaria.
+  const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(
+    respuestaInicial ?? "Todas",
+  );
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
   const [creando, setCreando] = useState(false);
@@ -167,14 +185,36 @@ export default function Clientes({
     setBusqueda("");
     setFiltroClase("Todas");
     setFiltroEtapa("Todas");
+    setFiltroRespuesta("Todas");
   }, [clienteInicialId]);
 
   useEffect(() => {
     if (etapaInicial) {
       setFiltroEtapa(etapaInicial);
+      setFiltroClase("Todas");
+      setFiltroRespuesta("Todas");
       setPanelMovil("lista");
     }
   }, [etapaInicial]);
+
+  // Llegada desde Salud inmobiliaria: se aplica el filtro que se tocó y se
+  // limpian los otros dos, para que la lista muestre exactamente el mismo
+  // conjunto que la barra o el segmento del que vino.
+  useEffect(() => {
+    if (!claseInicial) return;
+    setFiltroClase(claseInicial);
+    setFiltroEtapa("Todas");
+    setFiltroRespuesta("Todas");
+    setPanelMovil("lista");
+  }, [claseInicial]);
+
+  useEffect(() => {
+    if (!respuestaInicial) return;
+    setFiltroRespuesta(respuestaInicial);
+    setFiltroClase("Todas");
+    setFiltroEtapa("Todas");
+    setPanelMovil("lista");
+  }, [respuestaInicial]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -188,7 +228,9 @@ export default function Clientes({
         const clase = l.bant ? clasificarLead(totalBant(l.bant)) : "Sin calificar";
         const coincideClase = filtroClase === "Todas" || clase === filtroClase;
         const coincideEtapa = filtroEtapa === "Todas" || l.etapa === filtroEtapa;
-        return coincide && coincideClase && coincideEtapa;
+        const coincideRespuesta =
+          filtroRespuesta === "Todas" || rangoDeLead(l) === filtroRespuesta;
+        return coincide && coincideClase && coincideEtapa && coincideRespuesta;
       })
       .sort((a, b) => {
         // Los calificados alto primero: la cartera se lee por prioridad de cierre.
@@ -196,7 +238,18 @@ export default function Clientes({
         const pb = b.bant ? totalBant(b.bant) : -1;
         return pb - pa;
       });
-  }, [visibles, busqueda, filtroClase, filtroEtapa]);
+  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta]);
+
+  // Filtros activos que NO se ven en los selects, para que el asesor entienda
+  // por qué la lista está recortada y pueda quitarlos de un toque.
+  const filtrosActivos: { clave: string; texto: string; limpiar: () => void }[] = [];
+  if (filtroRespuesta !== "Todas") {
+    filtrosActivos.push({
+      clave: "respuesta",
+      texto: `Respuesta: ${etiquetaRango(filtroRespuesta)}`,
+      limpiar: () => setFiltroRespuesta("Todas"),
+    });
+  }
 
   const seleccionado = filtrados.find((l) => l.id === seleccionadoId) ?? filtrados[0] ?? null;
   const propiedadInteres = propiedades.find((p) => p.id === seleccionado?.interesPropiedadId);
@@ -295,6 +348,39 @@ export default function Clientes({
                 )}
               </select>
             </div>
+
+            {/* Velocidad de primer contacto: mismos cortes que la gráfica de
+                Salud inmobiliaria, para que barra y lista nunca discrepen. */}
+            <select
+              value={filtroRespuesta}
+              onChange={(e) => setFiltroRespuesta(e.target.value as typeof filtroRespuesta)}
+              aria-label="Filtrar por velocidad de primer contacto"
+              className="w-full rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+            >
+              <option value="Todas">Cualquier velocidad de respuesta</option>
+              {RANGOS_RESPUESTA.map((r) => (
+                <option key={r.clave} value={r.clave}>
+                  {r.etiqueta}
+                </option>
+              ))}
+            </select>
+
+            {filtrosActivos.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                {filtrosActivos.map((f) => (
+                  <button
+                    key={f.clave}
+                    onClick={f.limpiar}
+                    className="flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-bold text-violet-700 hover:bg-violet-200"
+                  >
+                    {f.texto} <X className="size-3" />
+                  </button>
+                ))}
+                <span className="text-[11px] text-slate-400">
+                  {filtrados.length} resultado{filtrados.length === 1 ? "" : "s"}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">

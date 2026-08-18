@@ -43,7 +43,7 @@ import {
   totalBant,
 } from "./types";
 import Agenda from "./views/Agenda";
-import AnalisisComisiones from "./views/AnalisisComisiones";
+import SaludInmobiliaria from "./views/SaludInmobiliaria";
 import AsesorDashboard from "./views/AsesorDashboard";
 import Asesores from "./views/Asesores";
 import CalculadoraComisiones from "./views/CalculadoraComisiones";
@@ -72,6 +72,9 @@ import {
   leerVistas,
   type Notificacion,
 } from "./lib/notificaciones";
+import type { NivelAntiguedad } from "./lib/antiguedad";
+import { claseParaFiltro, type NivelCartera } from "./lib/cartera";
+import type { RangoRespuesta } from "./lib/respuesta";
 import { useAuth } from "./lib/authContext";
 import { isCloudEnabled } from "./lib/supabaseClient";
 import {
@@ -115,7 +118,7 @@ type Vista =
   | "reportes"
   | "importar"
   | "comisiones"
-  | "analisis-comisiones"
+  | "salud"
   | "clientes"
   | "agenda"
   | "configuracion";
@@ -270,6 +273,12 @@ export default function App() {
   // Cliente y filtro con los que debe abrirse la vista de Clientes.
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
   const [etapaClientes, setEtapaClientes] = useState<LeadStage | null>(null);
+  // Filtros con los que aterriza el asesor cuando toca una gráfica de Salud
+  // inmobiliaria. Se guardan aquí (y no dentro de cada vista) porque el
+  // origen del filtro es otra pantalla.
+  const [claseClientes, setClaseClientes] = useState<NivelCartera | null>(null);
+  const [respuestaClientes, setRespuestaClientes] = useState<RangoRespuesta | null>(null);
+  const [antiguedadPropiedades, setAntiguedadPropiedades] = useState<NivelAntiguedad | null>(null);
   // Notificaciones ya vistas (por usuario, en este navegador).
   const [vistasNotif, setVistasNotif] = useState<Set<string>>(new Set());
   // Modal de agendar: null = cerrado. Se abre desde la Agenda y desde la ficha
@@ -451,9 +460,9 @@ export default function App() {
       if (rol && puedeCargarPropiedades(rol)) base.add("nueva");
     }
     if (base.has("asesores")) base.add("perfil");
-    // Análisis de cierres y comisiones: se abre desde la tarjeta del
-    // dashboard del asesor, sin icono propio en el menú (decisión de diseño).
-    if (base.has("comisiones")) base.add("analisis-comisiones");
+    // Salud inmobiliaria: se abre desde la tarjeta del dashboard del asesor,
+    // sin icono propio en el menú (decisión de diseño).
+    if (base.has("comisiones")) base.add("salud");
     return base;
   }, [navItems, rol]);
 
@@ -785,14 +794,61 @@ export default function App() {
   const irACliente = (leadId: string) => {
     setClienteSeleccionadoId(leadId);
     setEtapaClientes(null);
+    setClaseClientes(null);
+    setRespuestaClientes(null);
     setVista("clientes");
   };
 
   // Abre Clientes filtrado por etapa (al tocar un número del embudo).
   const irAClientes = (etapa?: LeadStage) => {
     setClienteSeleccionadoId(null);
+    setClaseClientes(null);
+    setRespuestaClientes(null);
     setEtapaClientes(etapa ?? null);
     setVista("clientes");
+  };
+
+  // --- Navegación desde las gráficas de Salud inmobiliaria -------------------
+  // Cada gráfica aterriza en la lista real que la compone. Se limpia siempre
+  // el resto de filtros para que el conteo de la barra y el de la lista
+  // coincidan: si no coinciden, el asesor deja de confiar en el número.
+
+  /** Toca un nivel de calificación (Hot / Warm / Cold / sin calificar). */
+  const irAClientesPorNivel = (nivel: NivelCartera) => {
+    setClienteSeleccionadoId(null);
+    setEtapaClientes(null);
+    setRespuestaClientes(null);
+    setClaseClientes(nivel);
+    setVista("clientes");
+  };
+
+  /** Toca una barra de velocidad de primer contacto. */
+  const irAClientesPorRespuesta = (rango: RangoRespuesta) => {
+    setClienteSeleccionadoId(null);
+    setEtapaClientes(null);
+    setClaseClientes(null);
+    setRespuestaClientes(rango);
+    setVista("clientes");
+  };
+
+  /** Toca una barra del termómetro de antigüedad de inventario. */
+  const irAPropiedadesPorAntiguedad = (nivel: NivelAntiguedad) => {
+    setAntiguedadPropiedades(nivel);
+    setVista("propiedades");
+  };
+
+  /** Lista completa de propiedades, sin filtro de antigüedad heredado. */
+  const irAPropiedades = () => {
+    setAntiguedadPropiedades(null);
+    setVista("propiedades");
+  };
+
+  /** Abre Salud inmobiliaria limpiando los filtros de la visita anterior. */
+  const irASalud = () => {
+    setClaseClientes(null);
+    setRespuestaClientes(null);
+    setAntiguedadPropiedades(null);
+    setVista("salud");
   };
 
   const crearCliente = (nuevo: Lead) => {
@@ -1012,7 +1068,10 @@ export default function App() {
         if (id === "clientes") {
           setClienteSeleccionadoId(null);
           setEtapaClientes(null);
+          setClaseClientes(null);
+          setRespuestaClientes(null);
         }
+        if (id === "propiedades") setAntiguedadPropiedades(null);
         setVista(id as Vista);
       }}
       campana={
@@ -1112,13 +1171,14 @@ export default function App() {
               onSolicitarCambio={solicitarCambioEstado}
               onVerDetalle={irADetalle}
               onNuevaPropiedad={() => setVista("nueva")}
+              antiguedadInicial={antiguedadPropiedades}
             />
           )}
           {vista === "nueva" && puedeCargarPropiedades(yo.rol) && (
             <NuevaPropiedad
               usuario={yo}
               propiedades={propiedades}
-              onCancelar={() => setVista("propiedades")}
+              onCancelar={irAPropiedades}
               onGuardar={guardarNuevaPropiedad}
             />
           )}
@@ -1130,7 +1190,7 @@ export default function App() {
               leads={leads}
               citas={citas}
               solicitudes={solicitudes}
-              onVolver={() => setVista("propiedades")}
+              onVolver={irAPropiedades}
               onCambiarEstado={cambiarEstadoPropiedad}
               onSolicitarCambio={solicitarCambioEstado}
               onResolverSolicitud={resolverSolicitudCambio}
@@ -1175,22 +1235,28 @@ export default function App() {
               asesor={yo}
               leads={leads}
               propiedades={propiedades}
-              onVerPropiedades={() => setVista("propiedades")}
+              onVerPropiedades={irAPropiedades}
               onVerPropiedad={irADetalle}
               onVerClientes={irAClientes}
               onVerCliente={irACliente}
               onNuevaPropiedad={() => setVista("nueva")}
-              onVerAnalisis={() => setVista("analisis-comisiones")}
+              onVerSalud={irASalud}
             />
           )}
-          {/* Análisis de cierres y comisiones: exclusivo de asesores, solo lectura. */}
-          {vista === "analisis-comisiones" &&
+          {/* Salud inmobiliaria: exclusiva de asesores. No se edita nada, pero
+              cada gráfica lleva a la lista de clientes o propiedades que la
+              compone. */}
+          {vista === "salud" &&
             (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
-              <AnalisisComisiones
+              <SaludInmobiliaria
                 asesor={yo}
                 leads={leads}
                 propiedades={propiedades}
                 onVolver={() => setVista("asesor")}
+                onVerClientesPorEtapa={irAClientes}
+                onVerClientesPorRespuesta={irAClientesPorRespuesta}
+                onVerClientesPorNivel={irAClientesPorNivel}
+                onVerPropiedadesPorAntiguedad={irAPropiedadesPorAntiguedad}
               />
             )}
           {/* Clientes: asesores y broker. Propietarios y clientes nunca la ven. */}
@@ -1210,6 +1276,8 @@ export default function App() {
                 onAgendarVisita={(leadId) => setAgendando({ leadId })}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
+                claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}
+                respuestaInicial={respuestaClientes}
               />
             )}
           {vista === "agenda" && tieneAgenda(yo.rol) && (

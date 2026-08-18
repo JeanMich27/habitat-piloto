@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -12,7 +12,12 @@ import StatusBadge, { EnRevisionBadge } from "../components/StatusBadge";
 import EstadoPropiedadModal from "../components/EstadoPropiedadModal";
 import PropertyCard from "../components/PropertyCard";
 import AntiguedadBadge from "../components/AntiguedadBadge";
-import { ANTIGUEDAD_ESTILOS, ANTIGUEDAD_LEYENDA } from "../lib/antiguedad";
+import {
+  ANTIGUEDAD_ESTILOS,
+  ANTIGUEDAD_LEYENDA,
+  antiguedadDe,
+  type NivelAntiguedad,
+} from "../lib/antiguedad";
 import type {
   Lead,
   PropertyStatus,
@@ -49,6 +54,12 @@ interface Props {
   onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
   onVerDetalle: (propiedadId: string) => void;
   onNuevaPropiedad: () => void;
+  /**
+   * Rango de antigüedad precargado. Llega cuando el asesor toca una barra en
+   * la gráfica de "Antigüedad de tu inventario" de Salud inmobiliaria: la
+   * lista abre mostrando exactamente esas propiedades.
+   */
+  antiguedadInicial?: NivelAntiguedad | null;
 }
 
 export default function ListadoPropiedades({
@@ -61,6 +72,7 @@ export default function ListadoPropiedades({
   onSolicitarCambio,
   onVerDetalle,
   onNuevaPropiedad,
+  antiguedadInicial,
 }: Props) {
   const ahora = useMemo(() => Date.now(), []);
   const alcanceTodos = usuario.rol === "broker";
@@ -69,6 +81,9 @@ export default function ListadoPropiedades({
   const [filtroEstado, setFiltroEstado] = useState<PropertyStatus | "Todos">("Todos");
   const [filtroOperacion, setFiltroOperacion] = useState<TipoOperacion | "Todos">("Todos");
   const [filtroAsesor, setFiltroAsesor] = useState<string>("Todos");
+  const [filtroAntiguedad, setFiltroAntiguedad] = useState<NivelAntiguedad | "Todos">(
+    antiguedadInicial ?? "Todos",
+  );
   const [precioMin, setPrecioMin] = useState("");
   const [precioMax, setPrecioMax] = useState("");
   const [orden, setOrden] = useState<{ col: Columna; dir: "asc" | "desc" }>({
@@ -79,6 +94,15 @@ export default function ListadoPropiedades({
   const [porPagina, setPorPagina] = useState<(typeof POR_PAGINA_OPCIONES)[number]>(25);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
   const [propiedadEstado, setPropiedadEstado] = useState<Propiedad | null>(null);
+
+  // Llegada desde Salud inmobiliaria: se aplica el rango que se tocó y se
+  // vuelve a la primera página, para que la lista muestre exactamente las
+  // propiedades de esa barra.
+  useEffect(() => {
+    if (!antiguedadInicial) return;
+    setFiltroAntiguedad(antiguedadInicial);
+    setPagina(1);
+  }, [antiguedadInicial]);
 
   const nombreAsesor = (id: string) => usuarios.find((u) => u.id === id)?.nombre ?? "Sin asignar";
 
@@ -110,10 +134,20 @@ export default function ListadoPropiedades({
     const min = precioMin ? Number(precioMin) : -Infinity;
     const max = precioMax ? Number(precioMax) : Infinity;
     const coincidePrecio = p.precio >= min && p.precio <= max;
+    const coincideAntiguedad =
+      filtroAntiguedad === "Todos" || antiguedadDe(p, ahora).nivel === filtroAntiguedad;
     return (
-      coincideBusqueda && coincideEstado && coincideOperacion && coincideAsesor && coincidePrecio
+      coincideBusqueda &&
+      coincideEstado &&
+      coincideOperacion &&
+      coincideAsesor &&
+      coincidePrecio &&
+      coincideAntiguedad
     );
   });
+
+  const conteoAntiguedad = (nivel: NivelAntiguedad) =>
+    base.filter((p) => antiguedadDe(p, ahora).nivel === nivel).length;
 
   const valorOrden = (p: Propiedad, col: Columna) => {
     switch (col) {
@@ -193,15 +227,47 @@ export default function ListadoPropiedades({
         )}
       </header>
 
-      {/* Leyenda del termómetro de antigüedad */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium text-slate-500">
+      {/* Leyenda del termómetro de antigüedad — además de explicar, filtra.
+          Es la misma escala que la gráfica de Salud inmobiliaria, así que al
+          llegar desde ahí el asesor ve resaltado el rango en el que hizo clic. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-slate-500">
         <span className="font-semibold text-slate-600">Tiempo publicada:</span>
-        {ANTIGUEDAD_LEYENDA.map(({ nivel, texto }) => (
-          <span key={nivel} className="flex items-center gap-1.5">
-            <span className={`size-2.5 rounded-full ${ANTIGUEDAD_ESTILOS[nivel].punto}`} />
-            {texto}
-          </span>
-        ))}
+        {ANTIGUEDAD_LEYENDA.map(({ nivel, texto }) => {
+          const activo = filtroAntiguedad === nivel;
+          return (
+            <button
+              key={nivel}
+              onClick={() => {
+                setFiltroAntiguedad(activo ? "Todos" : nivel);
+                setPagina(1);
+              }}
+              aria-pressed={activo}
+              aria-label={`Filtrar propiedades con ${texto} publicadas`}
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 transition ${
+                activo
+                  ? "bg-violet-600 font-bold text-white shadow-sm"
+                  : "hover:bg-white/70 hover:text-slate-700"
+              }`}
+            >
+              <span className={`size-2.5 rounded-full ${ANTIGUEDAD_ESTILOS[nivel].punto}`} />
+              {texto}
+              <span className={activo ? "text-white/80" : "text-slate-400"}>
+                ({conteoAntiguedad(nivel)})
+              </span>
+            </button>
+          );
+        })}
+        {filtroAntiguedad !== "Todos" && (
+          <button
+            onClick={() => {
+              setFiltroAntiguedad("Todos");
+              setPagina(1);
+            }}
+            className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200"
+          >
+            Quitar filtro
+          </button>
+        )}
       </div>
 
       {/* Buscador y filtros */}

@@ -3,31 +3,37 @@
 // Estructura (en este orden, definida con Jean, ago 2026):
 //   1. Panel guía (un solo "siguiente paso").
 //   2. Mis propiedades (carrusel con termómetro de antigüedad).
-//   3. Tarjetas de Pipeline → cada etapa navega a Clientes filtrado.
-//   4. Tarjeta de resumen de clientes e historial → navega a Clientes.
-//   5. Tarjeta de posibles cierres y comisiones → abre la sección de
-//      Análisis (vista completa, solo lectura).
+//   3. Embudo de ventas → cada etapa navega a Clientes filtrado.
+//   4. Resumen de clientes e historial → navega a Clientes.
+//   5. Salud inmobiliaria → abre la radiografía de cómo está operando
+//      (embudo de conversión, velocidad de respuesta, salud de cartera,
+//      antigüedad de inventario y, al final, el dinero en juego).
 //
 // El dashboard informa y reparte, no opera: aquí no se editan datos.
 import type { ReactNode } from "react";
 import {
+  Activity,
   ArrowRight,
   Building2,
+  Clock,
   Contact,
-  DollarSign,
+  Flame,
   Layers,
+  Percent,
   Plus,
   Sparkles,
-  TrendingUp,
+  Thermometer,
   UserCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import PropertyCard from "../components/PropertyCard";
 import { ETAPAS_LEAD } from "../data/etapasLead";
-import { totalesProyeccion } from "../lib/proyeccion";
+import { antiguedadDe } from "../lib/antiguedad";
+import { conteoPorNivel } from "../lib/cartera";
+import { formatMin, minutosRespuesta, promedio } from "../lib/metrics";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
-import { clasificarLead, formatoMXN, puedeCargarPropiedades, totalBant } from "../types";
+import { puedeCargarPropiedades } from "../types";
 
 // Estilos por etapa del pipeline (pill, barra de progreso y borde de la
 // tarjeta). Los colores siguen el acento de ETAPAS_LEAD.
@@ -64,6 +70,36 @@ function SeccionHeader({
   );
 }
 
+// Signo vital de la tarjeta de Salud inmobiliaria: número grande + contexto.
+function SignoVital({
+  Icono,
+  etiqueta,
+  valor,
+  detalle,
+  acento,
+  circulo,
+}: {
+  Icono: LucideIcon;
+  etiqueta: string;
+  valor: string;
+  detalle: string;
+  acento: string;
+  circulo: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm">
+      <span className={`flex size-9 items-center justify-center rounded-full ${circulo}`}>
+        <Icono className={`size-4 ${acento}`} />
+      </span>
+      <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+        {etiqueta}
+      </p>
+      <p className="mt-0.5 text-2xl font-black text-slate-900">{valor}</p>
+      <p className="text-xs text-slate-500">{detalle}</p>
+    </div>
+  );
+}
+
 interface Props {
   asesor: Usuario;
   leads: Lead[];
@@ -73,8 +109,8 @@ interface Props {
   onVerClientes: (etapa?: LeadStage) => void;
   onVerCliente: (leadId: string) => void;
   onNuevaPropiedad: () => void;
-  /** Abre la sección de Análisis de posibles cierres y comisiones. */
-  onVerAnalisis: () => void;
+  /** Abre la pantalla de Salud inmobiliaria (cómo está operando). */
+  onVerSalud: () => void;
 }
 
 export default function AsesorDashboard({
@@ -85,7 +121,7 @@ export default function AsesorDashboard({
   onVerPropiedad,
   onVerClientes,
   onNuevaPropiedad,
-  onVerAnalisis,
+  onVerSalud,
 }: Props) {
   const misLeads = leads.filter((l) => l.asesorId === asesor.id);
   const misPropiedades = propiedades.filter((p) => p.asesorId === asesor.id);
@@ -95,13 +131,20 @@ export default function AsesorDashboard({
   const puedeCaptar = puedeCargarPropiedades(asesor.rol);
 
   // --- Resumen de cartera (datos reales, sin escalas inventadas) ---
-  const evaluadosBant = misLeads.filter((l) => l.bant).length;
-  const prioridadAlta = misLeads.filter(
-    (l) => l.bant && clasificarLead(totalBant(l.bant)) === "Hot",
-  ).length;
+  const porNivel = conteoPorNivel(misLeads);
+  const evaluadosBant = misLeads.length - porNivel.sin;
+  const prioridadAlta = porNivel.Hot;
 
-  // --- Totales financieros: misma fuente que la sección de Análisis ---
-  const proyeccion = totalesProyeccion(misLeads, propiedades);
+  // --- Signos vitales: el mismo cálculo que la pantalla de Salud ---
+  const cierres = misLeads.filter((l) => l.etapa === "Cierre").length;
+  const tasaCierre = misLeads.length ? Math.round((cierres / misLeads.length) * 100) : 0;
+  const tiempoProm = promedio(
+    misLeads.map(minutosRespuesta).filter((m): m is number => m !== null),
+  );
+  const inventarioEnRiesgo = misPropiedades.filter((p) => {
+    const nivel = antiguedadDe(p).nivel;
+    return nivel === "naranja" || nivel === "rojo";
+  }).length;
 
   // --- Guía: un solo "siguiente paso", el más valioso ---
   const sinContactar = misLeads.filter((l) => !l.primerContactoEn && l.etapa !== "Cierre");
@@ -234,18 +277,18 @@ export default function AsesorDashboard({
         )}
       </section>
 
-      {/* ---------- 2. Tarjetas de Pipeline ---------- */}
+      {/* ---------- 2. Embudo de ventas ---------- */}
       <section>
         <SeccionHeader
           Icono={Layers}
-          titulo="Tarjetas de pipeline (embudo de ventas)"
+          titulo="Embudo de ventas"
           subtitulo="Haz clic en cualquier tarjeta de etapa para ir a la sección interactiva del Pipeline."
           accion={
             <button
               onClick={() => onVerClientes()}
               className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700"
             >
-              Abrir Pipeline Kanban <ArrowRight className="size-3.5" />
+              Abrir embudo <ArrowRight className="size-3.5" />
             </button>
           }
         />
@@ -290,7 +333,7 @@ export default function AsesorDashboard({
       <section>
         <SeccionHeader
           Icono={Users}
-          titulo="Tarjeta de resumen de clientes e historial"
+          titulo="Resumen de clientes e historial"
           subtitulo="Resumen cualitativo de la cartera. Haz clic para ir a la sección detallada de Clientes."
         />
 
@@ -334,61 +377,64 @@ export default function AsesorDashboard({
         </div>
       </section>
 
-      {/* ---------- 4. Posibles cierres y comisiones ---------- */}
+      {/* ---------- 4. Salud inmobiliaria ---------- */}
       <section>
         <SeccionHeader
-          Icono={TrendingUp}
-          titulo="Tarjeta de posibles cierres y comisiones"
-          subtitulo="Análisis financiero de tu cartera, solo lectura. Haz clic para abrir la sección completa."
+          Icono={Activity}
+          titulo="Salud inmobiliaria"
+          subtitulo="Cómo estás operando: embudo, velocidad de respuesta, cartera e inventario. Haz clic para abrir el análisis completo."
         />
 
-        <div className="rounded-3xl border border-emerald-300 bg-white/80 p-4 shadow-sm sm:p-5">
+        <button
+          onClick={onVerSalud}
+          aria-label="Abrir Salud inmobiliaria"
+          className="w-full rounded-3xl border border-sky-200 bg-white/80 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
+        >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-              <DollarSign className="size-3.5" /> Proyección Financiera de Cierres
+            <span className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-700">
+              <Activity className="size-3.5" /> Signos vitales de tu operación
             </span>
-            <span className="text-xs text-slate-400">· Comisiones ponderadas por BANT</span>
+            <span className="text-xs text-slate-400">· Solo lectura, todo navegable</span>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/80">
-                Comisión esperada (ponderada)
-              </p>
-              <p className="mt-1 text-2xl font-black text-emerald-700">
-                {formatoMXN(Math.round(proyeccion.ponderadoTotal))}
-              </p>
-              <p className="text-xs text-slate-500">Ajustada por tu calificación BANT</p>
-            </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600">
-                Comisión potencial bruta
-              </p>
-              <p className="mt-1 text-2xl font-black text-violet-700">
-                {formatoMXN(Math.round(proyeccion.brutoTotal))}
-              </p>
-              <p className="text-xs text-slate-500">Al 100% de cierres</p>
-            </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Valor cartera total
-              </p>
-              <p className="mt-1 text-2xl font-black text-slate-900">
-                {formatoMXN(Math.round(proyeccion.valorCartera))}
-              </p>
-              <p className="text-xs text-slate-500">
-                {proyeccion.prospectosConValor} prospecto
-                {proyeccion.prospectosConValor === 1 ? "" : "s"} con propiedad de interés
-              </p>
-            </div>
-            <button
-              onClick={onVerAnalisis}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-sm font-bold text-white shadow-md shadow-emerald-300/60 transition hover:bg-emerald-700"
-            >
-              Abrir Sección de Posibles Cierres y Comisiones <ArrowRight className="size-4 shrink-0" />
-            </button>
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <SignoVital
+              Icono={Percent}
+              etiqueta="Tasa de cierre"
+              valor={`${tasaCierre}%`}
+              detalle={`${cierres} de ${misLeads.length} clientes`}
+              acento="text-violet-600"
+              circulo="bg-violet-100"
+            />
+            <SignoVital
+              Icono={Clock}
+              etiqueta="Primer contacto"
+              valor={formatMin(tiempoProm)}
+              detalle="Promedio de tu cartera"
+              acento="text-amber-600"
+              circulo="bg-amber-100"
+            />
+            <SignoVital
+              Icono={Flame}
+              etiqueta="Clientes Hot"
+              valor={String(porNivel.Hot)}
+              detalle={`${porNivel.sin} sin calificar`}
+              acento="text-emerald-600"
+              circulo="bg-emerald-100"
+            />
+            <SignoVital
+              Icono={Thermometer}
+              etiqueta="Inventario en riesgo"
+              valor={String(inventarioEnRiesgo)}
+              detalle={`De ${misPropiedades.length} con +4 meses`}
+              acento="text-rose-600"
+              circulo="bg-rose-100"
+            />
+            <span className="flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-4 text-sm font-bold text-white shadow-md shadow-sky-300/60">
+              Abrir Salud Inmobiliaria <ArrowRight className="size-4 shrink-0" />
+            </span>
           </div>
-        </div>
+        </button>
       </section>
     </div>
   );
