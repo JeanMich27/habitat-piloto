@@ -1,7 +1,7 @@
 // ============================================================
-// sync-leads  (v3)
-// Trae las solicitudes de contacto de EasyBroker a la plataforma,
-// deduplica y rutea al asesor dueño de la propiedad.
+// sync-leads  (v5 — 20 ago 2026)
+// Trae las solicitudes de contacto de EasyBroker (el buzón de portales) a la
+// plataforma, deduplica y rutea al asesor dueño de la propiedad.
 //
 // DECISIÓN DE DISEÑO IMPORTANTE:
 // No usamos un cursor de fecha. El campo happened_at de EasyBroker es
@@ -25,6 +25,15 @@
 //     - Ese error ahora sí se revisa.
 //     - SYNC_DIAS_VENTANA permite una corrida histórica puntual
 //       (?dias=400) sin cambiar el valor de siempre.
+// v5 (20 ago 2026): la lectura de "lo que ya se procesó" estaba truncada.
+//     `select("eb_contact_request_id")` sin paginar devuelve como máximo 1,000
+//     filas (tope duro de PostgREST, y no avisa: simplemente devuelve menos).
+//     En cuanto el buzón histórico pase de 1,000 solicitudes, el sync empezaría
+//     a creer que solicitudes viejas son nuevas y chocaría contra la llave
+//     primaria en cada corrida. Ahora se pagina y se verifica contra count(*):
+//     si la lectura sale corta, la corrida aborta antes de escribir.
+//     Además: la búsqueda de duplicado por teléfono no filtraba por oficina,
+//     lo que en multi-oficina podía mezclar carteras.
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -33,6 +42,7 @@ const EB_BASE = "https://api.easybroker.com/v1";
 const EB_KEY = Deno.env.get("EASYBROKER_API_KEY") ?? "";
 const DIAS_DEFAULT = Number(Deno.env.get("SYNC_DIAS_VENTANA") ?? "30");
 const AGENCIA = Deno.env.get("AGENCIA_ID") ?? "default";
+const PAGINA_DB = 1000;
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -52,6 +62,22 @@ const normTel = (t?: string | null) => {
   const d = (t ?? "").replace(/[^0-9]/g, "");
   return d.length >= 10 ? d.slice(-10) : (d || null);
 };
+
+// Lee una tabla completa en páginas de 1,000, con orden estable.
+async function leerTodo(tabla: string, columnas: string, filtro: (q: any) => any) {
+  const filas: any[] = [];
+  for (let desde = 0; ; desde += PAGINA_DB) {
+    const q = await filtro(sb.from(tabla).select(columnas))
+      .order("id", { ascending: true })
+      .range(desde, desde + PAGINA_DB - 1);
+    if (q.error) throw new Error(`${tabla}: ${q.error.message}`);
+    const lote = q.data ?? [];
+    filas.push(...lote);
+    if (lote.length < PAGINA_DB) break;
+    if (desde > 200_000) throw new Error(`${tabla}: paginación fuera de control`);
+  }
+  return filas;
+}
 
 Deno.serve(async (req) => {
   const corridaEn = new Date().toISOString();
@@ -83,11 +109,26 @@ Deno.serve(async (req) => {
 
     const propsQ = await sb.from("propiedades").select("id, eb_public_id, asesor_id")
       .eq("agencia_id", AGENCIA).not("eb_public_id", "is", null);
+    if (propsQ.error) throw new Error(`propiedades: ${propsQ.error.message}`);
     const porEbId = new Map<string, any>();
     for (const p of propsQ.data ?? []) porEbId.set(p.eb_public_id, p);
 
-    const yaQ = await sb.from("leads").select("eb_contact_request_id").not("eb_contact_request_id", "is", null);
-    const yaProcesadas = new Set((yaQ.data ?? []).map((x: any) => Number(x.eb_contact_request_id)));
+    // PAGINADO Y VERIFICADO: si esta lectura sale corta, el sync creería que
+    // solicitudes ya procesadas son nuevas y chocaría contra la PK en bucle.
+    const totalQ = await sb.from("leads").select("id", { count: "exact", head: true })
+      .eq("agencia_id", AGENCIA).not("eb_contact_request_id", "is", null);
+    if (totalQ.error) throw new Error(`conteo de leads: ${totalQ.error.message}`);
+    const procesadas = await leerTodo(
+      "leads", "id, eb_contact_request_id",
+      (q: any) => q.eq("agencia_id", AGENCIA).not("eb_contact_request_id", "is", null),
+    );
+    if (procesadas.length < (totalQ.count ?? 0)) {
+      throw new Error(
+        `Lectura incompleta de solicitudes ya procesadas (${procesadas.length} de ${totalQ.count}). ` +
+        `Se aborta la corrida para no duplicar.`,
+      );
+    }
+    const yaProcesadas = new Set(procesadas.map((x: any) => Number(x.eb_contact_request_id)));
 
     for (const cr of solicitudes) {
       const crId = Number(cr.id);
@@ -107,10 +148,11 @@ Deno.serve(async (req) => {
 
         const prop = ebProp ? porEbId.get(ebProp) : null;
 
-        // Duplicado = mismo teléfono por la MISMA propiedad.
+        // Duplicado = mismo teléfono por la MISMA propiedad, en la MISMA oficina.
         // Mismo teléfono por OTRA propiedad es un interés nuevo.
         if (tel) {
           const dupQ = await sb.from("leads").select("id, nota")
+            .eq("agencia_id", AGENCIA)
             .eq("telefono_norm", tel).eq("eb_property_id", ebProp ?? "").limit(1).maybeSingle();
           if (dupQ.data?.id) {
             const extra = `\n[${String(cr.happened_at).slice(0, 16)} · ${cr.source ?? "?"}] ${cr.message ?? ""}`.trim();

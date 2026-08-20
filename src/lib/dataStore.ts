@@ -37,6 +37,34 @@ import type {
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
+// PostgREST corta TODA respuesta en 1,000 filas. No avisa: simplemente devuelve
+// menos. Con 1,289 clientes en la base, `select("*")` a secas dejaba fuera a
+// los últimos ~289 — y como no había ORDER BY, los que se caían eran justo los
+// más recientes. Por eso todo lo que puede crecer sin techo se lee paginado.
+const PAGINA = 1000;
+
+async function leerTodo<T>(
+  tabla: string,
+  ordenar?: { columna: string; ascendente: boolean },
+): Promise<T[]> {
+  if (!supabase) return [];
+  const filas: T[] = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    let q = supabase.from(tabla).select("*");
+    // Un orden estable no es cosmético: sin él, dos páginas pueden traer la
+    // misma fila y saltarse otra.
+    if (ordenar) q = q.order(ordenar.columna, { ascending: ordenar.ascendente });
+    q = q.order("id", { ascending: true });
+    const { data, error } = await q.range(desde, desde + PAGINA - 1);
+    if (error) throw error;
+    const lote = (data ?? []) as T[];
+    filas.push(...lote);
+    if (lote.length < PAGINA) break;
+    if (desde > 200_000) break;
+  }
+  return filas;
+}
+
 export interface EstadoCompleto {
   propiedades: Propiedad[];
   leads: Lead[];
@@ -95,26 +123,30 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   const desde = new Date();
   desde.setDate(desde.getDate() - 30);
 
-  const [pRes, lRes, uRes, aRes, cRes, ciRes] = await Promise.all([
-    supabase.from("propiedades").select("*"),
-    supabase.from("leads").select("*"),
-    supabase.from("usuarios").select("*"),
+  // Propiedades, leads y usuarios se leen paginados: son las tres tablas que
+  // crecen con el negocio y las únicas que pueden pasar de 1,000 filas.
+  // Los leads llegan del más nuevo al más viejo para que la app no dependa del
+  // orden físico de la tabla al decidir qué mostrar primero.
+  const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes] = await Promise.all([
+    leerTodo<any>("propiedades"),
+    leerTodo<any>("leads", { columna: "creado", ascendente: false }),
+    leerTodo<any>("usuarios"),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
     supabase.from("configuracion").select("*").limit(1).maybeSingle(),
     supabase.from("citas").select("*").gte("inicio", desde.toISOString()).order("inicio"),
   ]);
-  for (const r of [pRes, lRes, uRes, aRes, cRes]) {
+  for (const r of [aRes, cRes]) {
     if (r.error) throw r.error;
   }
   // La agenda no rompe la carga: si la migracion 07 aun no corre en esta
   // instancia, la app entra igual y simplemente no muestra citas.
   if (ciRes.error) console.warn("[Supabase] citas no disponibles todavia", ciRes.error.message);
   return {
-    propiedades: (pRes.data ?? []).map(rowToPropiedad),
-    leads: (lRes.data ?? []).map(rowToLead),
-    usuarios: (uRes.data ?? []).map(rowToUsuario),
+    propiedades: propiedadesFilas.map(rowToPropiedad),
+    leads: leadsFilas.map(rowToLead),
+    usuarios: usuariosFilas.map(rowToUsuario),
     citas: (ciRes.data ?? []).map(rowToCita),
     agencia: aRes.data ? rowToAgencia(aRes.data) : { nombre: "", direccion: "" },
     permisoEquipoVerTodas: cRes.data ? rowToConfiguracion(cRes.data).permisoEquipoVerTodas : false,

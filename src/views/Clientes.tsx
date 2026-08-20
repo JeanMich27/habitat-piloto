@@ -166,6 +166,12 @@ export default function Clientes({
   const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(
     respuestaInicial ?? "Todas",
   );
+  // Orden de la lista. Arranca en "recientes" a propósito: lo primero que un
+  // asesor necesita ver al abrir Clientes es quién acaba de llegar. Un lead sin
+  // atender pierde valor por hora, y antes quedaba hasta abajo porque la lista
+  // se ordenaba solo por puntaje BANT — que un lead recién llegado todavía no
+  // tiene. "Prioridad" conserva la lectura de cartera por cercanía al cierre.
+  const [orden, setOrden] = useState<"recientes" | "prioridad">("recientes");
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
   const [creando, setCreando] = useState(false);
@@ -246,12 +252,22 @@ export default function Clientes({
         return coincide && coincideClase && coincideEtapa && coincideRespuesta && coincideCartera;
       })
       .sort((a, b) => {
+        if (orden === "recientes") {
+          // El último en llegar, primero. El desempate por puntaje evita que
+          // dos registros con la misma fecha (una carga masiva del CRM) salgan
+          // en un orden distinto en cada render.
+          const fa = Date.parse(a.creado) || 0;
+          const fb = Date.parse(b.creado) || 0;
+          if (fb !== fa) return fb - fa;
+          return (b.bant ? totalBant(b.bant) : -1) - (a.bant ? totalBant(a.bant) : -1);
+        }
         // Los calificados alto primero: la cartera se lee por prioridad de cierre.
         const pa = a.bant ? totalBant(a.bant) : -1;
         const pb = b.bant ? totalBant(b.bant) : -1;
-        return pb - pa;
+        if (pb !== pa) return pb - pa;
+        return (Date.parse(b.creado) || 0) - (Date.parse(a.creado) || 0);
       });
-  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta, filtroCartera]);
+  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta, filtroCartera, orden]);
 
   // Filtros activos que NO se ven en los selects, para que el asesor entienda
   // por qué la lista está recortada y pueda quitarlos de un toque.
@@ -399,6 +415,35 @@ export default function Clientes({
                   ),
                 )}
               </select>
+            </div>
+
+            {/* Orden de la lista. Va junto a los filtros y no escondido en un
+                menú: cambiar de "lo más nuevo" a "lo más caliente" es una
+                decisión que el asesor toma varias veces al día. */}
+            <div className="flex items-center gap-1.5">
+              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Ordenar
+              </span>
+              {(
+                [
+                  { clave: "recientes", texto: "Más reciente" },
+                  { clave: "prioridad", texto: "Prioridad" },
+                ] as const
+              ).map((op) => (
+                <button
+                  key={op.clave}
+                  type="button"
+                  onClick={() => setOrden(op.clave)}
+                  aria-pressed={orden === op.clave}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    orden === op.clave
+                      ? "bg-slate-900 text-white"
+                      : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
+                  }`}
+                >
+                  {op.texto}
+                </button>
+              ))}
             </div>
 
             {/* Velocidad de primer contacto: mismos cortes que la gráfica de
