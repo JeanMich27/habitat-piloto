@@ -25,6 +25,7 @@ import type {
   EstadoCitaAgenda,
   Comparable,
   DocumentName,
+  FamiliaPerdida,
   Interaccion,
   Lead,
   LeadStage,
@@ -37,10 +38,15 @@ import type {
 } from "./types";
 import {
   ETAPAS_QUE_EXIGEN_BANT,
+  INTENTOS_PARA_SUGERIR_DESCARTE,
+  bantCompleto,
   clasificarLead,
+  motivoPerdidaEtiqueta,
+  preguntasBantFaltantes,
   puedeCargarPropiedades,
   tieneAgenda,
   totalBant,
+  esLeadEnSeguimiento,
   esLeadOperativo,
 } from "./types";
 import Agenda from "./views/Agenda";
@@ -172,6 +178,13 @@ export default function App() {
   // consumen `leadsOperativos`; solo la pantalla de Clientes ve la lista
   // completa (con su propio filtro). Ver esLeadOperativo en types.ts.
   const leadsOperativos = useMemo(() => leads.filter(esLeadOperativo), [leads]);
+  // Lo que sigue en juego. Alimenta las pantallas de TRABAJO (tableros del día,
+  // agenda, avisos): un lead descartado ahí es ruido que hace que el asesor
+  // deje de confiar en su propia lista de pendientes. Las pantallas de
+  // MEDICIÓN (Reportes, Salud inmobiliaria, desempeño) siguen con
+  // leadsOperativos: un lead perdido sí ocurrió y debe contar en el
+  // denominador, o la tasa de conversión se infla sola.
+  const leadsEnSeguimiento = useMemo(() => leads.filter(esLeadEnSeguimiento), [leads]);
   const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
   const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
   // Solicitudes de cambio de estado (pendientes + resueltas recientes).
@@ -253,6 +266,39 @@ export default function App() {
       onCitaEliminada: (id) => setCitas((prev) => prev.filter((c) => c.id !== id)),
       onSolicitud: (s) => setSolicitudes((prev) => reemplazarEnArreglo(prev, s)),
     });
+  }, [sesionActiva]);
+
+  // Realtime empuja los cambios en vivo, pero solo mientras la pestaña está
+  // conectada: si la laptop se durmió o el celular se quedó sin señal, los
+  // eventos de ese rato NO se reenvían al reconectar. Sin esto, el asesor
+  // vuelve a una lista congelada que se ve perfectamente normal — que es la
+  // peor forma de estar desactualizado. Al volver a la pestaña después de más
+  // de dos minutos, se vuelve a leer todo.
+  useEffect(() => {
+    if (!isCloudEnabled || !sesionActiva) return;
+    let ultimaLectura = Date.now();
+    const alVolver = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - ultimaLectura < 120_000) return;
+      ultimaLectura = Date.now();
+      try {
+        const datos = await fetchInitialData();
+        if (!datos) return;
+        setPropiedades(datos.propiedades);
+        setLeads(datos.leads);
+        setUsuarios(datos.usuarios);
+        setCitas(datos.citas);
+        fetchSolicitudes().then(setSolicitudes);
+      } catch (err) {
+        console.warn("[Supabase] no se pudo refrescar al volver a la pestaña", err);
+      }
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("focus", alVolver);
+    return () => {
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("focus", alVolver);
+    };
   }, [sesionActiva]);
 
   // Modo local: autoguarda en el navegador.
@@ -347,9 +393,9 @@ export default function App() {
   const avisos: Notificacion[] = useMemo(
     () =>
       usuarioActual
-        ? construirNotificaciones(usuarioActual, leadsOperativos, propiedades, solicitudes, usuarios)
+        ? construirNotificaciones(usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios)
         : [],
-    [usuarioActual, leadsOperativos, propiedades, solicitudes, usuarios],
+    [usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios],
   );
 
   useEffect(() => {
@@ -576,14 +622,103 @@ export default function App() {
   };
 
   // Guarda la calificación BANT y la deja registrada en el historial.
+  // Se acepta parcial a propósito: media calificación guardada vale más que
+  // cero, que es lo que había cuando el cuestionario exigía las cuatro
+  // respuestas y el cliente colgaba a la segunda.
   const guardarCalificacion = (leadId: string, bant: CalificacionBANT) => {
     const total = totalBant(bant);
+    const completo = bantCompleto(bant);
+    const faltan = preguntasBantFaltantes(bant);
     const next = leads.map((l) =>
       l.id === leadId
         ? conHistorial(
-            { ...l, bant },
+            // Calificar es haber hablado con la persona: si estaba marcado como
+            // "Sin respuesta", vuelve a estar en juego.
+            { ...l, bant, estado: l.estado === "Sin respuesta" ? "Activo" : l.estado },
             "Calificacion",
-            `Calificado en ${total}/100 puntos — nivel ${clasificarLead(total)}`,
+            completo
+              ? `Calificado en ${total}/100 puntos — nivel ${clasificarLead(total)}`
+              : `Calificación parcial: ${total} pts con ${4 - faltan} de 4 respuestas`,
+          )
+        : l,
+    );
+    guardarLead(next, leadId);
+  };
+
+  // --- Desenlace del lead ---------------------------------------------------
+  // Un intento sin respuesta NO es un descarte: es información. Se cuenta, se
+  // fecha, y a los 4 intentos la app SUGIERE cerrar (nunca cierra sola: un
+  // lead que contesta al cuarto intento es un lead ganado que un automatismo
+  // habría tirado a la basura).
+  const registrarIntentoSinRespuesta = (leadId: string) => {
+    const ahora = new Date().toISOString();
+    const next = leads.map((l) => {
+      if (l.id !== leadId) return l;
+      const intentos = (l.intentosContacto ?? 0) + 1;
+      return conHistorial(
+        {
+          ...l,
+          intentosContacto: intentos,
+          ultimoIntentoEn: ahora,
+          estado: l.estado === "Descartado" || l.estado === "Ganado" ? l.estado : "Sin respuesta",
+          // El intento cuenta como primer contacto: el asesor SÍ trabajó el
+          // lead. Si no, el KPI de tiempo de respuesta castiga al asesor por
+          // un teléfono que nadie levanta.
+          primerContactoEn: l.primerContactoEn ?? ahora,
+        },
+        "Llamada",
+        `Intento de contacto sin respuesta (${intentos}${
+          intentos >= INTENTOS_PARA_SUGERIR_DESCARTE ? " — se sugiere cerrarlo" : ""
+        })`,
+      );
+    });
+    guardarLead(next, leadId);
+  };
+
+  const descartarLead = (
+    leadId: string,
+    r: { familia: FamiliaPerdida; motivo: string; detalle?: string },
+  ) => {
+    const ahora = new Date().toISOString();
+    const next = leads.map((l) =>
+      l.id === leadId
+        ? conHistorial(
+            {
+              ...l,
+              estado: "Descartado" as const,
+              familiaPerdida: r.familia,
+              motivoPerdida: r.motivo,
+              detallePerdida: r.detalle,
+              cerradoEn: ahora,
+              cerradoPor: usuarioActual?.nombre ?? "",
+            },
+            "Nota",
+            `Cerrado: ${motivoPerdidaEtiqueta(r.motivo)}${r.detalle ? ` — ${r.detalle}` : ""}`,
+          )
+        : l,
+    );
+    guardarLead(next, leadId);
+  };
+
+  const reactivarLead = (leadId: string) => {
+    const next = leads.map((l) =>
+      l.id === leadId
+        ? conHistorial(
+            {
+              ...l,
+              estado: "Activo" as const,
+              familiaPerdida: undefined,
+              motivoPerdida: undefined,
+              detallePerdida: undefined,
+              cerradoEn: undefined,
+              cerradoPor: undefined,
+              // Los intentos se ponen en cero: reactivar es empezar de nuevo,
+              // y si arrastrara los 4 anteriores la app sugeriría cerrarlo otra
+              // vez de inmediato.
+              intentosContacto: 0,
+            },
+            "Nota",
+            "Prospecto reactivado",
           )
         : l,
     );
@@ -1134,7 +1269,7 @@ export default function App() {
         <AgendarVisitaModal
           usuario={yo}
           usuarios={usuarios}
-          leads={leadsOperativos}
+          leads={leadsEnSeguimiento}
           propiedades={propiedades}
           citas={citas}
           citaExistente={agendando.cita ?? null}
@@ -1156,7 +1291,7 @@ export default function App() {
               broker={yo}
               usuarios={usuarios}
               propiedades={propiedades}
-              leads={leadsOperativos}
+              leads={leadsEnSeguimiento}
               onVerAsesor={irAPerfil}
               onVerClientes={irAClientes}
             />
@@ -1234,7 +1369,7 @@ export default function App() {
           {vista === "asesor" && (
             <AsesorDashboard
               asesor={yo}
-              leads={leadsOperativos}
+              leads={leadsEnSeguimiento}
               propiedades={propiedades}
               citas={citas}
               onVerPropiedades={irAPropiedades}
@@ -1277,6 +1412,9 @@ export default function App() {
                 onCambiarEtapa={moverLead}
                 onCrearCliente={crearCliente}
                 onAgendarVisita={(leadId) => setAgendando({ leadId })}
+                onRegistrarIntento={registrarIntentoSinRespuesta}
+                onDescartarLead={descartarLead}
+                onReactivarLead={reactivarLead}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}
@@ -1288,7 +1426,7 @@ export default function App() {
               usuario={yo}
               usuarios={usuarios}
               citas={citas}
-              leads={leadsOperativos}
+              leads={leadsEnSeguimiento}
               propiedades={propiedades}
               onNueva={(fecha) => setAgendando({ fecha: fecha ?? null })}
               onEditar={(cita) => setAgendando({ cita })}

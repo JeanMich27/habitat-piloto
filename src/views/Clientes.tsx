@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
+import DescartarLeadModal, { type ResultadoDescarte } from "../components/DescartarLeadModal";
 import NuevoClienteModal from "../components/NuevoClienteModal";
 import { etiquetaEtapa } from "../lib/metrics";
 import {
@@ -46,10 +47,14 @@ import {
   BANT_AUTORIDAD,
   BANT_NECESIDAD,
   BANT_PLAZO,
+  bantCompleto,
   catalogoPresupuesto,
   clasificarLead,
   formatoMXN,
+  motivoPerdidaEtiqueta,
+  preguntasBantFaltantes,
   puntajeBant,
+  sugiereDescarte,
   totalBant,
 } from "../types";
 
@@ -79,6 +84,41 @@ const fmtFechaHora = (iso: string) =>
 const fmtFecha = (iso: string) =>
   new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
 
+/**
+ * Cuánto lleva esperando este lead. Se muestra en relativo ("hace 3 h") porque
+ * es la única forma en que la urgencia se lee sin hacer cuentas: "20 ago" no
+ * le dice nada a un asesor a las 6 de la tarde; "hace 3 h" sí.
+ */
+const haceCuanto = (iso: string): string => {
+  const ms = Date.now() - (Date.parse(iso) || Date.now());
+  if (ms < 0) return "ahora";
+  const min = Math.floor(ms / 60000);
+  if (min < 60) return min <= 1 ? "hace un momento" : `hace ${min} min`;
+  const horas = Math.floor(min / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 31) return `hace ${dias} día${dias === 1 ? "" : "s"}`;
+  const meses = Math.floor(dias / 30.44);
+  if (meses < 12) return `hace ${meses} mes${meses === 1 ? "" : "es"}`;
+  const anios = Math.floor(meses / 12);
+  return `hace ${anios} año${anios === 1 ? "" : "s"}`;
+};
+
+/** Un lead sin atender pierde valor por hora: las primeras horas se marcan. */
+const colorEspera = (iso: string, atendido: boolean): string => {
+  if (atendido) return "text-slate-400";
+  const horas = (Date.now() - (Date.parse(iso) || Date.now())) / 3.6e6;
+  if (horas <= 1) return "font-bold text-emerald-600";
+  if (horas <= 24) return "font-semibold text-amber-600";
+  return "font-semibold text-rose-600";
+};
+
+const ESTILO_ESTADO: Record<string, string> = {
+  "Sin respuesta": "border-amber-200 bg-amber-50 text-amber-700",
+  Descartado: "border-rose-200 bg-rose-50 text-rose-700",
+  Ganado: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+
 const etiquetaDe = (catalogo: { valor: string; etiqueta: string }[], valor?: string) =>
   catalogo.find((o) => o.valor === valor)?.etiqueta ?? "—";
 
@@ -88,6 +128,16 @@ function Insignia({ lead }: { lead: Lead }) {
     return (
       <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
         Sin calificar
+      </span>
+    );
+  }
+  // Calificación a medias: se muestra el avance, NO un nivel. Llamar "Cold" a
+  // quien no alcanzó a contestar sería un diagnóstico inventado.
+  if (!bantCompleto(lead.bant)) {
+    const faltan = preguntasBantFaltantes(lead.bant);
+    return (
+      <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+        Parcial · {4 - faltan}/4
       </span>
     );
   }
@@ -115,6 +165,10 @@ interface Props {
   onCrearCliente: (lead: Lead) => void;
   /** Abre el modal de agenda con este prospecto precargado. */
   onAgendarVisita: (leadId: string) => void;
+  /** Un intento sin respuesta. No es descarte: es información que se cuenta. */
+  onRegistrarIntento: (leadId: string) => void;
+  onDescartarLead: (leadId: string, r: ResultadoDescarte) => void;
+  onReactivarLead: (leadId: string) => void;
   /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
@@ -135,6 +189,9 @@ export default function Clientes({
   onCambiarEtapa,
   onCrearCliente,
   onAgendarVisita,
+  onRegistrarIntento,
+  onDescartarLead,
+  onReactivarLead,
   clienteInicialId,
   etapaInicial,
   claseInicial,
@@ -172,6 +229,12 @@ export default function Clientes({
   // se ordenaba solo por puntaje BANT — que un lead recién llegado todavía no
   // tiene. "Prioridad" conserva la lectura de cartera por cercanía al cierre.
   const [orden, setOrden] = useState<"recientes" | "prioridad">("recientes");
+  // Desenlace. Arranca en "en juego" para que la lista de trabajo no cargue con
+  // prospectos ya cerrados; los descartados siguen a un toque de distancia
+  // porque son la materia prima del análisis de pérdida.
+  const [filtroEstado, setFiltroEstado] =
+    useState<"en_juego" | "sin_respuesta" | "descartados" | "todos">("en_juego");
+  const [descartando, setDescartando] = useState<Lead | null>(null);
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
   const [creando, setCreando] = useState(false);
@@ -244,12 +307,24 @@ export default function Clientes({
         const coincideEtapa = filtroEtapa === "Todas" || l.etapa === filtroEtapa;
         const coincideRespuesta =
           filtroRespuesta === "Todas" || rangoDeLead(l) === filtroRespuesta;
+        const coincideEstado =
+          filtroEstado === "todos" ||
+          (filtroEstado === "descartados" && l.estado === "Descartado") ||
+          (filtroEstado === "sin_respuesta" && l.estado === "Sin respuesta") ||
+          (filtroEstado === "en_juego" && l.estado !== "Descartado");
         const coincideCartera =
           filtroCartera === "todos" ||
           (filtroCartera === "directorio" && l.esDirectorio === true) ||
           (filtroCartera === "historico" && l.esHistorico === true) ||
           (filtroCartera === "activos" && !l.esDirectorio && !l.esHistorico);
-        return coincide && coincideClase && coincideEtapa && coincideRespuesta && coincideCartera;
+        return (
+          coincide &&
+          coincideClase &&
+          coincideEtapa &&
+          coincideRespuesta &&
+          coincideCartera &&
+          coincideEstado
+        );
       })
       .sort((a, b) => {
         if (orden === "recientes") {
@@ -267,7 +342,16 @@ export default function Clientes({
         if (pb !== pa) return pb - pa;
         return (Date.parse(b.creado) || 0) - (Date.parse(a.creado) || 0);
       });
-  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta, filtroCartera, orden]);
+  }, [
+    visibles,
+    busqueda,
+    filtroClase,
+    filtroEtapa,
+    filtroRespuesta,
+    filtroCartera,
+    filtroEstado,
+    orden,
+  ]);
 
   // Filtros activos que NO se ven en los selects, para que el asesor entienda
   // por qué la lista está recortada y pueda quitarlos de un toque.
@@ -417,6 +501,47 @@ export default function Clientes({
               </select>
             </div>
 
+            {/* Desenlace. Los cerrados no se borran ni se esconden en un menú:
+                se apartan de la lista de trabajo y quedan a un toque, porque
+                el "por qué los perdimos" es de lo más valioso que produce
+                esta pantalla. */}
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  { clave: "en_juego", texto: "En juego" },
+                  { clave: "sin_respuesta", texto: "Sin respuesta" },
+                  { clave: "descartados", texto: "Cerrados" },
+                  { clave: "todos", texto: "Todos" },
+                ] as const
+              ).map((op) => {
+                const n = visibles.filter((l) =>
+                  op.clave === "todos"
+                    ? true
+                    : op.clave === "descartados"
+                      ? l.estado === "Descartado"
+                      : op.clave === "sin_respuesta"
+                        ? l.estado === "Sin respuesta"
+                        : l.estado !== "Descartado",
+                ).length;
+                const activo = filtroEstado === op.clave;
+                return (
+                  <button
+                    key={op.clave}
+                    type="button"
+                    onClick={() => setFiltroEstado(op.clave)}
+                    aria-pressed={activo}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      activo
+                        ? "bg-slate-700 text-white"
+                        : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
+                    }`}
+                  >
+                    {op.texto} <span className="opacity-70">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Orden de la lista. Va junto a los filtros y no escondido en un
                 menú: cambiar de "lo más nuevo" a "lo más caliente" es una
                 decisión que el asesor toma varias veces al día. */}
@@ -524,19 +649,50 @@ export default function Clientes({
                     </span>
 
                     <span className="mt-3 block space-y-1 border-t border-slate-100 pt-3 text-xs">
-                      <span className="flex items-center justify-between gap-2 text-slate-500">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <Building2 className="size-3.5 shrink-0" />
+                      {/* Cuándo llegó y qué le interesa: las dos preguntas que
+                          el asesor hace ANTES de decidir a quién llama. Antes
+                          había que abrir la ficha para saber la fecha. */}
+                      <span className="flex items-center justify-between gap-2">
+                        <span
+                          className={`flex min-w-0 items-center gap-1.5 ${colorEspera(
+                            l.creado,
+                            Boolean(l.primerContactoEn) || l.esDirectorio === true,
+                          )}`}
+                        >
+                          <Clock className="size-3.5 shrink-0" />
                           <span className="truncate">
-                            {prop?.titulo ?? "Sin propiedad de interés"}
+                            {l.esDirectorio ? "En el CRM desde" : "Llegó"} {haceCuanto(l.creado)}
+                            <span className="text-slate-400"> · {fmtFecha(l.creado)}</span>
                           </span>
                         </span>
                         <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
                           {etiquetaEtapa(l.etapa)}
                         </span>
                       </span>
+                      <span className="flex items-center gap-1.5 text-slate-500">
+                        <Building2 className="size-3.5 shrink-0" />
+                        <span className="truncate">
+                          {prop?.titulo ??
+                            (l.ebPropertyId
+                              ? `Propiedad ${l.ebPropertyId} · ya no está en el catálogo`
+                              : "Sin propiedad de interés")}
+                        </span>
+                      </span>
+                      {(l.estado === "Descartado" || l.estado === "Sin respuesta") && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+                            ESTILO_ESTADO[l.estado]
+                          }`}
+                        >
+                          {l.estado === "Descartado"
+                            ? `Cerrado · ${motivoPerdidaEtiqueta(l.motivoPerdida)}`
+                            : `Sin respuesta · ${l.intentosContacto ?? 0} intento${
+                                (l.intentosContacto ?? 0) === 1 ? "" : "s"
+                              }`}
+                        </span>
+                      )}
                       <span className="flex items-start gap-1.5 text-slate-400">
-                        <Clock className="mt-0.5 size-3.5 shrink-0" />
+                        <Sparkles className="mt-0.5 size-3.5 shrink-0" />
                         <span className="line-clamp-1">
                           {ultimo
                             ? `${ultimo.tipo}: ${ultimo.descripcion}`
@@ -639,6 +795,58 @@ export default function Clientes({
                       {bant ? "Volver a calificar" : "Calificar prospecto"}
                     </button>
                   </div>
+                </div>
+
+                {/* Desenlace. Estas dos acciones son la diferencia entre una
+                    cartera que se puede leer y mil fichas eternamente en
+                    "Nuevo". Registrar un intento fallido también es trabajo:
+                    queda en el historial y cuenta como primer contacto. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                  {seleccionado.estado === "Descartado" ? (
+                    <>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[11px] font-bold ${ESTILO_ESTADO.Descartado}`}
+                      >
+                        Cerrado · {motivoPerdidaEtiqueta(seleccionado.motivoPerdida)}
+                        {seleccionado.cerradoEn ? ` · ${fmtFecha(seleccionado.cerradoEn)}` : ""}
+                      </span>
+                      <button
+                        onClick={() => onReactivarLead(seleccionado.id)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Reactivar
+                      </button>
+                      {seleccionado.detallePerdida && (
+                        <span className="w-full text-xs text-slate-500">
+                          {seleccionado.detallePerdida}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onRegistrarIntento(seleccionado.id)}
+                        className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                      >
+                        No contestó · registrar intento
+                        {(seleccionado.intentosContacto ?? 0) > 0
+                          ? ` (${seleccionado.intentosContacto})`
+                          : ""}
+                      </button>
+                      <button
+                        onClick={() => setDescartando(seleccionado)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        Cerrar prospecto
+                      </button>
+                      {sugiereDescarte(seleccionado) && (
+                        <span className="text-xs font-medium text-rose-600">
+                          {seleccionado.intentosContacto} intentos sin respuesta — considera
+                          cerrarlo y quedarte con el motivo.
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
@@ -949,6 +1157,25 @@ export default function Clientes({
           onGuardar={(b) => {
             onGuardarCalificacion(seleccionado.id, b);
             setCalificando(false);
+          }}
+          onNoContesta={() => {
+            onRegistrarIntento(seleccionado.id);
+            setCalificando(false);
+          }}
+          onDescartar={() => {
+            setCalificando(false);
+            setDescartando(seleccionado);
+          }}
+        />
+      )}
+
+      {descartando && (
+        <DescartarLeadModal
+          lead={descartando}
+          onCancelar={() => setDescartando(null)}
+          onDescartar={(r) => {
+            onDescartarLead(descartando.id, r);
+            setDescartando(null);
           }}
         />
       )}

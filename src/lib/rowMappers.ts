@@ -165,6 +165,15 @@ export function leadToRow(l: Lead) {
     ocupacion: l.ocupacion ?? "",
     bant: l.bant ?? null,
     historial: l.historial ?? [],
+    // Desenlace: lo escribe el asesor desde la app, nunca el sync.
+    estado_lead: l.estado ?? "Activo",
+    familia_perdida: l.familiaPerdida ?? null,
+    motivo_perdida: l.motivoPerdida ?? null,
+    detalle_perdida: l.detallePerdida ?? null,
+    cerrado_en: l.cerradoEn ?? null,
+    cerrado_por: l.cerradoPor ?? null,
+    intentos_contacto: l.intentosContacto ?? 0,
+    ultimo_intento_en: l.ultimoIntentoEn ?? null,
   };
 }
 
@@ -186,8 +195,17 @@ export function rowToLead(r: any): Lead {
     ocupacion: r.ocupacion ?? undefined,
     bant: r.bant ?? undefined,
     historial: r.historial ?? [],
+    ebPropertyId: r.eb_property_id ?? undefined,
     esDirectorio: r.es_directorio === true,
     esHistorico: r.es_historico === true,
+    estado: (r.estado_lead ?? "Activo") as Lead["estado"],
+    familiaPerdida: r.familia_perdida ?? undefined,
+    motivoPerdida: r.motivo_perdida ?? undefined,
+    detallePerdida: r.detalle_perdida ?? undefined,
+    cerradoEn: r.cerrado_en ?? undefined,
+    cerradoPor: r.cerrado_por ?? undefined,
+    intentosContacto: r.intentos_contacto ?? 0,
+    ultimoIntentoEn: r.ultimo_intento_en ?? undefined,
   };
 }
 

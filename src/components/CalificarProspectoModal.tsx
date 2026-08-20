@@ -104,6 +104,11 @@ interface Props {
   nombreAsesor: string;
   onCancelar: () => void;
   onGuardar: (bant: CalificacionBANT) => void;
+  /** Salidas de emergencia. Sin ellas, un cliente que no contesta deja al
+   *  asesor sin nada que registrar, y el lead se queda en "Nuevo" para
+   *  siempre. Ver el comentario de cabecera. */
+  onNoContesta: () => void;
+  onDescartar: () => void;
 }
 
 export default function CalificarProspectoModal({
@@ -112,6 +117,8 @@ export default function CalificarProspectoModal({
   nombreAsesor,
   onCancelar,
   onGuardar,
+  onNoContesta,
+  onDescartar,
 }: Props) {
   const previa = lead.bant;
   // Perfil: el que ya tenía, o el que sugiere la propiedad que le interesa.
@@ -138,6 +145,8 @@ export default function CalificarProspectoModal({
   const enResumen = paso === PASOS.length;
   const pasoActual = PASOS[paso];
   const completo = PASOS.every((p) => respuestas[p.campo] !== "");
+  const respondidas = PASOS.filter((p) => respuestas[p.campo] !== "").length;
+  const faltantes = PASOS.length - respondidas;
 
   const borrador: CalificacionBANT = useMemo(
     () => ({
@@ -358,25 +367,74 @@ export default function CalificarProspectoModal({
               </div>
 
               {apoyo()}
+
+              {/* Salidas. Van DENTRO del cuestionario, no escondidas atrás:
+                  el momento en que el asesor descubre que el cliente no
+                  contesta o ya compró con otro es justo este, con el teléfono
+                  en la mano. Si tiene que salir del modal y buscar dónde
+                  registrarlo, no lo registra. */}
+              <div className="space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
+                <p className="text-xs font-semibold text-slate-600">
+                  ¿No se pudo llegar hasta aquí?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setPaso((p) => Math.min(p + 1, PASOS.length))}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-500"
+                  >
+                    No me dio este dato · saltar
+                  </button>
+                  <button
+                    onClick={onNoContesta}
+                    className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                  >
+                    No contestó · registrar intento
+                  </button>
+                  <button
+                    onClick={onDescartar}
+                    className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                  >
+                    Ya no está interesado · cerrar
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Saltar una pregunta guarda el avance. Lo que respondiste no se
+                  pierde y puedes terminar la calificación después.
+                </p>
+              </div>
             </div>
           ) : (
             /* ---------- Resumen ---------- */
             <div className="space-y-4">
+              {/* Un puntaje parcial NO recibe clasificación. Llamar "Cold" a
+                  quien simplemente no alcanzó a contestar sería mentirle al
+                  asesor y ensuciar el tablero: Cold es un diagnóstico, no un
+                  hueco de información. */}
               <div
-                className={`rounded-xl border p-4 ${COLOR_CLASIFICACION[clasificacion]}`}
+                className={`rounded-xl border p-4 ${
+                  completo
+                    ? COLOR_CLASIFICACION[clasificacion]
+                    : "border-slate-200 bg-slate-50 text-slate-700"
+                }`}
               >
                 <div className="flex items-end justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                      Resultado
+                      {completo ? "Resultado" : "Avance"}
                     </p>
                     <p className="text-3xl font-black">{total}/100</p>
                   </div>
                   <span className="rounded-full bg-white/70 px-3 py-1 text-sm font-bold">
-                    {clasificacion} · {accion.titulo}
+                    {completo
+                      ? `${clasificacion} · ${accion.titulo}`
+                      : `Parcial · falta${faltantes === 1 ? "" : "n"} ${faltantes}`}
                   </span>
                 </div>
-                <p className="mt-3 text-sm font-medium">{accion.accion}</p>
+                <p className="mt-3 text-sm font-medium">
+                  {completo
+                    ? accion.accion
+                    : "Se guarda como calificación parcial. El prospecto no recibe nivel hasta que estén las cuatro respuestas — un puntaje incompleto no es comparable con uno completo."}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -466,10 +524,10 @@ export default function CalificarProspectoModal({
           ) : (
             <button
               onClick={() => onGuardar(borrador)}
-              disabled={!completo}
+              disabled={respondidas === 0}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             >
-              Guardar calificación ({total} pts)
+              {completo ? `Guardar calificación (${total} pts)` : `Guardar avance (${respondidas}/4)`}
             </button>
           )}
         </div>

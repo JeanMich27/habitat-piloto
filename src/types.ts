@@ -392,6 +392,22 @@ export interface CalificacionBANT {
   calificadoEl: string;
 }
 
+/**
+ * Una calificación está completa cuando las cuatro preguntas tienen respuesta.
+ * Se permite guardar incompleta a propósito: en la vida real el cliente cuelga
+ * a la segunda pregunta, y obligar a las cuatro hacía que el asesor no
+ * registrara NADA. Media calificación guardada vale más que cero.
+ * Lo que NO se hace es fingir que un puntaje parcial es comparable con uno
+ * completo: mientras falte una respuesta, el lead no recibe clasificación.
+ */
+export const bantCompleto = (b?: CalificacionBANT): boolean =>
+  !!b && !!b.presupuesto && !!b.autoridad && !!b.necesidad && !!b.plazo;
+
+export const preguntasBantFaltantes = (b?: CalificacionBANT): number => {
+  if (!b) return 4;
+  return [b.presupuesto, b.autoridad, b.necesidad, b.plazo].filter((v) => !v).length;
+};
+
 const puntosDe = (catalogo: OpcionBant[], valor: string) =>
   catalogo.find((o) => o.valor === valor)?.puntos ?? 0;
 
@@ -493,6 +509,10 @@ export interface Lead {
   historial?: Interaccion[];
   // Datos de contexto que ayudan a leer la ficha de un vistazo.
   ocupacion?: string;
+  // Id público de la propiedad en EasyBroker. Se guarda aunque la propiedad
+  // ya no esté en el catálogo (vendida o retirada): sin esto, un lead viejo
+  // muestra "sin propiedad de interés" y el asesor no sabe por qué preguntó.
+  ebPropertyId?: string;
   // Contacto que vive en el CRM pero nunca generó una solicitud de portal:
   // la API de EasyBroker no expone su etapa ni su propiedad de interés, así
   // que no es un prospecto del embudo, es un nombre en la agenda.
@@ -500,7 +520,156 @@ export interface Lead {
   // Solicitud de portal anterior a la ventana móvil del sync. Es un lead real,
   // pero de hace meses: cuenta para el histórico, no para lo que hay que atender.
   esHistorico?: boolean;
+  // --- Desenlace (ver EstadoLead) ---
+  // Va APARTE de la etapa a propósito: la etapa dice hasta dónde llegó el lead,
+  // el estado dice si sigue en juego. Un "Descartado" que borrara su etapa
+  // haría imposible saber en qué punto del embudo se cae la gente.
+  estado?: EstadoLead;
+  familiaPerdida?: FamiliaPerdida;
+  motivoPerdida?: string;
+  detallePerdida?: string;
+  cerradoEn?: string;
+  cerradoPor?: string;
+  // Intentos de contacto sin respuesta. Alimentan la sugerencia de descarte.
+  intentosContacto?: number;
+  ultimoIntentoEn?: string;
 }
+
+// --- Desenlace del lead ---------------------------------------------------
+export type EstadoLead = "Activo" | "Sin respuesta" | "Descartado" | "Ganado";
+
+export type FamiliaPerdida =
+  | "No se pudo contactar"
+  | "Ya no está interesado"
+  | "No calificaba"
+  | "No era un lead real";
+
+export interface MotivoPerdida {
+  valor: string;
+  etiqueta: string;
+  ayuda: string;
+  familia: FamiliaPerdida;
+}
+
+/**
+ * Los motivos NO son texto libre. Un campo abierto produce cuarenta formas de
+ * escribir "no contestó" y ningún dato agregable. Con catálogo cerrado, el
+ * broker puede decir "el 38% de lo que perdemos es fuera de presupuesto" — y
+ * eso deja de ser un problema del asesor para volverse uno de segmentación
+ * del anuncio.
+ */
+export const MOTIVOS_PERDIDA: MotivoPerdida[] = [
+  {
+    valor: "no_contesta",
+    etiqueta: "No contesta",
+    ayuda: "Se le buscó varias veces y nunca respondió",
+    familia: "No se pudo contactar",
+  },
+  {
+    valor: "datos_incorrectos",
+    etiqueta: "Teléfono o correo incorrecto",
+    ayuda: "El dato que llegó del portal no sirve",
+    familia: "No se pudo contactar",
+  },
+  {
+    valor: "no_es_la_persona",
+    etiqueta: "No es la persona que preguntó",
+    ayuda: "Contestó alguien más o dice no haber solicitado nada",
+    familia: "No se pudo contactar",
+  },
+  {
+    valor: "otra_opcion",
+    etiqueta: "Encontró otra opción",
+    ayuda: "Sigue buscando, pero ya no esta propiedad",
+    familia: "Ya no está interesado",
+  },
+  {
+    valor: "cerro_con_otro",
+    etiqueta: "Compró o rentó con otra inmobiliaria",
+    ayuda: "Ya cerró operación fuera. Ojo con el tiempo de respuesta",
+    familia: "Ya no está interesado",
+  },
+  {
+    valor: "cambio_planes",
+    etiqueta: "Cambió de planes",
+    ayuda: "Ya no se muda, lo pospuso o cambió de ciudad",
+    familia: "Ya no está interesado",
+  },
+  {
+    valor: "fuera_presupuesto",
+    etiqueta: "Fuera de presupuesto",
+    ayuda: "Lo que busca no alcanza para lo que preguntó",
+    familia: "No calificaba",
+  },
+  {
+    valor: "fuera_zona",
+    etiqueta: "Fuera de zona o sin inventario",
+    ayuda: "Busca algo que la oficina no maneja",
+    familia: "No calificaba",
+  },
+  {
+    valor: "sin_credito",
+    etiqueta: "Sin crédito o sin respaldo",
+    ayuda: "No califica para el crédito ni tiene aval o póliza",
+    familia: "No calificaba",
+  },
+  {
+    valor: "solo_informacion",
+    etiqueta: "Solo pedía información",
+    ayuda: "Curioseando precios, sin intención de mudarse",
+    familia: "No era un lead real",
+  },
+  {
+    valor: "duplicado",
+    etiqueta: "Duplicado de otro registro",
+    ayuda: "La misma persona ya está en la cartera",
+    familia: "No era un lead real",
+  },
+  {
+    valor: "spam",
+    etiqueta: "Spam o prueba",
+    ayuda: "Publicidad, broma o una prueba del equipo",
+    familia: "No era un lead real",
+  },
+];
+
+export const FAMILIAS_PERDIDA: { familia: FamiliaPerdida; ayuda: string }[] = [
+  {
+    familia: "No se pudo contactar",
+    ayuda: "Nunca hubo conversación. Mide la calidad del dato que llega.",
+  },
+  {
+    familia: "Ya no está interesado",
+    ayuda: "Sí hubo conversación, pero ya no quiere. Mide tu velocidad.",
+  },
+  {
+    familia: "No calificaba",
+    ayuda: "Quería, pero no podía. Mide la puntería del anuncio.",
+  },
+  {
+    familia: "No era un lead real",
+    ayuda: "Nunca fue un prospecto. Limpia el denominador.",
+  },
+];
+
+export const motivoPerdidaEtiqueta = (valor?: string) =>
+  MOTIVOS_PERDIDA.find((m) => m.valor === valor)?.etiqueta ?? valor ?? "Sin motivo";
+
+/** Cuántos intentos sin respuesta, y en cuántos días, antes de SUGERIR el
+ *  descarte. La app nunca descarta sola: un lead que contesta al cuarto
+ *  intento es un lead ganado que un automatismo habría tirado. */
+export const INTENTOS_PARA_SUGERIR_DESCARTE = 4;
+export const DIAS_VENTANA_INTENTOS = 10;
+
+export const sugiereDescarte = (l: Lead): boolean => {
+  if (l.estado === "Descartado" || l.estado === "Ganado") return false;
+  if ((l.intentosContacto ?? 0) < INTENTOS_PARA_SUGERIR_DESCARTE) return false;
+  if (!l.ultimoIntentoEn) return true;
+  const dias = (Date.now() - Date.parse(l.ultimoIntentoEn)) / 864e5;
+  return dias >= 0 && dias <= DIAS_VENTANA_INTENTOS * 3;
+};
+
+export const estaDescartado = (l: Lead) => l.estado === "Descartado";
 
 /**
  * Un lead "operativo" es trabajo real del embudo: solicitud reciente, con
@@ -511,6 +680,19 @@ export interface Lead {
  * La pantalla de Clientes es la única que ve la lista completa, con filtro.
  */
 export const esLeadOperativo = (l: Lead) => !l.esDirectorio && !l.esHistorico;
+
+/**
+ * Lead del embudo que TODAVÍA está en juego. Se usa en las pantallas de
+ * trabajo del día (tableros, agenda, avisos): un descartado ahí es ruido que
+ * hace que el asesor deje de confiar en su propia lista de pendientes.
+ *
+ * Ojo: los tableros de MEDICIÓN (Reportes, Salud inmobiliaria, desempeño por
+ * asesor) siguen usando esLeadOperativo a propósito. Un lead descartado sí
+ * ocurrió y sí debe contar en el denominador — sacarlo inflaría artificialmente
+ * la tasa de conversión.
+ */
+export const esLeadEnSeguimiento = (l: Lead) =>
+  esLeadOperativo(l) && l.estado !== "Descartado";
 
 // --- Proceso de cierre (Fase 4: Cliente/Comprador) ---
 // Se activa una vez que una oferta se acepta (Lead.etapa === "Cierre"). Las 6
