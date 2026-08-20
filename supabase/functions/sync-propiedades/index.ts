@@ -26,6 +26,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const EB_BASE = "https://api.easybroker.com/v1";
 const EB_KEY = Deno.env.get("EASYBROKER_API_KEY") ?? "";
+// Los procesos automáticos corren con service_role: no pasan por RLS y por eso
+// no heredan la oficina del usuario. Hay que mandarla explícita.
+const AGENCIA = Deno.env.get("AGENCIA_ID") ?? "default";
 
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -137,6 +140,7 @@ async function resolverAsesor(agent: any): Promise<string | null> {
     estado_cuenta: "Invitado",
     puede_ver_otras_propiedades: false,
     eb_agent_id: agent.id,
+    agencia_id: AGENCIA,
   }, { onConflict: "id" }).select("id").maybeSingle();
 
   const resuelto = ins.data?.id ?? null;
@@ -229,6 +233,7 @@ Deno.serve(async () => {
             ? Number(p.shared_commission_percentage) || null
             : null,
           exclusiva: Boolean(p.exclusive),
+          agencia_id: AGENCIA,
           crm_origen: "easybroker",
           crm_id_interno: p.internal_id ?? null,
           eb_public_id: publicId,
@@ -283,13 +288,18 @@ Deno.serve(async () => {
       errores: resumen.errores.slice(0, 20),
     };
 
-    await sb.from("sync_estado").upsert({
+    // La PK de sync_estado es (agencia_id, proceso) desde la migración 01.
+    // El error se revisa a propósito: si esto falla en silencio, el semáforo
+    // miente y nadie se entera de que el sync está roto.
+    const est = await sb.from("sync_estado").upsert({
+      agencia_id: AGENCIA,
       proceso: "propiedades_easybroker",
       ultimo_corte: new Date().toISOString(),
       ultima_corrida: new Date().toISOString(),
       ultimo_resultado: JSON.stringify(salida).slice(0, 2000),
       actualizado_en: new Date().toISOString(),
-    }, { onConflict: "proceso" });
+    }, { onConflict: "agencia_id,proceso" });
+    if (est.error) salida.errores.push(`sync_estado: ${est.error.message}`);
 
     return new Response(JSON.stringify(salida, null, 2), {
       headers: { "Content-Type": "application/json" },
@@ -298,12 +308,13 @@ Deno.serve(async () => {
   } catch (e) {
     const err = { ok: false, error: (e as Error).message };
     await sb.from("sync_estado").upsert({
+      agencia_id: AGENCIA,
       proceso: "propiedades_easybroker",
       ultimo_corte: new Date().toISOString(),
       ultima_corrida: new Date().toISOString(),
       ultimo_resultado: JSON.stringify(err),
       actualizado_en: new Date().toISOString(),
-    }, { onConflict: "proceso" });
+    }, { onConflict: "agencia_id,proceso" });
     return new Response(JSON.stringify(err, null, 2), {
       headers: { "Content-Type": "application/json" }, status: 500,
     });

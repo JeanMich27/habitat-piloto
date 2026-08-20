@@ -144,8 +144,9 @@ export function leadToRow(l: Lead) {
   // base con la misma función `norm_tel()` que usa la ingesta de EasyBroker.
   // Duplicar esa normalización en TypeScript garantizaría que las dos copias se
   // separen con el tiempo y aparezcan leads duplicados.
-  // Las columnas eb_*, requiere_revision y motivo_revision pertenecen a la
-  // ingesta y el frontend nunca las lee: omitirlas las conserva intactas.
+  // Las columnas eb_*, requiere_revision, motivo_revision, es_directorio y
+  // es_historico pertenecen a la ingesta: el frontend las lee pero nunca las
+  // escribe. Omitirlas del upsert las conserva intactas.
   return {
     id: l.id,
     agencia_id: getAgenciaActual(),
@@ -185,6 +186,8 @@ export function rowToLead(r: any): Lead {
     ocupacion: r.ocupacion ?? undefined,
     bant: r.bant ?? undefined,
     historial: r.historial ?? [],
+    esDirectorio: r.es_directorio === true,
+    esHistorico: r.es_historico === true,
   };
 }
 

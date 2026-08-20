@@ -41,6 +41,7 @@ import {
   puedeCargarPropiedades,
   tieneAgenda,
   totalBant,
+  esLeadOperativo,
 } from "./types";
 import Agenda from "./views/Agenda";
 import SaludInmobiliaria from "./views/SaludInmobiliaria";
@@ -166,6 +167,11 @@ export default function App() {
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>(inicial.propiedades);
   const [leads, setLeads] = useState<Lead[]>(inicial.leads);
+  // El estado `leads` guarda TODO lo que hay en la tabla: embudo activo,
+  // histórico y directorio importado de EasyBroker. Los tableros y KPIs
+  // consumen `leadsOperativos`; solo la pantalla de Clientes ve la lista
+  // completa (con su propio filtro). Ver esLeadOperativo en types.ts.
+  const leadsOperativos = useMemo(() => leads.filter(esLeadOperativo), [leads]);
   const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
   const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
   // Solicitudes de cambio de estado (pendientes + resueltas recientes).
@@ -341,9 +347,9 @@ export default function App() {
   const avisos: Notificacion[] = useMemo(
     () =>
       usuarioActual
-        ? construirNotificaciones(usuarioActual, leads, propiedades, solicitudes, usuarios)
+        ? construirNotificaciones(usuarioActual, leadsOperativos, propiedades, solicitudes, usuarios)
         : [],
-    [usuarioActual, leads, propiedades, solicitudes, usuarios],
+    [usuarioActual, leadsOperativos, propiedades, solicitudes, usuarios],
   );
 
   useEffect(() => {
@@ -1128,7 +1134,7 @@ export default function App() {
         <AgendarVisitaModal
           usuario={yo}
           usuarios={usuarios}
-          leads={leads}
+          leads={leadsOperativos}
           propiedades={propiedades}
           citas={citas}
           citaExistente={agendando.cita ?? null}
@@ -1150,7 +1156,7 @@ export default function App() {
               broker={yo}
               usuarios={usuarios}
               propiedades={propiedades}
-              leads={leads}
+              leads={leadsOperativos}
               onVerAsesor={irAPerfil}
               onVerClientes={irAClientes}
             />
@@ -1160,7 +1166,7 @@ export default function App() {
               usuario={yo}
               usuarios={usuarios}
               propiedades={propiedades}
-              leads={leads}
+              leads={leadsOperativos}
               solicitudes={solicitudes}
               onCambiarEstado={cambiarEstadoPropiedad}
               onSolicitarCambio={solicitarCambioEstado}
@@ -1182,7 +1188,7 @@ export default function App() {
               propiedad={propiedadSeleccionada}
               usuario={yo}
               usuarios={usuarios}
-              leads={leads}
+              leads={leadsOperativos}
               citas={citas}
               solicitudes={solicitudes}
               onVolver={irAPropiedades}
@@ -1204,7 +1210,7 @@ export default function App() {
             <Asesores
               usuarios={usuarios}
               propiedades={propiedades}
-              leads={leads}
+              leads={leadsOperativos}
               onInvitar={invitarAsesor}
               onDesactivar={desactivarAsesor}
               onReactivar={reactivarAsesor}
@@ -1219,7 +1225,7 @@ export default function App() {
             <PerfilDesempeno
               asesor={usuarios.find((u) => u.id === asesorSeleccionadoId)!}
               propiedades={propiedades}
-              leads={leads}
+              leads={leadsOperativos}
               onVolver={() => setVista("asesores")}
               onEditarPermisos={editarPermisosAsesor}
               onVerDetallePropiedad={irADetalle}
@@ -1228,7 +1234,7 @@ export default function App() {
           {vista === "asesor" && (
             <AsesorDashboard
               asesor={yo}
-              leads={leads}
+              leads={leadsOperativos}
               propiedades={propiedades}
               citas={citas}
               onVerPropiedades={irAPropiedades}
@@ -1247,7 +1253,7 @@ export default function App() {
             (yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
               <SaludInmobiliaria
                 asesor={yo}
-                leads={leads}
+                leads={leadsOperativos}
                 propiedades={propiedades}
                 onVolver={() => setVista("asesor")}
                 onVerClientesPorEtapa={irAClientes}
@@ -1282,7 +1288,7 @@ export default function App() {
               usuario={yo}
               usuarios={usuarios}
               citas={citas}
-              leads={leads}
+              leads={leadsOperativos}
               propiedades={propiedades}
               onNueva={(fecha) => setAgendando({ fecha: fecha ?? null })}
               onEditar={(cita) => setAgendando({ cita })}
@@ -1319,7 +1325,7 @@ export default function App() {
             <PropietarioPortal
               propiedadesPropietario={propiedadesDelPropietario}
               usuarios={usuarios}
-              leads={leads}
+              leads={leadsOperativos}
             />
           )}
           {vista === "cliente" && yo.rol === "cliente" && (
@@ -1351,7 +1357,7 @@ export default function App() {
             />
           )}
           {vista === "reportes" && (yo.rol === "broker" || yo.rol === "asesor_independiente") && (
-            <Reportes usuarios={usuarios} propiedades={propiedades} leads={leads} />
+            <Reportes usuarios={usuarios} propiedades={propiedades} leads={leadsOperativos} />
           )}
           {vista === "importar" && (yo.rol === "broker" || yo.rol === "asesor_independiente") && (
             <ImportarDatos

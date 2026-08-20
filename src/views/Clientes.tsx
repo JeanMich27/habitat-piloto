@@ -154,6 +154,13 @@ export default function Clientes({
     claseInicial ?? "Todas",
   );
   const [filtroEtapa, setFiltroEtapa] = useState<"Todas" | LeadStage>(etapaInicial ?? "Todas");
+  // Esta pantalla es la única que recibe la lista COMPLETA: embudo activo,
+  // directorio importado de EasyBroker (contactos sin actividad de portal) e
+  // histórico (solicitudes anteriores a la ventana del sync). Arranca en
+  // "Embudo activo" a propósito: abrir en 1,200 fichas sin etapa real haría
+  // inútil la pantalla y escondería lo que sí hay que trabajar hoy.
+  const [filtroCartera, setFiltroCartera] =
+    useState<"activos" | "directorio" | "historico" | "todos">("activos");
   // Velocidad de primer contacto: el filtro con el que aterriza el asesor
   // cuando toca una barra en Salud inmobiliaria.
   const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(
@@ -186,6 +193,7 @@ export default function Clientes({
     setFiltroClase("Todas");
     setFiltroEtapa("Todas");
     setFiltroRespuesta("Todas");
+    setFiltroCartera("todos");
   }, [clienteInicialId]);
 
   useEffect(() => {
@@ -230,7 +238,12 @@ export default function Clientes({
         const coincideEtapa = filtroEtapa === "Todas" || l.etapa === filtroEtapa;
         const coincideRespuesta =
           filtroRespuesta === "Todas" || rangoDeLead(l) === filtroRespuesta;
-        return coincide && coincideClase && coincideEtapa && coincideRespuesta;
+        const coincideCartera =
+          filtroCartera === "todos" ||
+          (filtroCartera === "directorio" && l.esDirectorio === true) ||
+          (filtroCartera === "historico" && l.esHistorico === true) ||
+          (filtroCartera === "activos" && !l.esDirectorio && !l.esHistorico);
+        return coincide && coincideClase && coincideEtapa && coincideRespuesta && coincideCartera;
       })
       .sort((a, b) => {
         // Los calificados alto primero: la cartera se lee por prioridad de cierre.
@@ -238,7 +251,7 @@ export default function Clientes({
         const pb = b.bant ? totalBant(b.bant) : -1;
         return pb - pa;
       });
-  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta]);
+  }, [visibles, busqueda, filtroClase, filtroEtapa, filtroRespuesta, filtroCartera]);
 
   // Filtros activos que NO se ven en los selects, para que el asesor entienda
   // por qué la lista está recortada y pueda quitarlos de un toque.
@@ -321,6 +334,45 @@ export default function Clientes({
                 className="w-full bg-transparent py-2 text-sm text-slate-900 outline-none"
               />
             </div>
+            {/* Qué parte de la cartera se está viendo. Va primero porque
+                cambia el universo, no solo el recorte. */}
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  { clave: "activos", texto: "Embudo activo" },
+                  { clave: "directorio", texto: "Directorio" },
+                  { clave: "historico", texto: "Histórico" },
+                  { clave: "todos", texto: "Todos" },
+                ] as const
+              ).map((op) => {
+                const n = visibles.filter((l) =>
+                  op.clave === "todos"
+                    ? true
+                    : op.clave === "directorio"
+                      ? l.esDirectorio === true
+                      : op.clave === "historico"
+                        ? l.esHistorico === true
+                        : !l.esDirectorio && !l.esHistorico,
+                ).length;
+                const activo = filtroCartera === op.clave;
+                return (
+                  <button
+                    key={op.clave}
+                    type="button"
+                    onClick={() => setFiltroCartera(op.clave)}
+                    aria-pressed={activo}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      activo
+                        ? "bg-violet-600 text-white"
+                        : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
+                    }`}
+                  >
+                    {op.texto} <span className="opacity-70">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={filtroClase}

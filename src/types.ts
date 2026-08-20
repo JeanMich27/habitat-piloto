@@ -493,7 +493,24 @@ export interface Lead {
   historial?: Interaccion[];
   // Datos de contexto que ayudan a leer la ficha de un vistazo.
   ocupacion?: string;
+  // Contacto que vive en el CRM pero nunca generó una solicitud de portal:
+  // la API de EasyBroker no expone su etapa ni su propiedad de interés, así
+  // que no es un prospecto del embudo, es un nombre en la agenda.
+  esDirectorio?: boolean;
+  // Solicitud de portal anterior a la ventana móvil del sync. Es un lead real,
+  // pero de hace meses: cuenta para el histórico, no para lo que hay que atender.
+  esHistorico?: boolean;
 }
+
+/**
+ * Un lead "operativo" es trabajo real del embudo: solicitud reciente, con
+ * propiedad y etapa de verdad. Los tableros, los KPIs y el Kanban SOLO deben
+ * contar estos. Si el directorio importado del CRM entrara al conteo, el
+ * embudo mostraría más de mil prospectos donde hay poco más de cien y la
+ * tasa de respuesta del equipo quedaría inservible.
+ * La pantalla de Clientes es la única que ve la lista completa, con filtro.
+ */
+export const esLeadOperativo = (l: Lead) => !l.esDirectorio && !l.esHistorico;
 
 // --- Proceso de cierre (Fase 4: Cliente/Comprador) ---
 // Se activa una vez que una oferta se acepta (Lead.etapa === "Cierre"). Las 6
