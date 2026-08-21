@@ -20,8 +20,42 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# ------------------------------------------------------------------
+# Vercel publica el sitio de producción SOLO desde esta rama. Cualquier
+# otra rama genera un "preview" que nadie mira, así que publicar desde
+# ella no cambia nada de lo que ve el equipo — y hasta hoy el script
+# decía "LISTO, Vercel está redeployando" igual, que es mentira.
+#
+# Pasó de verdad: 12 commits (auditoría de seguridad, auditoría de UI,
+# arreglos del sync, cuentas del CRM, alta de oficinas) se quedaron en
+# la rama ui/audit-2026-08-21 mientras el sitio seguía sirviendo la
+# versión del 20 de agosto. Un proceso que dice que publicó y no
+# publicó es peor que uno que falla.
+# ------------------------------------------------------------------
+RAMA_PRODUCCION="master"
+
 RAMA=$(git branch --show-current)
 MENSAJE=${1:-"Actualización de la plataforma $(date '+%d/%m/%Y %H:%M')"}
+
+if [ "$RAMA" != "$RAMA_PRODUCCION" ]; then
+  echo ""
+  echo "  ------------------------------------------------------------"
+  echo "   OJO: estás en la rama '$RAMA'."
+  echo "   El sitio se publica desde '$RAMA_PRODUCCION'. Si publico"
+  echo "   solo '$RAMA', nadie va a ver los cambios."
+  echo "  ------------------------------------------------------------"
+  echo ""
+  read -r -p "   ¿Fusiono '$RAMA' en '$RAMA_PRODUCCION' y publico? [s/N]: " RESP
+  case "$RESP" in
+    s|S|si|Si|SI|y|Y) FUSIONAR=1 ;;
+    *)
+      echo ""
+      echo "   No se publicó nada. Cámbiate a '$RAMA_PRODUCCION' o vuelve"
+      echo "   a correr esto y responde 's'."
+      exit 1
+      ;;
+  esac
+fi
 
 echo ""
 echo "==> 1/5  Limpiando candados de git…"
@@ -60,10 +94,32 @@ else
 fi
 git push origin "$RAMA"
 
+# Si veníamos de una rama de trabajo, la producción se actualiza aquí. El
+# merge es --ff-only a propósito: si no puede avanzar en línea recta es que
+# alguien tocó producción por otro lado, y eso hay que verlo a mano, no
+# resolverlo a ciegas dentro de un script de publicación.
+if [ "${FUSIONAR:-0}" = "1" ]; then
+  echo ""
+  echo "==> Fusionando '$RAMA' en '$RAMA_PRODUCCION'…"
+  git checkout "$RAMA_PRODUCCION"
+  if ! git merge --ff-only "$RAMA"; then
+    git checkout "$RAMA"
+    echo ""
+    echo "   NO se pudo fusionar en línea recta: '$RAMA_PRODUCCION' tiene"
+    echo "   cambios que '$RAMA' no tiene. El sitio NO se actualizó."
+    echo "   Pásame este mensaje y lo resolvemos."
+    exit 1
+  fi
+  git push origin "$RAMA_PRODUCCION"
+  git checkout "$RAMA"
+  echo "    Producción actualizada."
+fi
+
 echo ""
 echo "============================================================"
 echo " LISTO — service worker en v$NUEVA"
 echo ""
+echo " Publicado en: $RAMA${FUSIONAR:+ y $RAMA_PRODUCCION}"
 echo " Web:      Vercel está redeployando (1-2 min)."
 echo "           https://real-estate-plataforma.vercel.app"
 echo " Teléfono: cierra la app POR COMPLETO y vuelve a abrirla"
