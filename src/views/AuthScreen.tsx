@@ -84,7 +84,7 @@ export default function AuthScreen() {
   };
 
   const inputBase =
-    "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10";
+    "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-500 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white px-4 py-8">
@@ -96,7 +96,7 @@ export default function AuthScreen() {
             <p className="text-2xl font-bold tracking-[0.22em] text-slate-900">
               HOME<span className="text-violet-600">ID</span>
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-slate-400">
+            <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-slate-500">
               Plataforma inmobiliaria
             </p>
           </div>
@@ -117,12 +117,12 @@ export default function AuthScreen() {
           </p>
 
           {error && (
-            <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+            <div role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
               {error}
             </div>
           )}
           {aviso && (
-            <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
+            <div role="status" className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
               {aviso}
             </div>
           )}
@@ -131,8 +131,9 @@ export default function AuthScreen() {
             {modo === "registro" && (
               <>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Nombre completo</label>
+                  <label htmlFor="auth-nombre" className="mb-1.5 block text-xs font-semibold text-slate-600">Nombre completo</label>
                   <input
+                    id="auth-nombre"
                     className={inputBase}
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
@@ -141,8 +142,9 @@ export default function AuthScreen() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Teléfono (opcional)</label>
+                  <label htmlFor="auth-telefono" className="mb-1.5 block text-xs font-semibold text-slate-600">Teléfono (opcional)</label>
                   <input
+                    id="auth-telefono"
                     className={inputBase}
                     value={telefono}
                     onChange={(e) => setTelefono(e.target.value)}
@@ -152,10 +154,11 @@ export default function AuthScreen() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                  <label htmlFor="auth-codigo-invitacion" className="mb-1.5 block text-xs font-semibold text-slate-600">
                     Código de invitación
                   </label>
                   <input
+                    id="auth-codigo-invitacion"
                     className={`${inputBase} uppercase tracking-wider`}
                     value={codigoInvitacion}
                     onChange={(e) => setCodigoInvitacion(e.target.value.toUpperCase())}
@@ -172,8 +175,9 @@ export default function AuthScreen() {
 
             {modo !== "nueva-contrasena" && (
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Correo electrónico</label>
+                <label htmlFor="auth-correo" className="mb-1.5 block text-xs font-semibold text-slate-600">Correo electrónico</label>
                 <input
+                  id="auth-correo"
                   className={inputBase}
                   type="email"
                   required
@@ -188,11 +192,12 @@ export default function AuthScreen() {
 
             {modo !== "recuperar" && (
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                <label htmlFor="auth-contrasena" className="mb-1.5 block text-xs font-semibold text-slate-600">
                   {modo === "nueva-contrasena" ? "Nueva contraseña" : "Contraseña"}
                 </label>
                 <div className="relative">
                   <input
+                    id="auth-contrasena"
                     className={`${inputBase} pr-12`}
                     type={verContrasena ? "text" : "password"}
                     required
@@ -205,7 +210,7 @@ export default function AuthScreen() {
                   <button
                     type="button"
                     onClick={() => setVerContrasena((v) => !v)}
-                    className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 hover:text-slate-600"
+                    className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-500 hover:text-slate-600"
                     aria-label={verContrasena ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
                     {verContrasena ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
@@ -229,7 +234,7 @@ export default function AuthScreen() {
                           : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <Icono className={`size-5 shrink-0 ${rol === valor ? "text-slate-900" : "text-slate-400"}`} />
+                      <Icono className={`size-5 shrink-0 ${rol === valor ? "text-slate-900" : "text-slate-500"}`} />
                       <span>
                         <span className="block text-sm font-semibold text-slate-900">{titulo}</span>
                         <span className="block text-xs text-slate-500">{descripcion}</span>
