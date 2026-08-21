@@ -75,7 +75,7 @@ const COLOR_ESTADO: Record<EstadoCitaAgenda, string> = {
   Confirmada: "bg-emerald-100 text-emerald-700 ring-emerald-200",
   Realizada: "bg-slate-100 text-slate-600 ring-slate-200",
   "No asistió": "bg-red-100 text-red-700 ring-red-200",
-  Cancelada: "bg-slate-100 text-slate-400 ring-slate-200",
+  Cancelada: "bg-slate-100 text-slate-500 ring-slate-200",
 };
 
 export default function Agenda({
@@ -250,7 +250,7 @@ export default function Agenda({
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/50 py-12 text-center">
               <CalendarDays className="mx-auto size-8 text-slate-300" />
               <p className="mt-2 text-sm font-semibold text-slate-500">No hay citas próximas</p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-slate-500">
                 Agenda desde aquí o desde la ficha de un prospecto.
               </p>
             </div>
@@ -261,7 +261,7 @@ export default function Agenda({
               <div key={dia}>
                 <div className="sticky top-[104px] z-10 -mx-1 mb-2 flex items-baseline gap-2 bg-slate-50/80 px-1 py-1 backdrop-blur md:top-[132px]">
                   <p className="text-sm font-bold capitalize text-slate-900">{etiquetaDia(fecha)}</p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500">
                     {delDia.length} {delDia.length === 1 ? "cita" : "citas"}
                   </p>
                 </div>
@@ -276,7 +276,7 @@ export default function Agenda({
                         <span className="text-sm font-bold tabular-nums text-slate-900">
                           {fmtHora(c.inicio).replace(/\s?[ap]\.?\s?m\.?/i, "")}
                         </span>
-                        <span className="text-[9px] font-semibold uppercase text-slate-400">
+                        <span className="text-[9px] font-semibold uppercase text-slate-500">
                           {new Date(c.inicio).getHours() < 12 ? "am" : "pm"}
                         </span>
                       </div>
@@ -349,7 +349,7 @@ export default function Agenda({
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr>
-                  <th className="w-40 border-b border-r border-slate-200/70 p-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  <th className="w-40 border-b border-r border-slate-200/70 p-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     {esBroker ? "Asesor" : ""}
                   </th>
                   {diasSemana.map((d) => (
@@ -370,7 +370,7 @@ export default function Agenda({
                     <tr key={a.id}>
                       <td className="border-r border-slate-200/70 p-2 align-top">
                         <p className="truncate text-xs font-bold text-slate-800">{a.nombre}</p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-slate-500">
                           {
                             filtradas.filter(
                               (c) =>
@@ -471,7 +471,7 @@ export default function Agenda({
           ) : (
             <div className="space-y-4">
               <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                   Tu enlace privado
                 </p>
                 <div className="mt-1.5 flex gap-2">
@@ -505,7 +505,7 @@ export default function Agenda({
                       Abre el diálogo de suscripción. Pon el refresco en 5 minutos.
                     </span>
                   </span>
-                  <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                  <ChevronRight className="size-4 shrink-0 text-slate-500" />
                 </a>
                 <a
                   href={urls.google}
@@ -519,7 +519,7 @@ export default function Agenda({
                       Google revisa el enlace cada 8 a 24 horas, no al instante.
                     </span>
                   </span>
-                  <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                  <ChevronRight className="size-4 shrink-0 text-slate-500" />
                 </a>
               </div>
 
@@ -573,13 +573,15 @@ function DetalleCita({
   const mapa = cita.ubicacion
     ? `https://maps.google.com/?q=${encodeURIComponent(cita.ubicacion)}`
     : null;
+  // Eliminar es irreversible: pide un segundo toque antes de borrar de verdad.
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   return (
     <GlassModal titulo={cita.titulo} onCerrar={onCerrar}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
           <span className="flex items-center gap-1.5 font-semibold text-slate-900">
-            <Clock className="size-4 text-slate-400" />
+            <Clock className="size-4 text-slate-500" />
             {etiquetaDia(new Date(cita.inicio))} · {fmtHora(cita.inicio)} a {fmtHora(cita.fin)}
           </span>
           <span
@@ -598,7 +600,7 @@ function DetalleCita({
             rel="noreferrer"
             className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
           >
-            <MapPin className="mt-0.5 size-4 shrink-0 text-slate-400" />
+            <MapPin className="mt-0.5 size-4 shrink-0 text-slate-500" />
             <span className="min-w-0 flex-1">{cita.ubicacion}</span>
             <span className="shrink-0 text-[11px] font-bold text-violet-600">Cómo llegar</span>
           </a>
@@ -628,7 +630,7 @@ function DetalleCita({
 
         {cita.notas && (
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Nota</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Nota</p>
             <p className="mt-1 text-sm text-slate-700">{cita.notas}</p>
           </div>
         )}
@@ -682,31 +684,58 @@ function DetalleCita({
           </button>
         </div>
 
-        <div className="flex gap-2 border-t border-slate-200/70 pt-3">
-          <button
-            onClick={onEditar}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        {confirmandoEliminar ? (
+          // Segundo toque obligatorio: eliminar una cita es irreversible y no
+          // se puede deshacer, a diferencia de cancelarla.
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3"
           >
-            <Pencil className="size-3.5" /> Editar
-          </button>
-          {cita.estado !== "Cancelada" && (
+            <p className="text-xs font-semibold text-red-800">
+              ¿Eliminar esta cita para siempre? No se puede deshacer.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={() => setConfirmandoEliminar(false)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onEliminar}
+                className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-red-700"
+              >
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 border-t border-slate-200/70 pt-3">
             <button
-              onClick={() => onCambiarEstado("Cancelada")}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={onEditar}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
-              <X className="size-3.5" /> Cancelar cita
+              <Pencil className="size-3.5" /> Editar
             </button>
-          )}
-          {puedeEliminar && (
-            <button
-              onClick={onEliminar}
-              title="Eliminar definitivamente"
-              className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          )}
-        </div>
+            {cita.estado !== "Cancelada" && (
+              <button
+                onClick={() => onCambiarEstado("Cancelada")}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                <X className="size-3.5" /> Cancelar cita
+              </button>
+            )}
+            {puedeEliminar && (
+              <button
+                onClick={() => setConfirmandoEliminar(true)}
+                title="Eliminar definitivamente"
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </GlassModal>
   );
