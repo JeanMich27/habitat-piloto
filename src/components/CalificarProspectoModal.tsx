@@ -11,6 +11,7 @@
 // porque de él sale la acción siguiente.
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
+import { useDialogoAccesible } from "../lib/modal";
 import type {
   CalificacionBANT,
   Lead,
@@ -140,6 +141,8 @@ export default function CalificarProspectoModal({
   const [requisitos, setRequisitos] = useState(previa?.requisitos ?? "");
   const [observaciones, setObservaciones] = useState(previa?.observaciones ?? "");
 
+  useDialogoAccesible(onCancelar);
+
   const PASOS = useMemo(() => pasosDe(perfil), [perfil]);
   const esInquilino = perfil === "Inquilino";
   const enResumen = paso === PASOS.length;
@@ -190,14 +193,15 @@ export default function CalificarProspectoModal({
         return (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label htmlFor="bant-monto" className="mb-1 block text-xs font-semibold text-slate-600">
                 {esInquilino
                   ? "¿Hasta cuánto de renta mensual? (opcional)"
                   : "¿Hasta cuánto puede pagar? (opcional)"}
               </label>
               <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 focus-within:border-slate-500">
-                <span className="text-sm text-slate-400">$</span>
+                <span className="text-sm text-slate-500">$</span>
                 <input
+                  id="bant-monto"
                   inputMode="decimal"
                   value={montoMaximo}
                   onChange={(e) => setMontoMaximo(e.target.value)}
@@ -207,10 +211,11 @@ export default function CalificarProspectoModal({
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label htmlFor="bant-forma-pago" className="mb-1 block text-xs font-semibold text-slate-600">
                 {esInquilino ? "¿Con qué respaldo? (opcional)" : "¿Con qué lo va a pagar? (opcional)"}
               </label>
               <select
+                id="bant-forma-pago"
                 value={formaPago}
                 onChange={(e) => setFormaPago(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
@@ -228,10 +233,11 @@ export default function CalificarProspectoModal({
       case "autoridad":
         return (
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label htmlFor="bant-quien-decide" className="mb-1 block text-xs font-semibold text-slate-600">
               ¿Quién más participa en la decisión? (opcional)
             </label>
             <input
+              id="bant-quien-decide"
               value={quienMasDecide}
               onChange={(e) => setQuienMasDecide(e.target.value)}
               placeholder="Ej. su esposo Carlos, su socio, su mamá"
@@ -242,10 +248,11 @@ export default function CalificarProspectoModal({
       case "necesidad":
         return (
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label htmlFor="bant-requisitos" className="mb-1 block text-xs font-semibold text-slate-600">
               ¿Qué no puede faltar? (opcional)
             </label>
             <input
+              id="bant-requisitos"
               value={requisitos}
               onChange={(e) => setRequisitos(e.target.value)}
               placeholder="Ej. 3 recámaras, estacionamiento techado, zona Satélite"
@@ -259,7 +266,12 @@ export default function CalificarProspectoModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Calificar a ${lead.nombre}`}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
+    >
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl">
         {/* Encabezado */}
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
@@ -275,7 +287,7 @@ export default function CalificarProspectoModal({
           </div>
           <button
             onClick={onCancelar}
-            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="size-5" />
           </button>
@@ -397,7 +409,7 @@ export default function CalificarProspectoModal({
                     Ya no está interesado · cerrar
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   Saltar una pregunta guarda el avance. Lo que respondiste no se
                   pierde y puedes terminar la calificación después.
                 </p>
@@ -489,10 +501,11 @@ export default function CalificarProspectoModal({
               )}
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                <label htmlFor="bant-observaciones" className="mb-1 block text-xs font-semibold text-slate-600">
                   Tus conclusiones (opcional)
                 </label>
                 <textarea
+                  id="bant-observaciones"
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
                   rows={3}
@@ -517,7 +530,7 @@ export default function CalificarProspectoModal({
             <button
               onClick={() => setPaso((p) => p + 1)}
               disabled={!respuestas[pasoActual.campo]}
-              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               Siguiente <ArrowRight className="size-4" />
             </button>
@@ -525,7 +538,7 @@ export default function CalificarProspectoModal({
             <button
               onClick={() => onGuardar(borrador)}
               disabled={respondidas === 0}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               {completo ? `Guardar calificación (${total} pts)` : `Guardar avance (${respondidas}/4)`}
             </button>

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import type { Lead, LeadOrigin, Propiedad } from "../types";
 import { formatoMXN } from "../types";
+import { useDialogoAccesible } from "../lib/modal";
 
 const ORIGENES: LeadOrigin[] = ["Directo", "Portal", "Redes", "Referido"];
 
@@ -33,6 +34,8 @@ export default function NuevoClienteModal({
 
   const valido = nombre.trim().length > 1;
 
+  useDialogoAccesible(onCancelar);
+
   const guardar = () => {
     if (!valido) return;
     onGuardar({
@@ -55,7 +58,12 @@ export default function NuevoClienteModal({
     "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nuevo cliente"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
+    >
       <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
@@ -66,7 +74,7 @@ export default function NuevoClienteModal({
           </div>
           <button
             onClick={onCancelar}
-            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="size-5" />
           </button>
@@ -74,10 +82,11 @@ export default function NuevoClienteModal({
 
         <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label htmlFor="cliente-nombre" className="mb-1 block text-xs font-semibold text-slate-600">
               Nombre completo *
             </label>
             <input
+              id="cliente-nombre"
               autoFocus
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -88,10 +97,11 @@ export default function NuevoClienteModal({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label htmlFor="cliente-telefono" className="mb-1 block text-xs font-semibold text-slate-600">
                 Teléfono (WhatsApp)
               </label>
               <input
+                id="cliente-telefono"
                 inputMode="tel"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
@@ -100,8 +110,9 @@ export default function NuevoClienteModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Correo</label>
+              <label htmlFor="cliente-correo" className="mb-1 block text-xs font-semibold text-slate-600">Correo</label>
               <input
+                id="cliente-correo"
                 inputMode="email"
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
@@ -112,10 +123,11 @@ export default function NuevoClienteModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label htmlFor="cliente-propiedad" className="mb-1 block text-xs font-semibold text-slate-600">
               ¿Qué propiedad le interesa?
             </label>
             <select
+              id="cliente-propiedad"
               value={propiedadId}
               onChange={(e) => setPropiedadId(e.target.value)}
               className={input}
@@ -131,10 +143,11 @@ export default function NuevoClienteModal({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label htmlFor="cliente-origen" className="mb-1 block text-xs font-semibold text-slate-600">
                 ¿Cómo llegó?
               </label>
               <select
+                id="cliente-origen"
                 value={origen}
                 onChange={(e) => setOrigen(e.target.value as LeadOrigin)}
                 className={input}
@@ -147,10 +160,11 @@ export default function NuevoClienteModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <label htmlFor="cliente-ocupacion" className="mb-1 block text-xs font-semibold text-slate-600">
                 A qué se dedica
               </label>
               <input
+                id="cliente-ocupacion"
                 value={ocupacion}
                 onChange={(e) => setOcupacion(e.target.value)}
                 placeholder="Ej. Médica especialista"
@@ -160,10 +174,11 @@ export default function NuevoClienteModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label htmlFor="cliente-nota" className="mb-1 block text-xs font-semibold text-slate-600">
               Nota inicial
             </label>
             <textarea
+              id="cliente-nota"
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               rows={2}
@@ -188,7 +203,7 @@ export default function NuevoClienteModal({
           <button
             onClick={guardar}
             disabled={!valido}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Guardar cliente
           </button>
