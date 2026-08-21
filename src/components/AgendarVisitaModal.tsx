@@ -199,7 +199,7 @@ export default function AgendarVisitaModal({
       <div className="space-y-5">
         {/* Tipo */}
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Tipo de cita
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -222,7 +222,7 @@ export default function AgendarVisitaModal({
         {/* Asesor: solo el broker elige */}
         {esBroker && (
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Asesor a cargo
             </label>
             <select
@@ -246,7 +246,7 @@ export default function AgendarVisitaModal({
         {/* Prospecto y propiedad */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Prospecto
             </label>
             <select
@@ -263,7 +263,7 @@ export default function AgendarVisitaModal({
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Propiedad
             </label>
             <select
@@ -283,7 +283,7 @@ export default function AgendarVisitaModal({
 
         {/* Día */}
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Día
           </p>
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -320,7 +320,7 @@ export default function AgendarVisitaModal({
 
         {/* Hora */}
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Hora de inicio
           </p>
           <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
@@ -342,7 +342,7 @@ export default function AgendarVisitaModal({
 
         {/* Duración */}
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Duración
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -365,11 +365,11 @@ export default function AgendarVisitaModal({
         {/* Ubicación y notas */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Punto de encuentro
             </label>
             <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              <MapPin className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
               <input
                 value={ubicacion}
                 onChange={(e) => {
@@ -382,7 +382,7 @@ export default function AgendarVisitaModal({
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Nota para ti
             </label>
             <input
@@ -414,7 +414,7 @@ export default function AgendarVisitaModal({
         )}
 
         {choques.length > 0 && (
-          <div className="rounded-xl bg-red-50 p-3 text-xs text-red-800 ring-1 ring-red-200">
+          <div role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-800 ring-1 ring-red-200">
             <p className="flex items-center gap-2 font-bold">
               <AlertTriangle className="size-3.5 shrink-0" />
               Se encima con {choques.length === 1 ? "otra cita" : `${choques.length} citas`}
@@ -449,7 +449,7 @@ export default function AgendarVisitaModal({
           </button>
         </div>
         {!hora && (
-          <p className="-mt-3 text-center text-[11px] text-slate-400">Falta elegir la hora</p>
+          <p className="-mt-3 text-center text-[11px] text-slate-500">Falta elegir la hora</p>
         )}
       </div>
     </GlassModal>

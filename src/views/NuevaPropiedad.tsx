@@ -213,14 +213,14 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                     ? "bg-slate-800 text-white"
                     : p.n < paso || p.n < pasoMax
                       ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-100 text-slate-400"
+                      : "bg-slate-100 text-slate-500"
                 }`}
               >
                 {p.n < paso ? <Check className="size-4" /> : p.n}
               </span>
               <span
                 className={`hidden text-center text-[11px] sm:block ${
-                  paso === p.n ? "font-semibold text-slate-800" : "text-slate-400"
+                  paso === p.n ? "font-semibold text-slate-800" : "text-slate-500"
                 }`}
               >
                 {p.label}
@@ -299,7 +299,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                 </div>
               </Campo>
             </div>
-            <p className="flex items-center gap-1.5 text-xs text-slate-400">
+            <p className="flex items-center gap-1.5 text-xs text-slate-500">
               <Home className="size-3.5" /> Sin autocompletar de mapas en el MVP (sin integraciones
               externas).
             </p>
@@ -313,7 +313,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
               <>
                 <Campo label="Buscar propietario existente">
                   <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                     <input
                       value={busquedaPropietario}
                       onChange={(e) => setBusquedaPropietario(e.target.value)}
@@ -332,16 +332,16 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
                         >
-                          <User className="size-3.5 text-slate-400" />
+                          <User className="size-3.5 text-slate-500" />
                           <span className="font-medium text-slate-700">{pr.nombre}</span>
-                          <span className="text-xs text-slate-400">{pr.correo}</span>
+                          <span className="text-xs text-slate-500">{pr.correo}</span>
                         </button>
                       ))}
                     </div>
                   )}
                 </Campo>
 
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   o crear nuevo propietario
                 </p>
 
@@ -481,7 +481,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                 }`}
               >
                 <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <FileText className="size-4 text-slate-400" />
+                  <FileText className="size-4 text-slate-500" />
                   {d}
                   {d === "Contrato" && (
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
@@ -521,7 +521,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
               </button>
             </div>
             {fotos.length === 0 ? (
-              <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                 Aún no agregas fotografías.
               </p>
             ) : (
@@ -532,11 +532,11 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                     className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs"
                   >
                     <span className="flex items-center gap-1.5 truncate text-slate-600">
-                      <Camera className="size-3.5 shrink-0 text-slate-400" /> {f}
+                      <Camera className="size-3.5 shrink-0 text-slate-500" /> {f}
                     </span>
                     <button
                       onClick={() => setFotos((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="shrink-0 text-slate-400 hover:text-rose-500"
+                      className="shrink-0 text-slate-500 hover:text-rose-500"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -579,7 +579,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
               (paso === 3 && !paso3Valido) ||
               (paso === 4 && !paso4Valido)
             }
-            className="rounded-lg bg-slate-800 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="rounded-lg bg-slate-800 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Siguiente
           </button>
@@ -597,7 +597,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                 ? "Faltan documentos para publicar directamente"
                 : undefined
             }
-            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             {usuario.rol === "asesor_independiente" ? "Guardar y publicar" : "Guardar y enviar a validación"}
           </button>
@@ -649,7 +649,7 @@ function Campo({
         {label} {obligatorio && <span className="text-rose-500">*</span>}
       </label>
       {children}
-      {error && <p className="mt-1 text-xs text-rose-500">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-rose-500">{error}</p>}
     </div>
   );
 }

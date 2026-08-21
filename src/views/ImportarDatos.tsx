@@ -136,11 +136,11 @@ export default function ImportarDatos({
         </div>
 
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-10 text-center hover:bg-slate-50">
-          <Upload className="size-6 text-slate-400" />
+          <Upload className="size-6 text-slate-500" />
           <span className="text-sm font-semibold text-slate-700">
             {nombreArchivo || "Selecciona un archivo .csv o .xlsx"}
           </span>
-          <span className="text-xs text-slate-400">Se detecta el encabezado automáticamente</span>
+          <span className="text-xs text-slate-500">Se detecta el encabezado automáticamente</span>
           <input
             type="file"
             accept=".csv,.xlsx,.xls"
@@ -150,13 +150,13 @@ export default function ImportarDatos({
         </label>
 
         {error && (
-          <p className="flex items-center gap-1.5 text-sm text-rose-600">
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-rose-600">
             <AlertTriangle className="size-4" /> {error}
           </p>
         )}
 
         {importado !== null && (
-          <p className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-200">
+          <p role="status" className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-200">
             <CheckCircle2 className="size-4" /> Se importaron {importado} registros.
           </p>
         )}
@@ -235,7 +235,7 @@ export default function ImportarDatos({
               <button
                 onClick={confirmarImportacion}
                 disabled={!camposObligatoriosCubiertos || registrosListos.length === 0}
-                className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
               >
                 Importar {registrosListos.length} registros
               </button>
