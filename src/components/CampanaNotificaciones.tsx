@@ -69,7 +69,7 @@ export default function CampanaNotificaciones({
 
             <div className="max-h-[calc(70vh-44px)] overflow-y-auto">
               {notificaciones.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-slate-400">
+                <p className="px-4 py-10 text-center text-sm text-slate-500">
                   Todo al día. No hay nada pendiente.
                 </p>
               ) : (
@@ -98,7 +98,7 @@ export default function CampanaNotificaciones({
                         <span className="mt-0.5 block text-xs leading-snug text-slate-500">
                           {n.detalle}
                         </span>
-                        <span className="mt-1 block text-[10px] text-slate-400">
+                        <span className="mt-1 block text-[10px] text-slate-500">
                           {tiempoRelativo(n.fecha)}
                         </span>
                       </span>

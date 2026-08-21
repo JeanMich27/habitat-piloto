@@ -296,7 +296,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                 />
               ))}
               {productividad.length === 0 && (
-                <p className="py-4 text-center text-xs text-slate-400">Sin asesores registrados.</p>
+                <p className="py-4 text-center text-xs text-slate-500">Sin asesores registrados.</p>
               )}
             </div>
           </section>
@@ -377,7 +377,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                 ))}
                 {propsRangoOrdenadas.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                       No hay propiedades captadas en este rango de fechas.
                     </td>
                   </tr>
@@ -439,7 +439,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                 })}
                 {cierresRango.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                       No hay cierres registrados en este rango de fechas.
                     </td>
                   </tr>
@@ -469,7 +469,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                 />
               ))}
               {tiemposPorAsesor.length === 0 && (
-                <p className="py-4 text-center text-xs text-slate-400">
+                <p className="py-4 text-center text-xs text-slate-500">
                   Ningún lead del rango tiene primer contacto registrado.
                 </p>
               )}

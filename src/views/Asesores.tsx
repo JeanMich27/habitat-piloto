@@ -100,7 +100,7 @@ export default function Asesores({
                     </span>
                     <div>
                       <p className="font-medium text-slate-800">{u.nombre}</p>
-                      <p className="text-xs text-slate-400">{u.puesto}</p>
+                      <p className="text-xs text-slate-500">{u.puesto}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{u.correo}</td>
@@ -118,7 +118,7 @@ export default function Asesores({
                   <td className="relative px-4 py-3 text-right">
                     <button
                       onClick={() => setMenuAbierto(menuAbierto === u.id ? null : u.id)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
                     >
                       <MoreVertical className="size-4" />
                     </button>
@@ -230,7 +230,7 @@ function ModalInvitar({
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between">
           <h2 className="text-lg font-bold text-slate-900">Invitar asesor</h2>
-          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
             <X className="size-5" />
           </button>
         </div>
@@ -267,11 +267,11 @@ function ModalInvitar({
         <button
           disabled={!puedeEnviar}
           onClick={() => onEnviar(nombre.trim(), correo.trim())}
-          className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
           Enviar invitación
         </button>
-        <p className="mt-2 text-center text-xs text-slate-400">
+        <p className="mt-2 text-center text-xs text-slate-500">
           Crea la cuenta en estado "Invitado" — sin envío real de correo en el prototipo.
         </p>
       </div>
@@ -332,7 +332,7 @@ function ModalDesactivar({
           <button
             disabled={otrosAsesores.length === 0}
             onClick={() => onConfirmar(reasignarA)}
-            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Sí, desactivar
           </button>

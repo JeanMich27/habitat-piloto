@@ -251,7 +251,7 @@ export default function ListadoPropiedades({
             >
               <span className={`size-2.5 rounded-full ${ANTIGUEDAD_ESTILOS[nivel].punto}`} />
               {texto}
-              <span className={activo ? "text-white/80" : "text-slate-400"}>
+              <span className={activo ? "text-white/80" : "text-slate-500"}>
                 ({conteoAntiguedad(nivel)})
               </span>
             </button>
@@ -273,7 +273,7 @@ export default function ListadoPropiedades({
       {/* Buscador y filtros */}
       <div className="glass flex flex-wrap items-center gap-2 p-3">
         <div className="relative flex-1 min-w-[14rem]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
           <input
             value={busqueda}
             onChange={(e) => {
@@ -281,7 +281,7 @@ export default function ListadoPropiedades({
               setPagina(1);
             }}
             placeholder="Buscar por dirección o propietario…"
-            className="w-full rounded-xl border border-white/70 bg-white/70 py-2 pl-9 pr-3 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-white/70 bg-white/70 py-2 pl-9 pr-3 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
           />
         </div>
 
@@ -291,7 +291,7 @@ export default function ListadoPropiedades({
             setFiltroEstado(e.target.value as PropertyStatus | "Todos");
             setPagina(1);
           }}
-          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
         >
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
@@ -306,7 +306,7 @@ export default function ListadoPropiedades({
             setFiltroOperacion(e.target.value as TipoOperacion | "Todos");
             setPagina(1);
           }}
-          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
         >
           {OPERACIONES.map((o) => (
             <option key={o} value={o}>
@@ -322,7 +322,7 @@ export default function ListadoPropiedades({
               setFiltroAsesor(e.target.value);
               setPagina(1);
             }}
-            className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+            className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
           >
             <option value="Todos">Todos los asesores</option>
             {usuarios
@@ -344,9 +344,9 @@ export default function ListadoPropiedades({
             }}
             placeholder="Precio mín."
             inputMode="numeric"
-            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
           />
-          <span className="text-slate-400">–</span>
+          <span className="text-slate-500">–</span>
           <input
             value={precioMax}
             onChange={(e) => {
@@ -355,7 +355,7 @@ export default function ListadoPropiedades({
             }}
             placeholder="Precio máx."
             inputMode="numeric"
-            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+            className="w-28 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
           />
         </div>
       </div>
@@ -373,7 +373,7 @@ export default function ListadoPropiedades({
           </button>
         ))}
         {paginadas.length === 0 && (
-          <p className="glass col-span-full px-4 py-14 text-center text-sm text-slate-400">
+          <p className="glass col-span-full px-4 py-14 text-center text-sm text-slate-500">
             {base.length === 0
               ? "Aún no tienes propiedades."
               : "Ningún resultado coincide con los filtros."}
@@ -434,7 +434,7 @@ export default function ListadoPropiedades({
                   <td className="relative px-4 py-3 text-right">
                     <button
                       onClick={() => setMenuAbierto(menuAbierto === p.id ? null : p.id)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
                     >
                       <MoreVertical className="size-4" />
                     </button>
@@ -484,7 +484,7 @@ export default function ListadoPropiedades({
             {paginadas.length === 0 && (
               <tr>
                 <td colSpan={alcanceTodos ? 10 : 9} className="px-4 py-14 text-center">
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-slate-500">
                     {base.length === 0
                       ? "Aún no tienes propiedades."
                       : "Ningún resultado coincide con los filtros."}
@@ -506,7 +506,7 @@ export default function ListadoPropiedades({
               setPorPagina(Number(e.target.value) as (typeof POR_PAGINA_OPCIONES)[number]);
               setPagina(1);
             }}
-            className="rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm focus:border-violet-400 focus:outline-none"
+            className="rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:outline-none"
           >
             {POR_PAGINA_OPCIONES.map((n) => (
               <option key={n} value={n}>

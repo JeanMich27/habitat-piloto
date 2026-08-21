@@ -70,7 +70,7 @@ export const NIVELES_CARTERA: EstiloNivelCartera[] = [
     accion: "No sabes nada de ellos: califícalos y tu proyección se vuelve confiable.",
     color: "#cbd5e1",
     pill: "bg-slate-100 text-slate-600",
-    iconoColor: "text-slate-400",
+    iconoColor: "text-slate-500",
     Icono: HelpCircle,
   },
 ];

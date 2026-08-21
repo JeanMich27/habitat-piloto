@@ -103,7 +103,7 @@ function SignoVital({
       <span className={`flex size-9 items-center justify-center rounded-full ${circulo}`}>
         <Icono className={`size-4 ${acento}`} />
       </span>
-      <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+      <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
         {etiqueta}
       </p>
       <p className="mt-0.5 text-2xl font-black text-slate-900">{valor}</p>
@@ -239,11 +239,11 @@ export default function AsesorDashboard({
                   {citasHoy.length} citas hoy
                 </span>
               )}
-              <ChevronRight className="ml-auto size-4 shrink-0 text-slate-400" />
+              <ChevronRight className="ml-auto size-4 shrink-0 text-slate-500" />
             </>
           ) : (
             <>
-              <CalendarOff className="size-4 shrink-0 text-slate-400" />
+              <CalendarOff className="size-4 shrink-0 text-slate-500" />
               <span className="text-xs font-medium text-slate-500">
                 No tienes citas próximas agendadas
               </span>
@@ -403,7 +403,7 @@ export default function AsesorDashboard({
               <span className="mt-2 text-sm font-semibold text-slate-700">
                 Todavía no tienes propiedades
               </span>
-              <span className="mt-0.5 text-xs text-slate-400">
+              <span className="mt-0.5 text-xs text-slate-500">
                 Toca aquí para dar de alta la primera
               </span>
             </button>
@@ -413,7 +413,7 @@ export default function AsesorDashboard({
               <p className="mt-2 text-sm font-semibold text-slate-700">
                 Todavía no tienes propiedades asignadas
               </p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-slate-500">
                 Tu broker es quien da de alta el inventario y te lo asigna.
               </p>
             </div>

@@ -49,7 +49,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
 
   if (!cierre) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 text-center text-slate-400">
+      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 text-center text-slate-500">
         Este cliente todavía no tiene un proceso de cierre activo.
       </div>
     );
@@ -134,7 +134,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                     </span>
                     <span
                       className={`text-sm ${
-                        estado === "pendiente" ? "text-slate-400" : "font-medium text-slate-800"
+                        estado === "pendiente" ? "text-slate-500" : "font-medium text-slate-800"
                       }`}
                     >
                       {etapa}
@@ -217,7 +217,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                 <button
                   disabled={proximaCita.estado === "Confirmada"}
                   onClick={() => onConfirmarCita(lead.id, proximaCita.id)}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                 >
                   {proximaCita.estado === "Confirmada" ? "Confirmada ✓" : "Confirmar asistencia"}
                 </button>
@@ -230,7 +230,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
               </div>
             </div>
           ) : (
-            <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-400">
+            <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
               No tienes citas próximas.
             </p>
           )}
@@ -240,7 +240,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
               Historial
             </h2>
             {historialCitas.length === 0 ? (
-              <p className="text-sm text-slate-400">Sin citas pasadas todavía.</p>
+              <p className="text-sm text-slate-500">Sin citas pasadas todavía.</p>
             ) : (
               <ul className="space-y-2">
                 {historialCitas.map((c) => (
@@ -249,7 +249,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                     className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm"
                   >
                     <span className="text-slate-700">{c.tipo}</span>
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
                       <Clock className="size-3.5" /> {fmtFecha(c.fecha)}
                     </span>
                   </li>
@@ -268,12 +268,12 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
               <h2 className="text-lg font-bold text-slate-900">Subir {modalSubir}</h2>
               <button
                 onClick={() => setModalSubir(null)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
               >
                 <X className="size-5" />
               </button>
             </div>
-            <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-8 text-slate-400">
+            <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-8 text-slate-500">
               <Upload className="size-6" />
               <p className="text-xs">PDF o JPG, máx. 10MB</p>
               <p className="text-[10px] text-slate-300">Sin almacenamiento real en el prototipo</p>
@@ -314,7 +314,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                   <h2 className="text-lg font-bold text-slate-900">Solicitar reagendar</h2>
                   <button
                     onClick={() => setModalReagendar(null)}
-                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                    className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
                   >
                     <X className="size-5" />
                   </button>
@@ -333,7 +333,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                 >
                   Enviar solicitud
                 </button>
-                <p className="mt-2 text-center text-xs text-slate-400">
+                <p className="mt-2 text-center text-xs text-slate-500">
                   No reagenda automáticamente — tu asesor confirma la nueva fecha.
                 </p>
               </>

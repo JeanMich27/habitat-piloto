@@ -64,7 +64,7 @@ export default function KanbanCard({ lead, propiedad, onMoverEtapa }: Props) {
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-slate-800">{lead.nombre}</p>
         {arrastrable && (
-          <GripVertical className="size-4 shrink-0 text-slate-300 group-hover:text-slate-400" />
+          <GripVertical className="size-4 shrink-0 text-slate-300 group-hover:text-slate-500" />
         )}
       </div>
 
@@ -89,7 +89,7 @@ export default function KanbanCard({ lead, propiedad, onMoverEtapa }: Props) {
           <Icono className="size-3" />
           {lead.origen}
         </span>
-        <span className="text-[10px] text-slate-400">
+        <span className="text-[10px] text-slate-500">
           {new Date(lead.creado).toLocaleDateString("es-MX", {
             day: "numeric",
             month: "short",
@@ -120,7 +120,7 @@ export default function KanbanCard({ lead, propiedad, onMoverEtapa }: Props) {
             </option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
       </div>
 
       {/* Acción rápida: abre WhatsApp con el teléfono del lead. */}

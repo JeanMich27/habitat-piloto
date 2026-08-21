@@ -55,7 +55,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
 
   if (!propiedad) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 text-center text-slate-400">
+      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 text-center text-slate-500">
         No hay propiedades asociadas a este propietario todavía.
       </div>
     );
@@ -96,7 +96,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               <select
                 value={propiedadId}
                 onChange={(e) => setPropiedadId(e.target.value)}
-                className="rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-bold text-slate-900 focus:border-violet-400 focus:outline-none"
+                className="rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-bold text-slate-900 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:outline-none"
               >
                 {propiedadesPropietario.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -112,7 +112,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <StatusBadge estatus={propiedad.estatus} />
-              {dias !== null && <span className="text-xs text-slate-400">Publicada hace {dias} días</span>}
+              {dias !== null && <span className="text-xs text-slate-500">Publicada hace {dias} días</span>}
             </div>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               Actividad reciente
             </h2>
             {eventos.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-400">Aún no hay actividad registrada.</p>
+              <p className="py-4 text-center text-sm text-slate-500">Aún no hay actividad registrada.</p>
             ) : (
               <ul className="space-y-2">
                 {eventos.slice(0, 4).map((e) => (
@@ -205,7 +205,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                     <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-slate-400" />
                     <div>
                       <p className="text-slate-700">{e.descripcion}</p>
-                      <p className="text-xs text-slate-400">{fmtFechaHora(e.fecha)}</p>
+                      <p className="text-xs text-slate-500">{fmtFechaHora(e.fecha)}</p>
                     </div>
                   </li>
                 ))}
@@ -226,7 +226,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               Comentarios de prospectos
             </h2>
             {leadsPropiedad.filter((l) => l.nota?.trim()).length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-400">
+              <p className="py-4 text-center text-sm text-slate-500">
                 Aún no hay comentarios de prospectos.
               </p>
             ) : (
@@ -238,7 +238,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                   .map((l) => (
                     <li key={l.id} className="text-sm">
                       <p className="italic text-slate-600">“{l.nota}”</p>
-                      <p className="mt-0.5 text-xs text-slate-400">
+                      <p className="mt-0.5 text-xs text-slate-500">
                         {l.nombre} · {new Date(l.creado).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
                       </p>
                     </li>
@@ -252,15 +252,15 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               Comparativo rápido
             </h2>
             {promedioComparables === null ? (
-              <p className="text-sm text-slate-400">Tu asesor aún no ha cargado comparables de la zona.</p>
+              <p className="text-sm text-slate-500">Tu asesor aún no ha cargado comparables de la zona.</p>
             ) : (
               <div className="flex items-center gap-8">
                 <div>
-                  <p className="text-xs text-slate-400">Tu precio</p>
+                  <p className="text-xs text-slate-500">Tu precio</p>
                   <p className="text-lg font-bold text-slate-900">{formatoMXN(propiedad.precio)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Promedio de la zona</p>
+                  <p className="text-xs text-slate-500">Promedio de la zona</p>
                   <p className="text-lg font-bold text-slate-900">{formatoMXN(promedioComparables)}</p>
                 </div>
               </div>
@@ -295,12 +295,12 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                       <span className="block text-sm font-semibold text-slate-800">
                         Sitio de la inmobiliaria
                       </span>
-                      <span className="block truncate text-[11px] text-slate-400">
+                      <span className="block truncate text-[11px] text-slate-500">
                         {propiedad.urlPublica}
                       </span>
                     </span>
                   </span>
-                  <ExternalLink className="size-4 shrink-0 text-slate-400" />
+                  <ExternalLink className="size-4 shrink-0 text-slate-500" />
                 </a>
               )}
               {enlaces.map((e, i) => (
@@ -317,10 +317,10 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-slate-800">{e.portal}</span>
-                      <span className="block truncate text-[11px] text-slate-400">{e.url}</span>
+                      <span className="block truncate text-[11px] text-slate-500">{e.url}</span>
                     </span>
                   </span>
-                  <ExternalLink className="size-4 shrink-0 text-slate-400" />
+                  <ExternalLink className="size-4 shrink-0 text-slate-500" />
                 </a>
               ))}
               {totalEnlaces === 0 && (
@@ -329,7 +329,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                   <p className="mt-2 text-sm font-semibold text-slate-600">
                     Tu propiedad todavía no tiene enlaces publicados
                   </p>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-slate-400">
+                  <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500">
                     En cuanto tu asesor la publique en los portales, los enlaces aparecerán
                     aquí y podrás verlos cuando quieras.
                   </p>
@@ -372,13 +372,13 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
       {tab === "cronologia" && (
         <div className="glass p-5">
           {eventos.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">Aún no hay eventos registrados.</p>
+            <p className="py-8 text-center text-sm text-slate-500">Aún no hay eventos registrados.</p>
           ) : (
             <ol className="space-y-4 border-l-2 border-slate-100 pl-4">
               {eventos.map((e) => (
                 <li key={e.id} className="relative">
                   <span className="absolute -left-[21px] top-1 flex size-3 items-center justify-center rounded-full bg-slate-800" />
-                  <p className="text-xs text-slate-400">{fmtFechaHora(e.fecha)}</p>
+                  <p className="text-xs text-slate-500">{fmtFechaHora(e.fecha)}</p>
                   <p className="text-sm text-slate-700">{e.descripcion}</p>
                 </li>
               ))}
@@ -416,7 +416,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-slate-400">
+          <p className="mt-3 text-xs text-slate-500">
             Solo lectura — descarga simulada, sin almacenamiento real de archivos en el prototipo.
           </p>
         </div>
@@ -464,7 +464,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                 ))}
                 {comparables.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
                       Tu asesor todavía no ha cargado comparables.
                     </td>
                   </tr>
@@ -482,7 +482,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               <h2 className="text-lg font-bold text-slate-900">Tu asesor</h2>
               <button
                 onClick={() => setModalContacto(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
               >
                 <X className="size-5" />
               </button>
@@ -493,18 +493,18 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               </span>
               <div>
                 <p className="text-sm font-semibold text-slate-800">{asesor.nombre}</p>
-                <p className="text-xs text-slate-400">{asesor.puesto}</p>
+                <p className="text-xs text-slate-500">{asesor.puesto}</p>
               </div>
             </div>
             <div className="mt-4 space-y-2">
               <p className="flex items-center gap-2 text-sm text-slate-600">
-                <Phone className="size-4 text-slate-400" /> {asesor.telefono || "Sin teléfono registrado"}
+                <Phone className="size-4 text-slate-500" /> {asesor.telefono || "Sin teléfono registrado"}
               </p>
               <p className="flex items-center gap-2 text-sm text-slate-600">
-                <Mail className="size-4 text-slate-400" /> {asesor.correo}
+                <Mail className="size-4 text-slate-500" /> {asesor.correo}
               </p>
             </div>
-            <p className="mt-4 text-xs text-slate-400">
+            <p className="mt-4 text-xs text-slate-500">
               Sin chat en vivo dentro de la plataforma en el MVP — contacta directo por estos medios.
             </p>
           </div>

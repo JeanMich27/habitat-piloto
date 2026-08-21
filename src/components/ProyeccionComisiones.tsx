@@ -189,7 +189,7 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-          <TrendingUp className="size-4 text-slate-400" /> Posibles cierres y comisiones
+          <TrendingUp className="size-4 text-slate-500" /> Posibles cierres y comisiones
         </h2>
         <p className="mt-3 text-sm text-slate-500">
           Todavía no hay nada que proyectar. Cuando tus prospectos tengan una propiedad de
@@ -205,7 +205,7 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <TrendingUp className="size-4 text-slate-400" /> Posibles cierres y comisiones
+            <TrendingUp className="size-4 text-slate-500" /> Posibles cierres y comisiones
           </h2>
           <p className="mt-1 text-xs text-slate-500">
             Calculado con el precio real de las propiedades de tu cartera.
@@ -263,18 +263,18 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
       {/* Cifras */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Valor de tu cartera
           </p>
           <p className="mt-1 text-lg font-bold text-slate-900">{formatoMXN(valorCartera)}</p>
-          <p className="text-[11px] text-slate-400">{base.length} prospectos con propiedad</p>
+          <p className="text-[11px] text-slate-500">{base.length} prospectos con propiedad</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Comisión si todo cerrara
           </p>
           <p className="mt-1 text-lg font-bold text-slate-900">{formatoMXN(brutoTotal)}</p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-500">
             {conTarifaDelCrm > 0
               ? `${conTarifaDelCrm} con comisión pactada en tu CRM`
               : `Venta al ${pctComision}%${
@@ -294,13 +294,13 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
           </p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Puntaje promedio
           </p>
           <p className="mt-1 text-lg font-bold text-slate-900">
             {puntajePromedio !== null ? `${puntajePromedio}/100` : "—"}
           </p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-500">
             {calificados.length} calificados · {noCalificados} sin calificar
           </p>
         </div>
@@ -309,7 +309,7 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
       {/* Gráfica */}
       <div className="mt-5">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
             Comisión bruta vs. ajustada por calificación
           </p>
           <div className="flex items-center gap-3 text-[11px] text-slate-500">
@@ -434,7 +434,7 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
 
       {/* Honestidad metodológica: sin esto, la gráfica miente por omisión. */}
       <div className="mt-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500">
-        <AlertCircle className="mt-0.5 size-4 shrink-0 text-slate-400" />
+        <AlertCircle className="mt-0.5 size-4 shrink-0 text-slate-500" />
         <p>
           <span className="font-semibold text-slate-700">Esto no es un pronóstico.</span> La
           columna ajustada pesa cada operación con el puntaje de calificación que tú capturaste,

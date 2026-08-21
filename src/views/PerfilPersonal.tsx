@@ -72,7 +72,7 @@ export default function PerfilPersonal({ usuario, onGuardar }: Props) {
           <button
             disabled={!hayCambios || !valido}
             onClick={guardar}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Guardar cambios
           </button>
@@ -149,7 +149,7 @@ function ModalPassword({ onCerrar }: { onCerrar: () => void }) {
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between">
           <h2 className="text-lg font-bold text-slate-900">Cambiar contraseña</h2>
-          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
             <X className="size-5" />
           </button>
         </div>
@@ -193,7 +193,7 @@ function ModalPassword({ onCerrar }: { onCerrar: () => void }) {
         <button
           disabled={!puedeGuardar}
           onClick={() => setListo(true)}
-          className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
           Guardar nueva contraseña
         </button>

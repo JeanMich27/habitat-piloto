@@ -315,7 +315,7 @@ export default function BrokerDashboard({
               </div>
             ))}
             {totalAlertas === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-slate-400">Sin alertas activas.</p>
+              <p className="px-2 py-6 text-center text-xs text-slate-500">Sin alertas activas.</p>
             )}
           </div>
         </GlassModal>
@@ -347,7 +347,7 @@ export default function BrokerDashboard({
                     className="cursor-pointer rounded-xl hover:bg-white/70"
                   >
                     <td className="flex items-center gap-2 px-3 py-3">
-                      <span className="w-4 text-xs font-bold text-slate-400">{i + 1}</span>
+                      <span className="w-4 text-xs font-bold text-slate-500">{i + 1}</span>
                       <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[11px] font-bold text-white">
                         {r.asesor.iniciales}
                       </span>
@@ -389,7 +389,7 @@ export default function BrokerDashboard({
               </li>
             ))}
             {leadsComisionables.length === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-slate-400">
+              <p className="px-2 py-6 text-center text-xs text-slate-500">
                 Sin ofertas registradas en este periodo.
               </p>
             )}

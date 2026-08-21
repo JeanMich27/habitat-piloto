@@ -146,7 +146,7 @@ export default function BannerInstalacion() {
         <button
           onClick={descartar}
           aria-label="Cerrar aviso de instalación"
-          className="-mr-1 -mt-1 shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+          className="-mr-1 -mt-1 shrink-0 rounded-lg p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
         >
           <X className="size-4" />
         </button>

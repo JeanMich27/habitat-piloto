@@ -68,7 +68,7 @@ function TarjetaAnalisis({
       </div>
       {children}
       <p className="mt-4 flex items-start gap-1.5 rounded-xl bg-white/60 p-2.5 text-[11px] leading-relaxed text-slate-500">
-        <Info className="mt-0.5 size-3.5 shrink-0 text-slate-400" />
+        <Info className="mt-0.5 size-3.5 shrink-0 text-slate-500" />
         {lectura}
       </p>
     </section>
@@ -304,7 +304,7 @@ export default function SaludInmobiliaria({
           >
             <p className="mt-3 text-2xl font-black text-slate-900">
               {formatMin(tiempoProm)}
-              <span className="ml-2 text-xs font-medium text-slate-400">
+              <span className="ml-2 text-xs font-medium text-slate-500">
                 promedio de primer contacto
               </span>
             </p>
@@ -475,7 +475,7 @@ export default function SaludInmobiliaria({
               <p className="text-xs text-slate-500">Si el 100% de tu cartera cerrara</p>
             </div>
             <div className="rounded-2xl bg-white/80 p-4 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Valor cartera total
               </p>
               <p className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">
@@ -503,7 +503,7 @@ export default function SaludInmobiliaria({
 
       {/* Cierre honesto: qué es y qué no es este análisis. */}
       <p className="flex items-start gap-2 rounded-2xl bg-white/60 p-4 text-[11px] leading-relaxed text-slate-500">
-        <DollarSign className="mt-0.5 size-4 shrink-0 text-slate-400" />
+        <DollarSign className="mt-0.5 size-4 shrink-0 text-slate-500" />
         Todo lo que ves aquí sale de datos que tú (o tu CRM) capturaron: etapas, calificaciones
         BANT, fechas de contacto y precios reales. No es un pronóstico — es una radiografía de
         cómo estás operando hoy. Mientras mejor captures, más útil se vuelve.

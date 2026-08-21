@@ -47,7 +47,7 @@ export default function KanbanColumn({
       <div className="flex flex-1 flex-col gap-2 px-3 pb-3">
         {children}
         {cantidad === 0 && (
-          <p className="mt-4 text-center text-xs text-slate-400">
+          <p className="mt-4 text-center text-xs text-slate-500">
             Sin leads en esta etapa.
             <span className="mt-1 block">
               Cambia la etapa desde la tarjeta del lead.

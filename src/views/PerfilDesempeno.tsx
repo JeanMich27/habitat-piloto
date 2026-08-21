@@ -73,7 +73,7 @@ export default function PerfilDesempeno({
               </span>
             </div>
             <p className="text-sm text-slate-500">{asesor.puesto}</p>
-            <p className="text-xs text-slate-400">{asesor.correo}</p>
+            <p className="text-xs text-slate-500">{asesor.correo}</p>
           </div>
         </div>
         <button
@@ -127,7 +127,7 @@ export default function PerfilDesempeno({
               ))}
               {propiedadesActivas.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
                     Sin propiedades activas todavía.
                   </td>
                 </tr>
@@ -165,7 +165,7 @@ export default function PerfilDesempeno({
               ))}
               {leadsActivos.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
                     Sin leads activos todavía.
                   </td>
                 </tr>

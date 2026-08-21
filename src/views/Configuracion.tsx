@@ -112,7 +112,7 @@ export default function Configuracion({
                   onChange={(e) => onLogoSeleccionado(e.target.files?.[0])}
                 />
               </label>
-              <p className="mt-1 text-xs text-slate-400">PNG o JPG, se muestra en la barra superior</p>
+              <p className="mt-1 text-xs text-slate-500">PNG o JPG, se muestra en la barra superior</p>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export default function Configuracion({
             <button
               disabled={!dirtyAgencia}
               onClick={() => onGuardarAgencia(draftAgencia)}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               Guardar cambios
             </button>
@@ -181,7 +181,7 @@ export default function Configuracion({
                 ))}
               </tbody>
             </table>
-            <p className="flex items-start gap-1.5 border-t border-slate-100 px-4 py-3 text-xs text-slate-400">
+            <p className="flex items-start gap-1.5 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
               <ShieldQuestion className="mt-0.5 size-3.5 shrink-0" />
               Definidos por el modelo de negocio confirmado: Broker y Asesor Independiente
               comparten el mismo rol con control total. Propietario y Cliente son de solo
@@ -202,7 +202,7 @@ export default function Configuracion({
               />
               <span className="text-sm text-slate-600">
                 Puede ver propiedades de otros asesores de la agencia
-                <span className="mt-0.5 block text-xs text-slate-400">
+                <span className="mt-0.5 block text-xs text-slate-500">
                   Se aplica como valor inicial al invitar un nuevo Asesor de Equipo. Se puede
                   ajustar por persona desde Asesores → Editar permisos.
                 </span>
@@ -212,7 +212,7 @@ export default function Configuracion({
               <button
                 disabled={!dirtyPermisos}
                 onClick={() => onGuardarPermisoEquipo(draftPermisoEquipo)}
-                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
               >
                 Guardar cambios
               </button>
@@ -246,7 +246,7 @@ export default function Configuracion({
             <button
               disabled={!dirtyNotificaciones}
               onClick={() => onGuardarNotificaciones(draftNotificaciones)}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               Guardar cambios
             </button>

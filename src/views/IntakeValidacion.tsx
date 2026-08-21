@@ -99,7 +99,7 @@ export default function IntakeValidacion({
                         className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${
                           d.aprobado
                             ? "bg-emerald-50 text-emerald-700"
-                            : "bg-slate-100 text-slate-400"
+                            : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {d.aprobado ? (
@@ -111,7 +111,7 @@ export default function IntakeValidacion({
                       </span>
                     ))}
                     {p.documentos.length === 0 && (
-                      <span className="text-xs text-slate-400">Sin documentos</span>
+                      <span className="text-xs text-slate-500">Sin documentos</span>
                     )}
                   </div>
                 </td>
@@ -135,7 +135,7 @@ export default function IntakeValidacion({
             ))}
             {bandeja.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                   🎉 No hay propiedades pendientes. Todo el inventario está
                   publicado.
                 </td>
@@ -160,7 +160,7 @@ export default function IntakeValidacion({
               </div>
               <button
                 onClick={() => setVerificandoId(null)}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-white/80 hover:text-slate-600"
+                className="rounded-full p-1.5 text-slate-500 hover:bg-white/80 hover:text-slate-600"
               >
                 <X className="size-5" />
               </button>
@@ -200,12 +200,12 @@ export default function IntakeValidacion({
                 onActivar(verificando.id);
                 setVerificandoId(null);
               }}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               <BadgeCheck className="size-4" />
               Aprobar y publicar
             </button>
-            <p className="mt-2 text-center text-xs text-slate-400">
+            <p className="mt-2 text-center text-xs text-slate-500">
               Se habilita al aprobar INE, Predial y Contrato
             </p>
           </div>

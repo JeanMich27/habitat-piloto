@@ -302,7 +302,7 @@ export default function DetalleDePropiedad({
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="text-2xl font-black text-slate-900">{formatoMXN(propiedad.precio)}</p>
               {precioM2Propio > 0 && (
-                <p className="text-xs font-semibold text-slate-400">
+                <p className="text-xs font-semibold text-slate-500">
                   {formatoMXN(precioM2Propio)} / m²
                 </p>
               )}
@@ -318,14 +318,14 @@ export default function DetalleDePropiedad({
                     key={s.etiqueta}
                     className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200/70"
                   >
-                    <s.icono className="size-3.5 text-slate-400" />
+                    <s.icono className="size-3.5 text-slate-500" />
                     {s.valor} {s.etiqueta}
                   </span>
                 ))}
               </div>
             )}
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Asesor asignado: <span className="font-semibold text-slate-600">{nombreDe(propiedad.asesorId)}</span>
             </p>
 
@@ -446,12 +446,12 @@ export default function DetalleDePropiedad({
                         <span className="block text-sm font-semibold text-slate-800">
                           Sitio público (EasyBroker)
                         </span>
-                        <span className="block truncate text-[11px] text-slate-400">
+                        <span className="block truncate text-[11px] text-slate-500">
                           {propiedad.urlPublica}
                         </span>
                       </span>
                     </span>
-                    <ExternalLink className="size-4 shrink-0 text-slate-400" />
+                    <ExternalLink className="size-4 shrink-0 text-slate-500" />
                   </a>
                 )}
                 {enlaces.map((e, i) => (
@@ -470,12 +470,12 @@ export default function DetalleDePropiedad({
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-slate-800">{e.portal}</span>
-                        <span className="block truncate text-[11px] text-slate-400">{e.url}</span>
+                        <span className="block truncate text-[11px] text-slate-500">{e.url}</span>
                       </span>
                     </a>
                     <div className="flex shrink-0 items-center gap-1">
                       <a href={e.url} target="_blank" rel="noreferrer" aria-label={`Abrir ${e.portal}`}>
-                        <ExternalLink className="size-4 text-slate-400 hover:text-slate-600" />
+                        <ExternalLink className="size-4 text-slate-500 hover:text-slate-600" />
                       </a>
                       {puedeEditar && (
                         <button
@@ -490,7 +490,7 @@ export default function DetalleDePropiedad({
                   </div>
                 ))}
                 {!propiedad.urlPublica && enlaces.length === 0 && (
-                  <p className="rounded-xl border border-dashed border-slate-300/80 px-4 py-6 text-center text-xs text-slate-400">
+                  <p className="rounded-xl border border-dashed border-slate-300/80 px-4 py-6 text-center text-xs text-slate-500">
                     Aún no hay enlaces registrados. El enlace de EasyBroker aparece solo al
                     sincronizar; los portales (Inmuebles24, Vivanuncios…) se agregan aquí.
                   </p>
@@ -502,19 +502,19 @@ export default function DetalleDePropiedad({
                     value={nuevoEnlace.portal}
                     onChange={(e) => setNuevoEnlace({ ...nuevoEnlace, portal: e.target.value })}
                     placeholder="Portal (p. ej. Inmuebles24)"
-                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none sm:w-48"
+                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none sm:w-48"
                   />
                   <input
                     value={nuevoEnlace.url}
                     onChange={(e) => setNuevoEnlace({ ...nuevoEnlace, url: e.target.value })}
                     onKeyDown={(e) => e.key === "Enter" && agregarEnlace()}
                     placeholder="https://…"
-                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
                   />
                   <button
                     disabled={!nuevoEnlace.url.trim()}
                     onClick={agregarEnlace}
-                    className="flex items-center justify-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                    className="flex items-center justify-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
                   >
                     <Plus className="size-4" /> Agregar
                   </button>
@@ -530,11 +530,11 @@ export default function DetalleDePropiedad({
                 {propiedad.propietario.nombre || "Sin registrar"}
               </p>
               <p className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-600">
-                <Phone className="size-3.5 text-slate-400" />
+                <Phone className="size-3.5 text-slate-500" />
                 {propiedad.propietario.telefono || "—"}
               </p>
               <p className="mt-1 flex items-center gap-1.5 break-all text-sm text-slate-600">
-                <Mail className="size-3.5 shrink-0 text-slate-400" />
+                <Mail className="size-3.5 shrink-0 text-slate-500" />
                 {propiedad.propietario.correo || "—"}
               </p>
             </section>
@@ -543,7 +543,7 @@ export default function DetalleDePropiedad({
               <h3 className="text-sm font-bold text-slate-900">Condiciones</h3>
               <dl className="mt-2 space-y-1.5 text-sm">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Comisión</dt>
+                  <dt className="text-slate-500">Comisión</dt>
                   <dd className="font-semibold text-slate-700">
                     {propiedad.comisionValor != null
                       ? propiedad.comisionTipo === "meses"
@@ -554,33 +554,33 @@ export default function DetalleDePropiedad({
                 </div>
                 {propiedad.comisionCompartidaPct != null && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">Compartida</dt>
+                    <dt className="text-slate-500">Compartida</dt>
                     <dd className="font-semibold text-slate-700">{propiedad.comisionCompartidaPct}%</dd>
                   </div>
                 )}
                 <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Exclusiva</dt>
+                  <dt className="text-slate-500">Exclusiva</dt>
                   <dd className="font-semibold text-slate-700">{propiedad.exclusiva ? "Sí" : "No"}</dd>
                 </div>
                 {propiedad.mantenimiento != null && propiedad.mantenimiento > 0 && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">Mantenimiento</dt>
+                    <dt className="text-slate-500">Mantenimiento</dt>
                     <dd className="font-semibold text-slate-700">{formatoMXN(propiedad.mantenimiento)}</dd>
                   </div>
                 )}
                 <div className="flex justify-between gap-2">
-                  <dt className="text-slate-400">Capturada</dt>
+                  <dt className="text-slate-500">Capturada</dt>
                   <dd className="font-semibold text-slate-700">{fmtFecha(propiedad.capturadaEl)}</dd>
                 </div>
                 {propiedad.publicadaEl && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">Publicada</dt>
+                    <dt className="text-slate-500">Publicada</dt>
                     <dd className="font-semibold text-slate-700">{fmtFecha(propiedad.publicadaEl)}</dd>
                   </div>
                 )}
                 {propiedad.crmOrigen && (
                   <div className="flex justify-between gap-2">
-                    <dt className="text-slate-400">Origen</dt>
+                    <dt className="text-slate-500">Origen</dt>
                     <dd className="font-semibold capitalize text-slate-700">{propiedad.crmOrigen}</dd>
                   </div>
                 )}
@@ -711,13 +711,13 @@ export default function DetalleDePropiedad({
                 onAgregarEvento(propiedad.id, notaNueva.trim());
                 setNotaNueva("");
               }}
-              className="flex items-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+              className="flex items-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
             >
               <Plus className="size-4" /> Agregar
             </button>
           </div>
           {eventos.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">Aún no hay eventos registrados.</p>
+            <p className="py-10 text-center text-sm text-slate-500">Aún no hay eventos registrados.</p>
           ) : (
             <ol className="space-y-1">
               {eventos.map((e, i) => {
@@ -741,7 +741,7 @@ export default function DetalleDePropiedad({
                       {i < eventos.length - 1 && <span className="w-px flex-1 bg-slate-200/80" />}
                     </div>
                     <div className="min-w-0 flex-1 pb-5">
-                      <p className="text-[11px] font-semibold text-slate-400">{fmtFechaHora(e.fecha)}</p>
+                      <p className="text-[11px] font-semibold text-slate-500">{fmtFechaHora(e.fecha)}</p>
                       <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{e.descripcion}</p>
                     </div>
                   </li>
@@ -758,19 +758,19 @@ export default function DetalleDePropiedad({
           <div className="grid grid-cols-3 gap-3">
             <div className="glass p-4 text-center">
               <p className="text-2xl font-black text-slate-900">{leadsPropiedad.length}</p>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Leads interesados
               </p>
             </div>
             <div className="glass p-4 text-center">
               <p className="text-2xl font-black text-slate-900">{visitasRealizadas}</p>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Visitas realizadas
               </p>
             </div>
             <div className="glass p-4 text-center">
               <p className="text-2xl font-black text-slate-900">{ofertas.length}</p>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Ofertas recibidas
               </p>
             </div>
@@ -807,7 +807,7 @@ export default function DetalleDePropiedad({
                   ))}
                   {leadsPropiedad.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
                         Sin leads interesados todavía.
                       </td>
                     </tr>
@@ -822,7 +822,7 @@ export default function DetalleDePropiedad({
               <CalendarDays className="size-4 text-violet-400" /> Visitas agendadas
             </p>
             {visitasAgenda.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-slate-400">
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
                 Sin visitas agendadas. Se agendan desde la ficha del cliente o la Agenda.
               </p>
             ) : (
@@ -898,14 +898,14 @@ export default function DetalleDePropiedad({
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-400">Sin acciones</span>
+                        <span className="text-xs text-slate-500">Sin acciones</span>
                       )}
                     </td>
                   </tr>
                 ))}
                 {ofertas.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
                       Sin ofertas registradas todavía.
                     </td>
                   </tr>
@@ -944,7 +944,7 @@ export default function DetalleDePropiedad({
               </li>
             ))}
             {propiedad.documentos.length === 0 && (
-              <p className="rounded-xl border border-dashed border-slate-300/80 px-4 py-8 text-center text-sm text-slate-400">
+              <p className="rounded-xl border border-dashed border-slate-300/80 px-4 py-8 text-center text-sm text-slate-500">
                 Sin documentos registrados. La validación documental se gestiona desde la
                 bandeja de Validación del broker.
               </p>
@@ -990,7 +990,7 @@ export default function DetalleDePropiedad({
                 ))}
                 {comparables.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
                       Aún no hay comparables. Agrega el primero abajo.
                     </td>
                   </tr>
@@ -1037,12 +1037,12 @@ export default function DetalleDePropiedad({
                 });
                 setNuevoComparable({ direccion: "", precio: "", m2: "", fuente: "" });
               }}
-              className="flex items-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+              className="flex items-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
             >
               <Plus className="size-4" /> Agregar comparable
             </button>
           </div>
-          <p className="flex items-center gap-1.5 text-xs text-slate-400">
+          <p className="flex items-center gap-1.5 text-xs text-slate-500">
             <StickyNote className="size-3.5" /> Captura manual del asesor — sin integración a portales en
             el MVP.
           </p>
@@ -1142,7 +1142,7 @@ function MiniInput({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:bg-white focus:outline-none"
+        className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
       />
     </div>
   );

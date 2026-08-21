@@ -15,7 +15,7 @@ export default function PermisosModal({ asesor, onCerrar, onGuardar }: Props) {
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between">
           <h2 className="text-lg font-bold text-slate-900">Permisos de {asesor.nombre}</h2>
-          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+          <button onClick={onCerrar} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
             <X className="size-5" />
           </button>
         </div>
@@ -27,7 +27,7 @@ export default function PermisosModal({ asesor, onCerrar, onGuardar }: Props) {
             className="mt-0.5 size-4"
           />
           <span className="flex items-start gap-1.5">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-400" />
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-500" />
             Puede ver propiedades de otros asesores
           </span>
         </label>

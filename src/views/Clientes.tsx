@@ -106,7 +106,7 @@ const haceCuanto = (iso: string): string => {
 
 /** Un lead sin atender pierde valor por hora: las primeras horas se marcan. */
 const colorEspera = (iso: string, atendido: boolean): string => {
-  if (atendido) return "text-slate-400";
+  if (atendido) return "text-slate-500";
   const horas = (Date.now() - (Date.parse(iso) || Date.now())) / 3.6e6;
   if (horas <= 1) return "font-bold text-emerald-600";
   if (horas <= 24) return "font-semibold text-amber-600";
@@ -426,7 +426,7 @@ export default function Clientes({
         >
           <div className="glass space-y-2 p-3">
             <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
-              <Search className="size-4 shrink-0 text-slate-400" />
+              <Search className="size-4 shrink-0 text-slate-500" />
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -477,7 +477,7 @@ export default function Clientes({
               <select
                 value={filtroClase}
                 onChange={(e) => setFiltroClase(e.target.value as typeof filtroClase)}
-                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
               >
                 <option value="Todas">Todas las calificaciones</option>
                 <option value="Hot">Hot — listos para cerrar</option>
@@ -488,7 +488,7 @@ export default function Clientes({
               <select
                 value={filtroEtapa}
                 onChange={(e) => setFiltroEtapa(e.target.value as typeof filtroEtapa)}
-                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
               >
                 <option value="Todas">Todas las etapas</option>
                 {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
@@ -577,7 +577,7 @@ export default function Clientes({
               value={filtroRespuesta}
               onChange={(e) => setFiltroRespuesta(e.target.value as typeof filtroRespuesta)}
               aria-label="Filtrar por velocidad de primer contacto"
-              className="w-full rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+              className="w-full rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
             >
               <option value="Todas">Cualquier velocidad de respuesta</option>
               {RANGOS_RESPUESTA.map((r) => (
@@ -598,7 +598,7 @@ export default function Clientes({
                     {f.texto} <X className="size-3" />
                   </button>
                 ))}
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500">
                   {filtrados.length} resultado{filtrados.length === 1 ? "" : "s"}
                 </span>
               </div>
@@ -607,7 +607,7 @@ export default function Clientes({
 
           <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
             {filtrados.length === 0 && (
-              <p className="glass border-dashed p-8 text-center text-sm text-slate-400">
+              <p className="glass border-dashed p-8 text-center text-sm text-slate-500">
                 No hay clientes que coincidan con lo que buscas.
               </p>
             )}
@@ -662,7 +662,7 @@ export default function Clientes({
                           <Clock className="size-3.5 shrink-0" />
                           <span className="truncate">
                             {l.esDirectorio ? "En el CRM desde" : "Llegó"} {haceCuanto(l.creado)}
-                            <span className="text-slate-400"> · {fmtFecha(l.creado)}</span>
+                            <span className="text-slate-500"> · {fmtFecha(l.creado)}</span>
                           </span>
                         </span>
                         <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
@@ -691,7 +691,7 @@ export default function Clientes({
                               }`}
                         </span>
                       )}
-                      <span className="flex items-start gap-1.5 text-slate-400">
+                      <span className="flex items-start gap-1.5 text-slate-500">
                         <Sparkles className="mt-0.5 size-3.5 shrink-0" />
                         <span className="line-clamp-1">
                           {ultimo
@@ -737,7 +737,7 @@ export default function Clientes({
           {!seleccionado ? (
             <div className="glass border-dashed p-12 text-center">
               <UserIcon className="mx-auto size-8 text-slate-300" />
-              <p className="mt-3 text-sm text-slate-400">
+              <p className="mt-3 text-sm text-slate-500">
                 Selecciona un cliente para ver su ficha completa.
               </p>
             </div>
@@ -851,31 +851,31 @@ export default function Clientes({
 
                 <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       Teléfono
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 font-semibold text-slate-800">
-                      <Phone className="size-3.5 text-slate-400" />
+                      <Phone className="size-3.5 text-slate-500" />
                       {seleccionado.telefono || "Sin teléfono"}
                     </p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       Correo
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 truncate font-semibold text-slate-800">
-                      <Mail className="size-3.5 shrink-0 text-slate-400" />
+                      <Mail className="size-3.5 shrink-0 text-slate-500" />
                       <span className="truncate">{seleccionado.correo || "Sin correo"}</span>
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       Etapa
                     </p>
                     <select
                       value={seleccionado.etapa}
                       onChange={(e) => onCambiarEtapa(seleccionado.id, e.target.value as LeadStage)}
-                      className="mt-0.5 w-full rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                      className="mt-0.5 w-full rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                     >
                       {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
                         (e) => (
@@ -907,7 +907,7 @@ export default function Clientes({
               {/* --- Calificación --- */}
               <section className="glass p-5">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                  <Target className="size-4 text-slate-400" /> Qué tan listo está para comprar
+                  <Target className="size-4 text-slate-500" /> Qué tan listo está para comprar
                 </h3>
 
                 {!bant || !desglose || !clase ? (
@@ -979,7 +979,7 @@ export default function Clientes({
                       ].map((f) => (
                         <div key={f.etiqueta} className="rounded-xl bg-white/70 p-3 ring-1 ring-slate-200/70">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                               {f.etiqueta}
                             </p>
                             <span className="shrink-0 text-[11px] font-bold text-slate-500">
@@ -1048,7 +1048,7 @@ export default function Clientes({
                       </div>
                     )}
 
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-500">
                       Calificado por {bant.calificadoPor} el {fmtFechaHora(bant.calificadoEl)}.
                     </p>
                   </div>
@@ -1059,9 +1059,9 @@ export default function Clientes({
               <section className="glass p-5">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Clock className="size-4 text-slate-400" /> Historial del cliente
+                    <Clock className="size-4 text-slate-500" /> Historial del cliente
                   </h3>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500">
                     {historial.length} {historial.length === 1 ? "evento" : "eventos"}
                   </span>
                 </div>
@@ -1070,7 +1070,7 @@ export default function Clientes({
                   <select
                     value={tipoEvento}
                     onChange={(e) => setTipoEvento(e.target.value as TipoInteraccion)}
-                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white sm:w-36"
+                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white sm:w-36"
                   >
                     {TIPOS_INTERACCION.map((t) => (
                       <option key={t.valor} value={t.valor}>
@@ -1083,12 +1083,12 @@ export default function Clientes({
                     onChange={(e) => setTextoEvento(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && registrar()}
                     placeholder="¿Qué pasó con este cliente?"
-                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                   />
                   <button
                     onClick={registrar}
                     disabled={!textoEvento.trim()}
-                    className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                    className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
                   >
                     Registrar
                   </button>
@@ -1096,7 +1096,7 @@ export default function Clientes({
 
                 <div className="mt-4">
                   {historial.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-slate-300/80 p-6 text-center text-xs text-slate-400">
+                    <p className="rounded-xl border border-dashed border-slate-300/80 p-6 text-center text-xs text-slate-500">
                       Todavía no hay nada registrado. Cada llamada, visita o mensaje que anotes aquí
                       queda como evidencia del seguimiento.
                     </p>
@@ -1113,7 +1113,7 @@ export default function Clientes({
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                                 {h.tipo}
                               </span>
-                              <span className="text-[11px] text-slate-400">
+                              <span className="text-[11px] text-slate-500">
                                 {fmtFechaHora(h.fecha)} · {h.autor}
                               </span>
                             </div>

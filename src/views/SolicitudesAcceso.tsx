@@ -39,7 +39,7 @@ export default function SolicitudesAcceso({ usuarios, onResolver }: Props) {
         <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
           <ShieldQuestion className="size-8 text-slate-300" />
           <p className="text-sm font-semibold text-slate-600">No hay solicitudes pendientes</p>
-          <p className="text-xs text-slate-400">Cuando alguien se registre, aparecerá aquí.</p>
+          <p className="text-xs text-slate-500">Cuando alguien se registre, aparecerá aquí.</p>
         </div>
       ) : (
         <div className="mt-6 space-y-3">
@@ -52,7 +52,7 @@ export default function SolicitudesAcceso({ usuarios, onResolver }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900">{u.nombre}</p>
                   <p className="truncate text-xs text-slate-500">{u.correo}</p>
-                  {u.telefono && <p className="text-xs text-slate-400">{u.telefono}</p>}
+                  {u.telefono && <p className="text-xs text-slate-500">{u.telefono}</p>}
                   <p className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
                     Solicitó: {ETIQUETAS_ROL[u.rol]}
                   </p>

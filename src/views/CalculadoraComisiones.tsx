@@ -291,7 +291,7 @@ export default function CalculadoraComisiones({
   };
 
   const inputBase =
-    "w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white";
+    "w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white";
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -389,7 +389,7 @@ export default function CalculadoraComisiones({
                   {esRenta ? "Renta mensual (MXN)" : "Precio de venta (MXN)"}
                 </label>
                 <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
-                  <span className="text-sm text-slate-400">$</span>
+                  <span className="text-sm text-slate-500">$</span>
                   <input
                     inputMode="decimal"
                     value={precioTexto}
@@ -398,7 +398,7 @@ export default function CalculadoraComisiones({
                     className="w-full py-2 text-sm font-semibold text-slate-900 outline-none"
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-slate-400">
+                <p className="mt-1 text-[11px] text-slate-500">
                   Valor considerado: <span className="font-semibold">{formatoMXN(precio)}</span>
                 </p>
               </div>
@@ -483,10 +483,10 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={mesesRenta}
                       onChange={(e) => setMesesRenta(Number(e.target.value) || 0)}
-                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                     />
                   </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400">
+                  <p className="mt-1.5 text-[11px] text-slate-500">
                     En renta la comisión se cobra en meses, no como porcentaje del monto mensual.
                     Lo habitual es 1 mes; ajústalo si tu acuerdo es distinto.
                   </p>
@@ -516,7 +516,7 @@ export default function CalculadoraComisiones({
                       step={0.25}
                       value={pctComision}
                       onChange={(e) => setPctComision(Number(e.target.value) || 0)}
-                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                      className="w-20 rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                     />
                   </div>
                 </div>
@@ -526,7 +526,7 @@ export default function CalculadoraComisiones({
                     Monto total de comisión (MXN)
                   </label>
                   <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
-                    <span className="text-sm text-slate-400">$</span>
+                    <span className="text-sm text-slate-500">$</span>
                     <input
                       inputMode="decimal"
                       value={montoComisionTexto}
@@ -588,7 +588,7 @@ export default function CalculadoraComisiones({
                   </div>
                 )}
               </div>
-              <p className="text-[11px] leading-relaxed text-slate-400">
+              <p className="text-[11px] leading-relaxed text-slate-500">
                 El IVA no se reparte: se traslada al cliente y se entera al SAT. El reparto siempre
                 opera sobre la comisión base.
               </p>
@@ -627,7 +627,7 @@ export default function CalculadoraComisiones({
 
           {/* Plantillas rápidas */}
           <div className="mt-4 print:hidden">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Plantillas rápidas (opcionales)
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -693,7 +693,7 @@ export default function CalculadoraComisiones({
           {/* Participantes */}
           <div className="mt-4 space-y-3">
             {filas.length === 0 && (
-              <p className="glass border-dashed p-6 text-center text-xs text-slate-400">
+              <p className="glass border-dashed p-6 text-center text-xs text-slate-500">
                 No hay participantes. Agrega el primero o usa una plantilla.
               </p>
             )}
@@ -711,13 +711,13 @@ export default function CalculadoraComisiones({
                         value={f.nombre}
                         onChange={(e) => actualizar(f.id, { nombre: e.target.value })}
                         placeholder="Nombre del participante"
-                        className="w-full rounded-lg border border-transparent px-1.5 py-0.5 text-sm font-bold text-slate-900 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:bg-white"
+                        className="w-full rounded-lg border border-transparent px-1.5 py-0.5 text-sm font-bold text-slate-900 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                       />
                       <input
                         value={f.nota}
                         onChange={(e) => actualizar(f.id, { nota: e.target.value })}
                         placeholder="Rol o concepto (opcional)"
-                        className="mt-0.5 w-full rounded-lg border border-transparent px-1.5 py-0.5 text-xs text-slate-500 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:bg-white"
+                        className="mt-0.5 w-full rounded-lg border border-transparent px-1.5 py-0.5 text-xs text-slate-500 outline-none transition-colors hover:border-white hover:bg-white/70 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                       />
                     </div>
                   </div>
@@ -728,13 +728,13 @@ export default function CalculadoraComisiones({
                       onChange={(e) =>
                         actualizar(f.id, { modo: e.target.value as ModoParticipante })
                       }
-                      className="rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:bg-white"
+                      className="rounded-xl border border-white/70 bg-white/70 px-2 py-1.5 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
                     >
                       <option value="pct">% de comisión</option>
                       <option value="monto">Monto fijo ($)</option>
                     </select>
                     <div className="flex items-center rounded-xl border border-white/70 bg-white/70 px-2 transition-colors focus-within:border-violet-400 focus-within:bg-white">
-                      {f.modo === "monto" && <span className="text-xs text-slate-400">$</span>}
+                      {f.modo === "monto" && <span className="text-xs text-slate-500">$</span>}
                       <input
                         type="number"
                         min={0}
@@ -743,7 +743,7 @@ export default function CalculadoraComisiones({
                         onChange={(e) => actualizar(f.id, { valor: Number(e.target.value) || 0 })}
                         className="w-24 py-1.5 text-right text-sm font-semibold text-slate-900 outline-none"
                       />
-                      {f.modo === "pct" && <Percent className="size-3 text-slate-400" />}
+                      {f.modo === "pct" && <Percent className="size-3 text-slate-500" />}
                     </div>
                     <button
                       onClick={() => eliminar(f.id)}
@@ -759,7 +759,7 @@ export default function CalculadoraComisiones({
                   <span className="text-xs text-slate-500">Monto asignado</span>
                   <span className="text-sm font-bold text-slate-900">
                     {formatoMXN(f.monto)}{" "}
-                    <span className="text-[11px] font-medium text-slate-400">
+                    <span className="text-[11px] font-medium text-slate-500">
                       ({pct(f.pctComisionReal)} de la comisión)
                     </span>
                   </span>
@@ -770,7 +770,7 @@ export default function CalculadoraComisiones({
 
           {/* Resumen final */}
           <div className="mt-6 border-t border-white/70 pt-5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               Resumen final de pagos
             </p>
             <div className="mt-3 overflow-x-auto">
@@ -838,7 +838,7 @@ export default function CalculadoraComisiones({
               </p>
             )}
 
-            <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
+            <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
               Cálculo de simulación: no se guarda en la propiedad ni sustituye el acuerdo comercial
               firmado. Los montos son antes de retenciones e impuestos de cada participante.
             </p>

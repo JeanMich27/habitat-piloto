@@ -114,7 +114,7 @@ export default function EstadoPropiedadModal({
           ) : (
             <>
               <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Motivo <span className="font-normal normal-case text-slate-400">(opcional)</span>
+                Motivo <span className="font-normal normal-case text-slate-500">(opcional)</span>
               </label>
               <input
                 value={motivo}
@@ -140,7 +140,7 @@ export default function EstadoPropiedadModal({
           <button
             disabled={!puedeEnviar}
             onClick={enviar}
-            className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 ${
+            className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 ${
               esSolicitud
                 ? "bg-violet-600 shadow-md shadow-violet-300/60 enabled:hover:bg-violet-700"
                 : "bg-slate-900 enabled:hover:bg-slate-700"

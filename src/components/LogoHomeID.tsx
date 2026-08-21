@@ -86,7 +86,7 @@ export default function LogoHomeID({ tamano = "sm", sinBajada = false, className
         </span>
         {!sinBajada && (
           <span
-            className={`block uppercase tracking-[0.22em] text-slate-400 ${
+            className={`block uppercase tracking-[0.22em] text-slate-500 ${
               grande ? "text-[10px]" : "hidden text-[9px] sm:block"
             }`}
           >
