@@ -242,13 +242,19 @@ export function rowToUsuario(r: any): Usuario {
 }
 
 export function agenciaToRow(a: AgenciaInfo) {
-  // Solo se actualizan los campos editables desde la app. `estado`, `plan` y
-  // `codigo_invitacion` los administra la plataforma, no la oficina.
+  // Solo se actualizan los campos editables desde la app. `estado`, `plan`,
+  // `codigo_invitacion`, `crm` y `max_brokers` los administra la plataforma:
+  // si la oficina pudiera cambiar `crm` a mano, apagaría o encendería la
+  // sincronización de su propio CRM desde una pantalla de configuración.
   return {
     id: getAgenciaActual(),
     nombre: a.nombre,
     direccion: a.direccion,
     logo_url: a.logoUrl ?? null,
+    telefono: a.telefono ?? "",
+    correo: a.correo ?? "",
+    ciudad: a.ciudad ?? "",
+    sitio_web: a.sitioWeb ?? "",
   };
 }
 
@@ -261,6 +267,12 @@ export function rowToAgencia(r: any): AgenciaInfo {
     slug: r.slug ?? undefined,
     estado: r.estado ?? undefined,
     codigoInvitacion: r.codigo_invitacion ?? undefined,
+    telefono: r.telefono ?? undefined,
+    correo: r.correo ?? undefined,
+    ciudad: r.ciudad ?? undefined,
+    sitioWeb: r.sitio_web ?? undefined,
+    crm: (r.crm ?? "ninguno") as AgenciaInfo["crm"],
+    maxBrokers: r.max_brokers ?? 2,
   };
 }
 

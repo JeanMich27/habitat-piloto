@@ -755,7 +755,32 @@ export interface AgenciaInfo {
   estado?: string;
   /** Código que el broker comparte con su equipo para que puedan registrarse. */
   codigoInvitacion?: string;
+  telefono?: string;
+  correo?: string;
+  ciudad?: string;
+  sitioWeb?: string;
+  /**
+   * De dónde sale la información de esta oficina.
+   *
+   * `"ninguno"` — la oficina usa esta plataforma COMO su CRM: captura
+   * propiedades y clientes a mano y no hay sincronización que la pise.
+   * `"easybroker"` — la información la manda ese CRM; la app la lee y agrega
+   * encima lo que el CRM no tiene (embudo, BANT, seguimiento, agenda).
+   *
+   * Lo fija la plataforma al crear la oficina. La app solo lo lee: es lo que
+   * decide si se muestran los avisos de sincronización o no.
+   */
+  crm?: CrmDeOficina;
+  /** Cuántos administradores admite la oficina. Dos por defecto. */
+  maxBrokers?: number;
 }
+
+/** CRM del que se alimenta una oficina. `ninguno` = trabaja sin CRM. */
+export type CrmDeOficina = "ninguno" | "easybroker";
+
+/** true si la oficina trabaja sin CRM y captura todo dentro de la plataforma. */
+export const oficinaSinCrm = (a?: AgenciaInfo | null) =>
+  (a?.crm ?? "ninguno") === "ninguno";
 
 export const formatoMXN = (valor: number) =>
   new Intl.NumberFormat("es-MX", {

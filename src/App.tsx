@@ -107,6 +107,7 @@ import {
   upsertLead,
   upsertPropiedad,
   upsertUsuario,
+  upsertUsuarioConError,
   type EstadoCompleto,
 } from "./lib/dataStore";
 
@@ -449,7 +450,7 @@ export default function App() {
           { id: "asesores", etiqueta: "Asesores", Icono: Users },
           {
             id: "solicitudes",
-            etiqueta: "Solicitudes",
+            etiqueta: "Equipo",
             Icono: ShieldQuestion,
             badge: solicitudesPendientes || undefined,
           },
@@ -1054,6 +1055,50 @@ export default function App() {
     bulkUpsertLeads(nuevos);
   };
 
+  // Alta de una persona del equipo por parte del broker.
+  //
+  // Queda "Invitada": existe su ficha, su rol y su cartera, pero todavía no
+  // tiene contraseña. Cuando cree su cuenta con ESE correo, el trigger
+  // `manejar_nuevo_registro` la engancha a esta oficina y la pasa a "Activa".
+  // Por eso el correo tiene que ser exactamente el que va a usar para entrar.
+  //
+  // Devuelve el mensaje de error, o null si salió bien. Lo que rechaza la base
+  // (tope de brokers, oficina equivocada) llega hasta la pantalla; no se
+  // guarda en el estado local algo que la base no aceptó.
+  const altaDeUsuario = async (datos: {
+    nombre: string;
+    correo: string;
+    telefono: string;
+    rol: UserRole;
+  }): Promise<string | null> => {
+    const iniciales = (
+      (datos.nombre.trim().split(/\s+/)[0]?.[0] ?? "") + (datos.nombre.trim().split(/\s+/)[1]?.[0] ?? "")
+    ).toUpperCase();
+    const nuevo: Usuario = {
+      id: `user-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      nombre: datos.nombre.trim(),
+      correo: datos.correo.trim().toLowerCase(),
+      telefono: datos.telefono.trim(),
+      rol: datos.rol,
+      puesto:
+        datos.rol === "broker"
+          ? "Broker / Administrador"
+          : datos.rol === "propietario"
+            ? "Propietario"
+            : datos.rol === "cliente"
+              ? "Cliente"
+              : "Asesor Inmobiliario",
+      iniciales,
+      estadoCuenta: "Invitado",
+      puedeVerOtrasPropiedades: datos.rol === "asesor_equipo" ? permisoEquipoVerTodas : true,
+      agenciaId: agencia.id,
+    };
+    const error = await upsertUsuarioConError(nuevo);
+    if (error) return error;
+    setUsuarios((prev) => [...prev, nuevo]);
+    return null;
+  };
+
   const invitarAsesor = (nombre: string, correo: string) => {
     const nuevo: Usuario = {
       id: `user-${Date.now()}`,
@@ -1354,7 +1399,12 @@ export default function App() {
             />
           )}
           {vista === "solicitudes" && yo.rol === "broker" && (
-            <SolicitudesAcceso usuarios={usuarios} onResolver={resolverSolicitud} />
+            <SolicitudesAcceso
+              usuarios={usuarios}
+              agencia={agencia}
+              onResolver={resolverSolicitud}
+              onInvitar={altaDeUsuario}
+            />
           )}
           {vista === "perfil" && yo.rol === "broker" && asesorSeleccionadoId && (
             <PerfilDesempeno

@@ -197,6 +197,31 @@ export async function upsertUsuario(u: Usuario) {
   if (error) console.error("[Supabase] upsertUsuario", error);
 }
 
+/**
+ * Igual que `upsertUsuario`, pero DEVUELVE el error en vez de solo anotarlo en
+ * la consola.
+ *
+ * El alta de una persona del equipo es de las pocas escrituras donde la base
+ * puede decir que no por una regla de negocio —el tope de brokers de la
+ * oficina, RLS si la agencia no cuadra— y donde el usuario tiene que
+ * enterarse. Tragarse ese error dejaría la persona pintada en pantalla y
+ * ausente de la base: el peor de los mundos.
+ */
+export async function upsertUsuarioConError(u: Usuario): Promise<string | null> {
+  if (!supabase) return "Sin conexión a la nube.";
+  if (sinAgencia("upsertUsuarioConError")) return "Esta sesión no tiene oficina asociada. Vuelve a entrar.";
+  const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
+  if (!error) return null;
+  console.error("[Supabase] upsertUsuarioConError", error);
+  const m = error.message.toLowerCase();
+  if (m.includes("máximo") || m.includes("maximo")) return error.message;
+  if (m.includes("row-level security") || m.includes("violates row-level"))
+    return "Tu cuenta no tiene permiso para dar de alta gente en esta oficina.";
+  if (m.includes("duplicate key") && m.includes("correo"))
+    return "Ya existe una cuenta con ese correo.";
+  return error.message;
+}
+
 export async function upsertAgencia(a: AgenciaInfo) {
   if (!supabase || sinAgencia("upsertAgencia")) return;
   const { error } = await supabase.from("agencias").upsert(agenciaToRow(a));

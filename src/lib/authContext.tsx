@@ -32,12 +32,30 @@ interface AuthContextValue {
     rolSolicitado: UserRole;
     /** Código de la oficina. Obligatorio salvo que el correo ya haya sido invitado. */
     codigoInvitacion: string;
+    /**
+     * Solo cuando `rolSolicitado === "broker"`: alta de una oficina nueva.
+     * `codigoAlta` lo entrega la plataforma al vender; sin él la base rechaza
+     * el registro (a menos que la plataforma tenga el alta abierta).
+     */
+    oficina?: DatosOficinaNueva;
   }) => Promise<{ error?: string; requiereConfirmacion?: boolean }>;
   iniciarSesion: (correo: string, contrasena: string) => Promise<{ error?: string }>;
   cerrarSesion: () => Promise<void>;
   enviarRecuperacion: (correo: string) => Promise<{ error?: string }>;
   actualizarContrasena: (nueva: string) => Promise<{ error?: string }>;
   recargarPerfil: () => Promise<void>;
+}
+
+/** Ficha de la oficina que captura un broker al abrir cuenta nueva. */
+export interface DatosOficinaNueva {
+  codigoAlta: string;
+  nombre: string;
+  telefono: string;
+  direccion: string;
+  ciudad: string;
+  sitioWeb: string;
+  /** "ninguno" = va a trabajar sin CRM y captura todo dentro de la app. */
+  crm: "ninguno" | "easybroker";
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -52,9 +70,15 @@ function traducirError(mensaje?: string): string {
   if (m.includes("password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
   if (m.includes("rate limit")) return "Demasiados intentos. Espera un minuto e intenta de nuevo.";
   // Errores que lanza el trigger de alta multi-tenant.
+  if (m.includes("código de alta") || m.includes("codigo de alta"))
+    return "El código de alta no es válido, ya se usó o está vencido. Pídele uno nuevo a la plataforma.";
+  if (m.includes("nombre de la inmobiliaria"))
+    return "Escribe el nombre de tu inmobiliaria para poder crear la oficina.";
   if (m.includes("código de invitación") || m.includes("codigo de invitacion"))
     return "El código de invitación no es válido. Pídeselo al broker de tu oficina.";
   if (m.includes("se requiere un código")) return "Necesitas el código de invitación de tu oficina para registrarte.";
+  if (m.includes("máximo") && m.includes("broker"))
+    return "Esa oficina ya tiene todos los administradores que admite.";
   return mensaje;
 }
 
@@ -108,19 +132,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     contrasena,
     rolSolicitado,
     codigoInvitacion,
+    oficina,
   }) => {
     if (!supabase) return { error: "Sin conexión a la nube." };
+    // Todo esto viaja como metadatos del usuario y lo lee el trigger
+    // `manejar_nuevo_registro` en la base. La decisión de qué oficina y qué
+    // rol le toca a esta persona NO se toma aquí: el navegador puede mandar
+    // lo que quiera. La base es la que manda.
+    const metadatos: Record<string, string> = {
+      nombre: nombre.trim(),
+      telefono: telefono.trim(),
+      rol_solicitado: rolSolicitado,
+      codigo_invitacion: codigoInvitacion.trim().toUpperCase(),
+    };
+    if (rolSolicitado === "broker" && oficina) {
+      metadatos.codigo_alta = oficina.codigoAlta.trim().toUpperCase();
+      metadatos.oficina_nombre = oficina.nombre.trim();
+      metadatos.oficina_telefono = oficina.telefono.trim();
+      metadatos.oficina_direccion = oficina.direccion.trim();
+      metadatos.oficina_ciudad = oficina.ciudad.trim();
+      metadatos.oficina_sitio_web = oficina.sitioWeb.trim();
+      metadatos.oficina_crm = oficina.crm;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: correo.trim().toLowerCase(),
       password: contrasena,
       options: {
         emailRedirectTo: window.location.origin,
-        data: {
-          nombre: nombre.trim(),
-          telefono: telefono.trim(),
-          rol_solicitado: rolSolicitado,
-          codigo_invitacion: codigoInvitacion.trim().toUpperCase(),
-        },
+        data: metadatos,
       },
     });
     if (error) return { error: traducirError(error.message) };
