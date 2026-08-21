@@ -524,7 +524,7 @@ export default function App() {
   if (isCloudEnabled) {
     if (cargandoAuth) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-white text-sm text-slate-400">
+        <div className="flex min-h-screen items-center justify-center bg-white text-sm text-slate-500">
           Cargando…
         </div>
       );
@@ -1252,7 +1252,7 @@ export default function App() {
       {/* Aviso de calificación obligatoria antes de avanzar en el embudo. */}
       {avisoBant && (
         <div className="fixed inset-x-0 bottom-20 z-50 mx-auto max-w-md px-4 md:bottom-6">
-          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-lg">
+          <div role="alert" className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-lg">
             <p className="flex-1 text-sm font-medium text-amber-900">{avisoBant}</p>
             <button
               onClick={() => setAvisoBant(null)}
@@ -1281,7 +1281,7 @@ export default function App() {
       )}
 
       {cargandoNube ? (
-        <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-500">
           Cargando tu información…
         </div>
       ) : (

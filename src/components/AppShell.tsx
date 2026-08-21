@@ -108,7 +108,7 @@ export default function AppShell({
                 <span className="block max-w-[140px] truncate text-xs font-bold text-slate-900">
                   {nombreUsuario}
                 </span>
-                <span className="block text-[10px] text-slate-400">{etiquetaRol}</span>
+                <span className="block text-[10px] text-slate-500">{etiquetaRol}</span>
               </span>
             </button>
             {perfilAbierto && (
@@ -117,7 +117,7 @@ export default function AppShell({
                 <div className="glass-strong absolute right-0 top-11 z-50 w-56 rounded-2xl p-2">
                   <div className="border-b border-slate-200/60 px-3 pb-2 pt-1 md:hidden">
                     <p className="truncate text-sm font-bold text-slate-900">{nombreUsuario}</p>
-                    <p className="text-xs text-slate-400">{etiquetaRol}</p>
+                    <p className="text-xs text-slate-500">{etiquetaRol}</p>
                   </div>
                   <button
                     onClick={onCerrarSesion}
@@ -160,7 +160,7 @@ export default function AppShell({
       </header>
 
       {avisoNube && (
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 pt-3 text-xs text-amber-700 sm:px-6">
+        <div role="alert" className="mx-auto flex max-w-7xl items-center gap-2 px-4 pt-3 text-xs text-amber-700 sm:px-6">
           <CloudOff className="size-3.5 shrink-0" /> {avisoNube}
         </div>
       )}
@@ -180,7 +180,7 @@ export default function AppShell({
                 key={id}
                 onClick={() => onNavegar(id)}
                 className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
-                  vistaActiva === id ? "text-violet-700" : "text-slate-400"
+                  vistaActiva === id ? "text-violet-700" : "text-slate-500"
                 }`}
               >
                 <span
@@ -202,7 +202,7 @@ export default function AppShell({
               <button
                 onClick={() => setMenuAbierto(true)}
                 className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold ${
-                  secundarios.some((i) => i.id === vistaActiva) ? "text-violet-700" : "text-slate-400"
+                  secundarios.some((i) => i.id === vistaActiva) ? "text-violet-700" : "text-slate-500"
                 }`}
               >
                 <span
