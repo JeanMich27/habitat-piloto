@@ -155,7 +155,24 @@ async function enLotes<T>(items: T[], tamano: number, fn: (x: T) => Promise<void
   }
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // --- Autenticación propia -------------------------------------------------
+  // `verify_jwt` (activo en config.toml) solo exige QUE HAYA un JWT válido, y
+  // la anon key pública -la misma que va en el bundle del navegador y en
+  // VITE_SUPABASE_ANON_KEY- ES un JWT válido. Sin este chequeo, cualquiera que
+  // copie esa llave del bundle puede disparar el sync en loop: gasta la cuota
+  // paga de EasyBroker y satura la base. El secreto vive solo en Vault (nunca
+  // en el bundle ni en variables de entorno de la función); ver migración 13.
+  const { data: secretoValido, error: errSecreto } = await sb.rpc("validar_secreto_sync", {
+    p_secreto: req.headers.get("x-sync-secret") ?? "",
+  });
+  if (errSecreto || !secretoValido) {
+    return new Response(JSON.stringify({ ok: false, error: "No autorizado" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const inicio = Date.now();
   const resumen = {
     revisadas: 0, creadas: 0, actualizadas: 0,

@@ -200,20 +200,43 @@ advertencias nuevas** por lo que agregué.
 
 ## 9. Correr algo a mano
 
-Si necesitas forzar una corrida sin esperar:
+**Actualización de seguridad (21 ago 2026):** las tres funciones de sync ya no
+aceptan solo la anon key — esa llave es pública (va en el bundle del
+navegador), así que cualquiera que la copiara podía disparar el sync en loop y
+gastar tu cuota de EasyBroker. Ahora piden además un secreto propio guardado en
+Vault (`X-Sync-Secret`), que nunca sale de la base. Detalle en
+`supabase/13-endurecer-sync-functions.sql`.
+
+Si necesitas forzar una corrida sin esperar, corre esto en el SQL Editor (trae
+el secreto de Vault él solo, no hace falta que lo copies):
 
 ```sql
 -- Leads
 select net.http_post(
   url := 'https://zhtwvxarovfohhmrgqoy.supabase.co/functions/v1/sync-leads',
-  headers := '{"Content-Type":"application/json","Authorization":"Bearer TU_ANON_KEY"}'::jsonb,
+  headers := jsonb_build_object(
+    'Content-Type', 'application/json',
+    'Authorization', 'Bearer TU_ANON_KEY',
+    'X-Sync-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_edge_functions' limit 1)
+  ),
   body := '{}'::jsonb, timeout_milliseconds := 150000);
 
 -- Ver el resultado (espera ~30 s)
 select * from v_ultima_corrida;
 ```
 
-Tu ANON KEY está en el archivo `.env` del proyecto, como `VITE_SUPABASE_ANON_KEY`.
+Tu ANON KEY está en el archivo `.env` del proyecto, como `VITE_SUPABASE_ANON_KEY`
+(sigue siendo pública — lo que ya no basta con ella sola es lo que llama al sync).
+
+**Si sospechas que el secreto se filtró**, rótalo así (los 3 cron jobs y las 3
+funciones lo recogen solos, sin tocar código):
+
+```sql
+select vault.update_secret(
+  (select id from vault.secrets where name = 'sync_edge_functions'),
+  'UN-VALOR-NUEVO-Y-LARGO-AQUI'
+);
+```
 
 **Ver los jobs programados:**
 
