@@ -1,5 +1,5 @@
 // ============================================================
-// sync-leads  (v5 — 20 ago 2026)
+// sync-leads  (v6 — 21 ago 2026)
 // Trae las solicitudes de contacto de EasyBroker (el buzón de portales) a la
 // plataforma, deduplica y rutea al asesor dueño de la propiedad.
 //
@@ -14,6 +14,11 @@
 // REGLA DE ORO: nada se descarta en silencio. Cada solicitud termina
 // insertada, marcada como duplicada, o marcada para revisión.
 //
+// v6 (21 ago 2026): dos cosas.
+//     - SIN asesor de respaldo. El dueño lo manda el CRM: propiedad ->
+//       contacto -> nadie. Nunca más el broker como paracaídas.
+//     - Una persona, una ficha: si el contacto ya está como ficha de
+//       directorio, la solicitud la ASCIENDE en vez de crear una segunda.
 // v2: el asesor de respaldo es el broker que SÍ tiene login (auth_id).
 // v3 (20 ago 2026): arreglo de la ruptura por multi-tenant.
 //     - Manda agencia_id explícito: el service_role no pasa por RLS y
@@ -100,18 +105,37 @@ Deno.serve(async (req) => {
   const corridaEn = new Date().toISOString();
   const bitacora: any[] = [];
   const dias = Number(new URL(req.url).searchParams.get("dias") ?? DIAS_DEFAULT) || DIAS_DEFAULT;
-  const r = { revisadas: 0, creadas: 0, ya_estaban: 0, duplicados: 0, para_revision: 0, errores: [] as string[] };
+  const r = { revisadas: 0, creadas: 0, ya_estaban: 0, duplicados: 0, para_revision: 0,
+              sin_asesor: 0, ascendidas_de_directorio: 0, errores: [] as string[] };
 
   try {
     if (!EB_KEY) throw new Error("Falta el secreto EASYBROKER_API_KEY en el proyecto de Supabase.");
 
-    // Asesor de respaldo: el broker con login real. Ningún lead queda sin dueño
-    // y ninguno cae en una cuenta demo a la que nadie entra.
-    const brokersQ = await sb.from("usuarios").select("id, auth_id")
-      .eq("agencia_id", AGENCIA).eq("rol", "broker").eq("estado_cuenta", "Activo").order("id");
-    const brokers = brokersQ.data ?? [];
-    const brokerId: string | null =
-      (brokers.find((b: any) => b.auth_id) ?? brokers[0])?.id ?? null;
+    // v6: SE ELIMINA EL ASESOR DE RESPALDO.
+    //
+    // Hasta v5, cuando la propiedad de la solicitud ya no estaba en el catálogo
+    // (vendida, retirada) el lead se le colgaba al broker. Con eso 120 leads
+    // acabaron atribuidos a una cuenta personal de pruebas y el desempeño por
+    // asesor quedó inservible. Ahora el dueño sale, en este orden, de:
+    //   1) el asesor de la propiedad (lo que EasyBroker dice del inventario);
+    //   2) el asesor del contacto en el CRM, si ese contacto ya está en la
+    //      plataforma por `eb_contact_id` (el directorio de sync-contactos);
+    //   3) nadie. El lead entra sin asesor y marcado para revisión.
+    // Un lead sin dueño se ve y se reparte; un lead con dueño falso, no.
+    const contactosQ = await leerTodo(
+      "leads", "id, eb_contact_id, asesor_id, es_directorio, nota",
+      (q: any) => q.eq("agencia_id", AGENCIA).not("eb_contact_id", "is", null),
+    );
+    const asesorPorContacto = new Map<number, string>();
+    // Ficha de directorio que YA existe para ese contacto. Sirve para no
+    // duplicar: ver el bloque "ascender la ficha de directorio" más abajo.
+    const directorioPorContacto = new Map<number, any>();
+    for (const l of contactosQ) {
+      const cid = Number(l.eb_contact_id);
+      if (!Number.isFinite(cid)) continue;
+      if (l.asesor_id && !asesorPorContacto.has(cid)) asesorPorContacto.set(cid, l.asesor_id);
+      if (l.es_directorio === true && !directorioPorContacto.has(cid)) directorioPorContacto.set(cid, l);
+    }
 
     const desde = new Date(Date.now() - dias * 864e5).toISOString().slice(0, 10);
 
@@ -172,7 +196,7 @@ Deno.serve(async (req) => {
             .eq("agencia_id", AGENCIA)
             .eq("telefono_norm", tel).eq("eb_property_id", ebProp ?? "").limit(1).maybeSingle();
           if (dupQ.data?.id) {
-            const extra = `\n[${String(cr.happened_at).slice(0, 16)} · ${cr.source ?? "?"}] ${cr.message ?? ""}`.trim();
+            const extra = `\n[${String(cr.happened_at).slice(0, 16)} | ${cr.source ?? "?"}] ${cr.message ?? ""}`.trim();
             await sb.from("leads").update({ nota: `${dupQ.data.nota ?? ""}${extra}`.slice(0, 8000) })
               .eq("id", dupQ.data.id);
             r.duplicados++;
@@ -181,11 +205,46 @@ Deno.serve(async (req) => {
           }
         }
 
-        const asesorId = prop?.asesor_id ?? brokerId;
+        const contactoId = cr.contact_id != null ? Number(cr.contact_id) : null;
+
+        // ---- Una persona, una ficha ------------------------------------
+        // Si ese contacto ya está en la plataforma como ficha de DIRECTORIO
+        // (nombre en la agenda del CRM, sin propiedad ni etapa real), esta
+        // solicitud no es una persona nueva: es la misma persona que por fin
+        // preguntó por algo. Se asciende la ficha que ya está en vez de crear
+        // una segunda. Era el otro motivo por el que la app mostraba más
+        // clientes que EasyBroker: el mismo contacto contado dos veces, una
+        // como `ebc-<contacto>` y otra como `eb-<solicitud>`.
+        const fichaDirectorio = contactoId != null ? directorioPorContacto.get(contactoId) : null;
+        if (fichaDirectorio) {
+          const extra = `\n[${String(cr.happened_at).slice(0, 16)} | ${cr.source ?? "?"}] ${cr.message ?? ""}`.trim();
+          const propAsc = ebProp ? porEbId.get(ebProp) : null;
+          const up = await sb.from("leads").update({
+            es_directorio: false,
+            origen: "Portal",
+            eb_contact_request_id: crId,
+            eb_property_id: ebProp,
+            interes_propiedad_id: propAsc?.id ?? null,
+            asesor_id: propAsc?.asesor_id ?? fichaDirectorio.asesor_id ?? null,
+            nota: `${fichaDirectorio.nota ?? ""}${extra}`.slice(0, 8000),
+          }).eq("id", fichaDirectorio.id);
+          if (up.error) throw new Error(up.error.message);
+          directorioPorContacto.delete(contactoId!);
+          yaProcesadas.add(crId);
+          r.ascendidas_de_directorio++;
+          bitacora.push({ ...base, resultado: "ascendida_de_directorio", detalle: `lead ${fichaDirectorio.id}` });
+          continue;
+        }
+
+        const asesorId =
+          prop?.asesor_id ??
+          (contactoId != null ? asesorPorContacto.get(contactoId) ?? null : null);
+
         const motivos: string[] = [];
         if (!ebProp) motivos.push("la solicitud no trae propiedad");
         else if (!prop) motivos.push(`propiedad ${ebProp} no está en el catálogo (corre sync-propiedades)`);
         if (prop && !prop.asesor_id) motivos.push("la propiedad no tiene asesor asignado");
+        if (!asesorId) { motivos.push("sin asesor: EasyBroker no lo resuelve, hay que repartirlo a mano"); r.sin_asesor++; }
         if (!tel) motivos.push("sin teléfono");
 
         const ins = await sb.from("leads").insert({
@@ -228,7 +287,7 @@ Deno.serve(async (req) => {
     }
 
     const salida = { ok: r.errores.length === 0, ventana_dias: dias,
-                     asesor_respaldo: brokerId, ...r, errores: r.errores.slice(0, 20) };
+                     asesor_respaldo: null, ...r, errores: r.errores.slice(0, 20) };
 
     // PK de sync_estado = (agencia_id, proceso). Y el error se revisa: si esto
     // falla en silencio, el semáforo miente y el sync puede morir sin avisar.

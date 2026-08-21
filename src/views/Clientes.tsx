@@ -216,8 +216,14 @@ export default function Clientes({
   // histórico (solicitudes anteriores a la ventana del sync). Arranca en
   // "Embudo activo" a propósito: abrir en 1,200 fichas sin etapa real haría
   // inútil la pantalla y escondería lo que sí hay que trabajar hoy.
+  //
+  // La cuarta píldora, "Fuera del CRM", existe para que esta pantalla cuadre
+  // contra EasyBroker: las tres primeras suman EXACTAMENTE lo que el CRM
+  // devuelve hoy, y ahí caen las fichas cuyo contacto el broker ya borró allá.
+  // Sin separarlas, la app mostraba más clientes que el CRM y no había forma
+  // de saber si sobraban o si el sync estaba fallando.
   const [filtroCartera, setFiltroCartera] =
-    useState<"activos" | "directorio" | "historico" | "todos">("activos");
+    useState<"activos" | "directorio" | "historico" | "fuera_crm" | "todos">("activos");
   // Velocidad de primer contacto: el filtro con el que aterriza el asesor
   // cuando toca una barra en Salud inmobiliaria.
   const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(
@@ -312,11 +318,14 @@ export default function Clientes({
           (filtroEstado === "descartados" && l.estado === "Descartado") ||
           (filtroEstado === "sin_respuesta" && l.estado === "Sin respuesta") ||
           (filtroEstado === "en_juego" && l.estado !== "Descartado");
+        // Las tres primeras píldoras solo ven lo que sigue vivo en el CRM.
+        const enCrm = l.fueraDeCrm !== true;
         const coincideCartera =
           filtroCartera === "todos" ||
-          (filtroCartera === "directorio" && l.esDirectorio === true) ||
-          (filtroCartera === "historico" && l.esHistorico === true) ||
-          (filtroCartera === "activos" && !l.esDirectorio && !l.esHistorico);
+          (filtroCartera === "fuera_crm" && l.fueraDeCrm === true) ||
+          (filtroCartera === "directorio" && enCrm && l.esDirectorio === true) ||
+          (filtroCartera === "historico" && enCrm && l.esHistorico === true) ||
+          (filtroCartera === "activos" && enCrm && !l.esDirectorio && !l.esHistorico);
         return (
           coincide &&
           coincideClase &&
@@ -442,18 +451,22 @@ export default function Clientes({
                   { clave: "activos", texto: "Embudo activo" },
                   { clave: "directorio", texto: "Directorio" },
                   { clave: "historico", texto: "Histórico" },
+                  { clave: "fuera_crm", texto: "Fuera del CRM" },
                   { clave: "todos", texto: "Todos" },
                 ] as const
-              ).map((op) => {
-                const n = visibles.filter((l) =>
-                  op.clave === "todos"
-                    ? true
-                    : op.clave === "directorio"
-                      ? l.esDirectorio === true
-                      : op.clave === "historico"
-                        ? l.esHistorico === true
-                        : !l.esDirectorio && !l.esHistorico,
-                ).length;
+              )
+                // La píldora de "Fuera del CRM" solo aparece cuando hay algo
+                // que mostrar. Un contador clavado en 0 es ruido permanente.
+                .filter((op) => op.clave !== "fuera_crm" || visibles.some((l) => l.fueraDeCrm === true))
+                .map((op) => {
+                const n = visibles.filter((l) => {
+                  const enCrm = l.fueraDeCrm !== true;
+                  if (op.clave === "todos") return true;
+                  if (op.clave === "fuera_crm") return l.fueraDeCrm === true;
+                  if (op.clave === "directorio") return enCrm && l.esDirectorio === true;
+                  if (op.clave === "historico") return enCrm && l.esHistorico === true;
+                  return enCrm && !l.esDirectorio && !l.esHistorico;
+                }).length;
                 const activo = filtroCartera === op.clave;
                 return (
                   <button
@@ -645,7 +658,17 @@ export default function Clientes({
                           </span>
                         </span>
                       </span>
-                      <Insignia lead={l} />
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {l.fueraDeCrm === true && (
+                          <span
+                            title="Este contacto ya no existe en EasyBroker. La ficha y su historial se conservan aquí."
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200"
+                          >
+                            Fuera del CRM
+                          </span>
+                        )}
+                        <Insignia lead={l} />
+                      </span>
                     </span>
 
                     <span className="mt-3 block space-y-1 border-t border-slate-100 pt-3 text-xs">

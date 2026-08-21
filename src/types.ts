@@ -520,6 +520,13 @@ export interface Lead {
   // Solicitud de portal anterior a la ventana móvil del sync. Es un lead real,
   // pero de hace meses: cuenta para el histórico, no para lo que hay que atender.
   esHistorico?: boolean;
+  // El contacto ya no existe en EasyBroker: el broker lo borró allá y el sync
+  // dejó de recibirlo. La app conserva la ficha (la historia de seguimiento es
+  // suya, no del CRM) pero la saca de todo conteo que deba cuadrar contra el
+  // CRM. Lo pone `sync-contactos`; el frontend nunca lo escribe.
+  fueraDeCrm?: boolean;
+  // Última corrida del sync en la que EasyBroker devolvió este contacto.
+  ebVistoEn?: string;
   // --- Desenlace (ver EstadoLead) ---
   // Va APARTE de la etapa a propósito: la etapa dice hasta dónde llegó el lead,
   // el estado dice si sigue en juego. Un "Descartado" que borrara su etapa
@@ -678,8 +685,13 @@ export const estaDescartado = (l: Lead) => l.estado === "Descartado";
  * embudo mostraría más de mil prospectos donde hay poco más de cien y la
  * tasa de respuesta del equipo quedaría inservible.
  * La pantalla de Clientes es la única que ve la lista completa, con filtro.
+ *
+ * `fueraDeCrm` entra por la misma razón: si el broker borró el contacto en
+ * EasyBroker, seguir contándolo en el embudo hace que la app y el CRM den
+ * números distintos — que es justo lo que rompe la confianza en la app.
  */
-export const esLeadOperativo = (l: Lead) => !l.esDirectorio && !l.esHistorico;
+export const esLeadOperativo = (l: Lead) =>
+  !l.esDirectorio && !l.esHistorico && !l.fueraDeCrm;
 
 /**
  * Lead del embudo que TODAVÍA está en juego. Se usa en las pantallas de

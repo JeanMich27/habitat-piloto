@@ -1,5 +1,29 @@
 // ============================================================
-// sync-contactos  (v2 — 20 ago 2026)
+// sync-contactos  (v3 — 21 ago 2026)
+//
+// QUÉ ARREGLA v3 (dos cosas que hacían que la app y EasyBroker no cuadraran):
+//
+// A) EL ASESOR LO MANDA EL CRM, SIEMPRE.
+//    v2 solo reasignaba el asesor en los contactos de directorio, y cuando no
+//    lograba resolver el agente devolvía "el broker" como respaldo. Resultado:
+//    120 leads acabaron colgados de una cuenta que ni siquiera existe en
+//    EasyBroker, y las métricas por asesor mentían. Ahora:
+//      - si EasyBroker resuelve el agente, ese agente gana (en directorio y en
+//        embudo por igual);
+//      - si no lo resuelve, el lead queda SIN asesor y visible, no escondido
+//        en el buzón del broker.
+//
+// B) RECONCILIACIÓN EN LOS DOS SENTIDOS.
+//    El sync era de ida nada más: un contacto borrado en EasyBroker se quedaba
+//    para siempre en la plataforma. Cada corrida sella `eb_visto_en` en todo
+//    lo que el CRM devolvió y marca `fuera_de_crm` en lo que dejó de devolver.
+//    Con eso el conteo de la app se puede cuadrar contra el del CRM.
+//    Salvaguarda: si EasyBroker devuelve menos del 70% de los contactos de la
+//    corrida anterior (caída parcial, rate limit), NO se marca nada — antes que
+//    dar de baja medio CRM por un error de red, se prefiere no reconciliar.
+//
+// ------------------------------------------------------------
+// v2 (20 ago 2026)
 //
 // QUÉ ARREGLA v2 (dos fallas que se comían la actualización del CRM):
 //
@@ -63,7 +87,7 @@ const normTel = (t?: string | null) => {
 };
 
 const normNombre = (s?: string | null) =>
-  (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+  (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/\s+/g, " ").trim();
 
 // Lee una tabla completa en páginas de 1,000. La razón de existir de v2.
@@ -109,7 +133,8 @@ Deno.serve(async (req) => {
   const r = {
     revisados: 0, creados: 0, actualizados: 0, sin_cambio: 0,
     vinculados_a_lead_existente: 0, sin_asesor: 0, sin_telefono: 0,
-    errores: [] as string[],
+    reasignados: 0, salieron_del_crm: 0, regresaron_al_crm: 0,
+    reconciliado: false, errores: [] as string[],
   };
 
   try {
@@ -132,14 +157,13 @@ Deno.serve(async (req) => {
       if (u.nombre) idPorNombre.set(normNombre(u.nombre), u.id);
     }
 
-    const brokersQ = await sb.from("usuarios").select("id, auth_id")
-      .eq("agencia_id", AGENCIA).eq("rol", "broker").eq("estado_cuenta", "Activo").order("id");
-    const brokers = brokersQ.data ?? [];
-    const brokerId: string | null = (brokers.find((b: any) => b.auth_id) ?? brokers[0])?.id ?? null;
-
+    // Sin asesor de respaldo. Antes, cuando no se lograba resolver el agente,
+    // esta función devolvía al broker: el lead quedaba con dueño en la base y
+    // sin dueño en la realidad. Devolver null es peor de ver y mejor de operar
+    // — el lead sale en la bandeja de "sin asignar" y alguien lo reparte.
     const resolverAsesor = (nombreAgente?: string | null): string | null => {
       const nom = normNombre(nombreAgente);
-      if (!nom) return brokerId;
+      if (!nom) return null;
       const correo = correoPorNombre.get(nom);
       if (correo && idPorCorreo.has(correo)) return idPorCorreo.get(correo)!;
       if (idPorNombre.has(nom)) return idPorNombre.get(nom)!;
@@ -148,7 +172,7 @@ Deno.serve(async (req) => {
         const corto = `${partes[0]} ${partes[1]}`;
         for (const [k, v] of idPorNombre) if (k.startsWith(corto)) return v;
       }
-      return brokerId;
+      return null;
     };
 
     // --- Lo que ya existe en la plataforma (PAGINADO Y VERIFICADO) --------
@@ -159,7 +183,7 @@ Deno.serve(async (req) => {
 
     const existentes = await leerTodo(
       "leads",
-      "id, eb_contact_id, telefono_norm, correo, nombre, telefono, asesor_id, eb_actualizado_en, es_directorio",
+      "id, eb_contact_id, telefono_norm, correo, nombre, telefono, asesor_id, eb_actualizado_en, es_directorio, fuera_de_crm",
       (q: any) => q.eq("agencia_id", AGENCIA),
     );
 
@@ -190,11 +214,15 @@ Deno.serve(async (req) => {
     r.revisados = contactos.length;
 
     const nuevos: any[] = [];
+    // Todo contacto que EasyBroker devolvió en ESTA corrida. Es la base de la
+    // reconciliación: lo que no está aquí, ya no está en el CRM.
+    const vistos = new Set<number>();
 
     for (const c of contactos) {
       try {
         const cid = Number(c.id);
         if (!Number.isFinite(cid)) continue;
+        vistos.add(cid);
 
         const tel = normTel(c.phone);
         if (!tel) r.sin_telefono++;
@@ -213,10 +241,12 @@ Deno.serve(async (req) => {
           if (c.phone && c.phone !== yaEsta.telefono) { cambios.telefono = c.phone; cambios.telefono_norm = tel; }
           const correoEb = (c.email ?? "").toLowerCase();
           if (correoEb && correoEb !== (yaEsta.correo ?? "")) cambios.correo = correoEb;
-          // El asesor solo se reasigna en el directorio. En un lead del embudo
-          // la asignación puede haberse movido a propósito dentro de la app.
-          if (yaEsta.es_directorio === true && asesorId && asesorId !== yaEsta.asesor_id) {
+          // El asesor lo manda EasyBroker, en directorio y en embudo. Si el CRM
+          // no resuelve agente (asesorId null) NO se toca lo que ya había: se
+          // respeta el reparto manual, pero el CRM nunca pierde contra él.
+          if (asesorId && asesorId !== yaEsta.asesor_id) {
             cambios.asesor_id = asesorId;
+            r.reasignados++;
           }
 
           const hayCambioReal = Object.keys(cambios).length > 1;
@@ -295,6 +325,53 @@ Deno.serve(async (req) => {
       const ins = await sb.from("leads").insert(lote);
       if (ins.error) r.errores.push(`lote ${i}: ${ins.error.message}`.slice(0, 300));
       else r.creados += lote.length;
+    }
+
+    // --- Reconciliación app <-> CRM ---------------------------------------
+    // Salvaguarda antes de tocar nada: si la API devolvió mucho menos de lo que
+    // devolvió la última vez, lo más probable es que se haya caído a media
+    // paginación. Dar de baja 400 contactos por eso sería peor que no
+    // reconciliar, así que se reporta y se sale sin marcar.
+    const previoQ = await sb.from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("agencia_id", AGENCIA).eq("fuera_de_crm", false).not("eb_contact_id", "is", null);
+    const vigentesAntes = previoQ.count ?? 0;
+    const suficiente = vistos.size > 0 && (vigentesAntes === 0 || vistos.size >= vigentesAntes * 0.7);
+
+    if (!suficiente) {
+      r.errores.push(
+        `Reconciliación omitida: EasyBroker devolvió ${vistos.size} contactos y la corrida anterior ` +
+        `dejó ${vigentesAntes} vigentes. Se sospecha respuesta incompleta.`,
+      );
+    } else if (r.errores.length === 0) {
+      const ids = [...vistos];
+      // Se cuenta ANTES de limpiar la marca: después del update de (a) ya
+      // nadie tendría fuera_de_crm = true y el contador saldría siempre en 0.
+      for (const cid of vistos) {
+        if (porContactId.get(cid)?.fuera_de_crm === true) r.regresaron_al_crm++;
+      }
+      // a) Sellar lo visto y devolver al CRM lo que hubiera estado marcado.
+      for (let i = 0; i < ids.length; i += 500) {
+        const lote = ids.slice(i, i + 500);
+        const up = await sb.from("leads")
+          .update({ eb_visto_en: corridaEn, fuera_de_crm: false })
+          .eq("agencia_id", AGENCIA).in("eb_contact_id", lote);
+        if (up.error) { r.errores.push(`sello eb_visto_en: ${up.error.message}`); break; }
+      }
+      // b) Marcar lo que el CRM ya no devuelve. Solo leads que ALGUNA VEZ
+      //    vinieron de un contacto de EasyBroker: los capturados en la app a
+      //    mano no tienen por qué existir allá.
+      if (r.errores.length === 0) {
+        const baja = await sb.from("leads")
+          .update({ fuera_de_crm: true })
+          .eq("agencia_id", AGENCIA)
+          .eq("fuera_de_crm", false)
+          .not("eb_contact_id", "is", null)
+          .or(`eb_visto_en.is.null,eb_visto_en.lt.${corridaEn}`)
+          .select("id");
+        if (baja.error) r.errores.push(`baja fuera_de_crm: ${baja.error.message}`);
+        else { r.salieron_del_crm = baja.data?.length ?? 0; r.reconciliado = true; }
+      }
     }
 
     const salida = { ok: r.errores.length === 0, con_detalle: conDetalle, forzado: forzar, ...r, errores: r.errores.slice(0, 20) };
