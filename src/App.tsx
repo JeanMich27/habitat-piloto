@@ -84,7 +84,7 @@ import type { NivelAntiguedad } from "./lib/antiguedad";
 import { claseParaFiltro, type NivelCartera } from "./lib/cartera";
 import type { RangoRespuesta } from "./lib/respuesta";
 import { useAuth } from "./lib/authContext";
-import { isCloudEnabled } from "./lib/supabaseClient";
+import { configurationError, isCloudEnabled, isDemoMode } from "./lib/supabaseClient";
 import {
   bulkUpsertLeads,
   bulkUpsertPropiedades,
@@ -167,10 +167,28 @@ const snapshotDeFabrica: EstadoCompleto = {
 const DEMO_KEY = "habitat-demo-usuario";
 
 export default function App() {
+  if (configurationError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+        <div className="w-full max-w-lg rounded-2xl border border-rose-400/30 bg-slate-900 p-7">
+          <p className="text-xs font-bold uppercase tracking-widest text-rose-300">Configuración requerida</p>
+          <h1 className="mt-2 text-xl font-bold">La aplicación está bloqueada de forma segura</h1>
+          <p role="alert" className="mt-3 text-sm text-slate-300">{configurationError}</p>
+          <p className="mt-3 text-xs text-slate-400">
+            Configura el backend y reinicia el despliegue. No se cargarán datos de demostración ni se permitirán operaciones.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return <AplicacionConfigurada />;
+}
+
+function AplicacionConfigurada() {
   const { sesion, perfil, cargando: cargandoAuth, cerrarSesion, enRecuperacion } = useAuth();
 
   // --- Estado de datos ---
-  const snapshotLocal = !isCloudEnabled ? cargarSnapshotLocal() : null;
+  const snapshotLocal = isDemoMode ? cargarSnapshotLocal() : null;
   const inicial: EstadoCompleto = { ...snapshotDeFabrica, ...snapshotLocal };
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>(inicial.propiedades);
@@ -199,7 +217,7 @@ export default function App() {
 
   // Modo demo local (sin Supabase): se elige un usuario de ejemplo para probar.
   const [demoUsuarioId, setDemoUsuarioId] = useState<string | null>(() =>
-    !isCloudEnabled ? window.localStorage.getItem(DEMO_KEY) : null,
+    isDemoMode ? window.localStorage.getItem(DEMO_KEY) : null,
   );
 
   // Usuario con el que se navega: el perfil real (nube) o el elegido en demo.
@@ -533,7 +551,7 @@ export default function App() {
     }
     if (!sesion || enRecuperacion) return <AuthScreen />;
     if (!perfil || perfil.estadoCuenta !== "Activo") return <PendienteAprobacion />;
-  } else if (!usuarioActual) {
+  } else if (isDemoMode && !usuarioActual) {
     // Modo local sin backend: selector de usuario de demostración.
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">

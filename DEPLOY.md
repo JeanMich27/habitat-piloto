@@ -37,6 +37,7 @@ pégamelos y valido que todo quede conectado.
 1. En esta carpeta, copia `.env.example` a `.env`.
 2. Pega ahí los dos valores del paso anterior:
    ```
+   VITE_APP_MODE=cloud
    VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
    VITE_SUPABASE_ANON_KEY=tu_anon_key
    ```
@@ -61,8 +62,8 @@ github.com/new — sin README, para no chocar con el commit local.)
 
 1. En [vercel.com/new](https://vercel.com/new), importa el repositorio que
    acabas de subir.
-2. En **Environment Variables**, agrega los mismos dos valores del paso 2
-   (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+2. En **Environment Variables**, agrega los tres valores del paso 2
+   (`VITE_APP_MODE=cloud`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 3. Deploy. Vercel detecta Vite automáticamente (build `npm run build`,
    output `dist`).
 4. Esa URL (`tu-proyecto.vercel.app`) es lo que compartes con las 10
