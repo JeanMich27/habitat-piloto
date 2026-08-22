@@ -16,8 +16,8 @@ type TipoImportacion = "propiedades" | "leads";
 interface Props {
   usuarios: Usuario[];
   usuarioActivoId: string;
-  onImportarPropiedades: (nuevas: Propiedad[]) => void;
-  onImportarLeads: (nuevos: Lead[]) => void;
+  onImportarPropiedades: (nuevas: Propiedad[]) => Promise<boolean>;
+  onImportarLeads: (nuevos: Lead[]) => Promise<boolean>;
 }
 
 export default function ImportarDatos({
@@ -34,6 +34,7 @@ export default function ImportarDatos({
   const [nombreArchivo, setNombreArchivo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [importado, setImportado] = useState<number | null>(null);
+  const [importando, setImportando] = useState(false);
 
   const campos = tipo === "propiedades" ? CAMPOS_PROPIEDAD : CAMPOS_LEAD;
 
@@ -75,9 +76,13 @@ export default function ImportarDatos({
     .filter((c) => c.obligatorio)
     .every((c) => mapeo[c.key]);
 
-  const confirmarImportacion = () => {
-    if (tipo === "propiedades") onImportarPropiedades(registrosListos as Propiedad[]);
-    else onImportarLeads(registrosListos as Lead[]);
+  const confirmarImportacion = async () => {
+    setImportando(true);
+    const ok = tipo === "propiedades"
+      ? await onImportarPropiedades(registrosListos as Propiedad[])
+      : await onImportarLeads(registrosListos as Lead[]);
+    setImportando(false);
+    if (!ok) return;
     setImportado(registrosListos.length);
     setFilas([]);
     setEncabezados([]);
@@ -234,10 +239,10 @@ export default function ImportarDatos({
             <div className="flex justify-end">
               <button
                 onClick={confirmarImportacion}
-                disabled={!camposObligatoriosCubiertos || registrosListos.length === 0}
+                disabled={importando || !camposObligatoriosCubiertos || registrosListos.length === 0}
                 className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
               >
-                Importar {registrosListos.length} registros
+                {importando ? "Importando…" : `Importar ${registrosListos.length} registros`}
               </button>
             </div>
           </div>

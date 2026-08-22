@@ -50,8 +50,8 @@ interface Props {
   propiedades: Propiedad[];
   leads: Lead[];
   solicitudes: SolicitudEstado[];
-  onCambiarEstado: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
-  onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
+  onCambiarEstado: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
+  onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
   onVerDetalle: (propiedadId: string) => void;
   onNuevaPropiedad: () => void;
   /**
@@ -543,14 +543,12 @@ export default function ListadoPropiedades({
           rolUsuario={usuario.rol}
           solicitudPendiente={solicitudPendienteDe(propiedadEstado.id)}
           onCerrar={() => setPropiedadEstado(null)}
-          onGuardar={(nuevoEstado, motivo) => {
-            onCambiarEstado(propiedadEstado.id, nuevoEstado, motivo);
-            setPropiedadEstado(null);
-          }}
-          onSolicitar={(nuevoEstado, motivo) => {
-            onSolicitarCambio(propiedadEstado.id, nuevoEstado, motivo);
-            setPropiedadEstado(null);
-          }}
+          onGuardar={(nuevoEstado, motivo) =>
+            onCambiarEstado(propiedadEstado.id, nuevoEstado, motivo)
+          }
+          onSolicitar={(nuevoEstado, motivo) =>
+            onSolicitarCambio(propiedadEstado.id, nuevoEstado, motivo)
+          }
         />
       )}
     </div>

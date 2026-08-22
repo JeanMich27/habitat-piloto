@@ -155,20 +155,20 @@ interface Props {
   usuarios: Usuario[];
   leads: Lead[];
   propiedades: Propiedad[];
-  onGuardarCalificacion: (leadId: string, bant: CalificacionBANT) => void;
+  onGuardarCalificacion: (leadId: string, bant: CalificacionBANT) => Promise<boolean>;
   onRegistrarInteraccion: (
     leadId: string,
     tipo: TipoInteraccion,
     descripcion: string,
-  ) => void;
-  onCambiarEtapa: (leadId: string, etapa: LeadStage) => void;
-  onCrearCliente: (lead: Lead) => void;
+  ) => Promise<boolean>;
+  onCambiarEtapa: (leadId: string, etapa: LeadStage) => Promise<boolean>;
+  onCrearCliente: (lead: Lead) => Promise<boolean>;
   /** Abre el modal de agenda con este prospecto precargado. */
   onAgendarVisita: (leadId: string) => void;
   /** Un intento sin respuesta. No es descarte: es información que se cuenta. */
-  onRegistrarIntento: (leadId: string) => void;
-  onDescartarLead: (leadId: string, r: ResultadoDescarte) => void;
-  onReactivarLead: (leadId: string) => void;
+  onRegistrarIntento: (leadId: string) => Promise<boolean>;
+  onDescartarLead: (leadId: string, r: ResultadoDescarte) => Promise<boolean>;
+  onReactivarLead: (leadId: string) => Promise<boolean>;
   /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
@@ -382,9 +382,9 @@ export default function Clientes({
     (l) => l.bant && clasificarLead(totalBant(l.bant)) === "Hot",
   ).length;
 
-  const registrar = () => {
+  const registrar = async () => {
     if (!seleccionado || !textoEvento.trim()) return;
-    onRegistrarInteraccion(seleccionado.id, tipoEvento, textoEvento.trim());
+    if (!(await onRegistrarInteraccion(seleccionado.id, tipoEvento, textoEvento.trim()))) return;
     setTextoEvento("");
   };
 
@@ -1158,8 +1158,8 @@ export default function Clientes({
           propiedades={propiedades}
           asesorId={usuario.id}
           onCancelar={() => setCreando(false)}
-          onGuardar={(nuevo) => {
-            onCrearCliente(nuevo);
+          onGuardar={async (nuevo) => {
+            if (!(await onCrearCliente(nuevo))) return false;
             setCreando(false);
             // Se abre su ficha de inmediato: el asesor acaba de capturarlo,
             // lo siguiente que quiere es calificarlo o escribirle.
@@ -1167,6 +1167,7 @@ export default function Clientes({
             setBusqueda("");
             setFiltroClase("Todas");
             setFiltroEtapa("Todas");
+            return true;
           }}
         />
       )}
@@ -1177,13 +1178,11 @@ export default function Clientes({
           propiedad={propiedadInteres}
           nombreAsesor={usuario.nombre}
           onCancelar={() => setCalificando(false)}
-          onGuardar={(b) => {
-            onGuardarCalificacion(seleccionado.id, b);
-            setCalificando(false);
+          onGuardar={async (b) => {
+            if (await onGuardarCalificacion(seleccionado.id, b)) setCalificando(false);
           }}
-          onNoContesta={() => {
-            onRegistrarIntento(seleccionado.id);
-            setCalificando(false);
+          onNoContesta={async () => {
+            if (await onRegistrarIntento(seleccionado.id)) setCalificando(false);
           }}
           onDescartar={() => {
             setCalificando(false);
@@ -1196,9 +1195,8 @@ export default function Clientes({
         <DescartarLeadModal
           lead={descartando}
           onCancelar={() => setDescartando(null)}
-          onDescartar={(r) => {
-            onDescartarLead(descartando.id, r);
-            setDescartando(null);
+          onDescartar={async (r) => {
+            if (await onDescartarLead(descartando.id, r)) setDescartando(null);
           }}
         />
       )}

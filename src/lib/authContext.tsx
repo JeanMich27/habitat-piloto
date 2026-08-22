@@ -43,6 +43,7 @@ interface AuthContextValue {
   cerrarSesion: () => Promise<void>;
   enviarRecuperacion: (correo: string) => Promise<{ error?: string }>;
   actualizarContrasena: (nueva: string) => Promise<{ error?: string }>;
+  cambiarContrasenaActual: (actual: string, nueva: string) => Promise<{ error?: string }>;
   recargarPerfil: () => Promise<void>;
 }
 
@@ -200,6 +201,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: traducirError(error.message) } : {};
   };
 
+  const cambiarContrasenaActual: AuthContextValue["cambiarContrasenaActual"] = async (actual, nueva) => {
+    if (!supabase || !sesion?.user.email) return { error: "Sin conexión a la nube." };
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: sesion.user.email,
+      password: actual,
+    });
+    if (reauthError) return { error: "La contraseña actual no es correcta." };
+    const { error } = await supabase.auth.updateUser({ password: nueva });
+    return error ? { error: traducirError(error.message) } : {};
+  };
+
   const recargarPerfil = useCallback(async () => {
     await cargarPerfil(sesion);
   }, [cargarPerfil, sesion]);
@@ -216,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cerrarSesion,
         enviarRecuperacion,
         actualizarContrasena,
+        cambiarContrasenaActual,
         recargarPerfil,
       }}
     >

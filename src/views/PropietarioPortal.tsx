@@ -406,9 +406,9 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
                     {d.aprobado ? "Validado" : "Pendiente"}
                   </span>
                   <button
-                    disabled={!d.aprobado}
-                    title={d.aprobado ? undefined : "Aún no está validado"}
-                    className="flex items-center gap-1 text-xs font-semibold text-slate-500 enabled:hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                    disabled
+                    title="Función todavía no disponible"
+                    className="flex cursor-not-allowed items-center gap-1 text-xs font-semibold text-slate-300"
                   >
                     <Download className="size-3.5" /> Descargar
                   </button>
@@ -417,7 +417,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
             ))}
           </ul>
           <p className="mt-3 text-xs text-slate-500">
-            Solo lectura — descarga simulada, sin almacenamiento real de archivos en el prototipo.
+            Función todavía no disponible: los documentos no tienen almacenamiento real.
           </p>
         </div>
       )}

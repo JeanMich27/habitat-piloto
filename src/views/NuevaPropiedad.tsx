@@ -1,9 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
-  AlertTriangle,
-  Camera,
   Check,
-  CheckCircle2,
   Circle,
   FileText,
   Home,
@@ -39,13 +36,14 @@ interface Props {
   usuario: Usuario;
   propiedades: Propiedad[];
   onCancelar: () => void;
-  onGuardar: (nueva: Propiedad) => void;
+  onGuardar: (nueva: Propiedad) => Promise<boolean>;
 }
 
 export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGuardar }: Props) {
   const [pasoMax, setPasoMax] = useState(1);
   const [paso, setPaso] = useState(1);
   const [confirmarSalir, setConfirmarSalir] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
   // Paso 1
   const [direccion, setDireccion] = useState("");
@@ -68,17 +66,6 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
   const [recamaras, setRecamaras] = useState("");
   const [banos, setBanos] = useState("");
   const [descripcion, setDescripcion] = useState("");
-
-  // Paso 4
-  const [docs, setDocs] = useState<Record<DocumentName, boolean>>({
-    INE: false,
-    Predial: false,
-    Contrato: false,
-  });
-
-  // Paso 5
-  const [fotos, setFotos] = useState<string[]>([]);
-  const [nombreFoto, setNombreFoto] = useState("");
 
   const propietariosUnicos = Array.from(
     new Map(propiedades.map((p) => [p.propietario.correo, p.propietario])).values(),
@@ -107,8 +94,9 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
     !!propietarioExistente ||
     (pNombre.trim() !== "" && emailValido(pCorreo) && telefonoValido(pTelefono));
   const paso3Valido = Number(precio) > 0;
-  const paso4Valido = docs.Contrato; // único obligatorio para avanzar del paso
-  const documentosCompletos = docs.INE && docs.Predial && docs.Contrato;
+  // Documentos/fotos no se simulan: el flujo puede guardar el inmueble, pero
+  // nunca lo publica hasta que exista almacenamiento real y validación.
+  const paso4Valido = true;
 
   const hayDatosCapturados = direccion.trim() !== "" || pNombre.trim() !== "" || precio !== "";
 
@@ -146,7 +134,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
       tipoOperacion: tipoOperacion as TipoOperacion,
       asesorId: usuario.id,
       propietario,
-      documentos: DOCS.map((nombre) => ({ nombre, aprobado: docs[nombre] })),
+      documentos: DOCS.map((nombre) => ({ nombre, aprobado: false })),
       capturadaEl: ahora,
       publicadaEl: publicandose ? ahora : undefined,
       ultimaActividad: ahora,
@@ -164,15 +152,13 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
     };
   };
 
-  const guardarBorrador = () => onGuardar(construirPropiedad("No publicada"));
-  const guardarFinal = () => {
-    if (usuario.rol === "asesor_independiente") {
-      if (!documentosCompletos) return;
-      onGuardar(construirPropiedad("Publicada"));
-    } else {
-      onGuardar(construirPropiedad("No publicada"));
-    }
+  const persistir = async (propiedad: Propiedad) => {
+    setGuardando(true);
+    await onGuardar(propiedad);
+    setGuardando(false);
   };
+  const guardarBorrador = () => persistir(construirPropiedad("No publicada"));
+  const guardarFinal = () => persistir(construirPropiedad("No publicada"));
 
   const intentarCancelar = () => {
     if (hayDatosCapturados) setConfirmarSalir(true);
@@ -468,17 +454,14 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
         {paso === 4 && (
           <div className="space-y-3">
             <p className="text-sm text-slate-500">
-              Sin backend de archivos en el prototipo — marca cada documento como cargado. El Contrato es
-              el único obligatorio para avanzar; los tres se validan definitivamente en la pantalla de
-              Validación de Propiedades.
+              Función todavía no disponible. Los documentos permanecerán pendientes hasta que exista
+              almacenamiento real y validación; esta pantalla no simula cargas.
             </p>
             {DOCS.map((d) => (
               <button
                 key={d}
-                onClick={() => setDocs((prev) => ({ ...prev, [d]: !prev[d] }))}
-                className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
-                  docs[d] ? "border-emerald-300 bg-emerald-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
+                disabled
+                className="flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left"
               >
                 <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
                   <FileText className="size-4 text-slate-500" />
@@ -489,11 +472,7 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
                     </span>
                   )}
                 </span>
-                {docs[d] ? (
-                  <CheckCircle2 className="size-5 text-emerald-600" />
-                ) : (
-                  <Circle className="size-5 text-slate-300" />
-                )}
+                <Circle className="size-5 text-slate-300" />
               </button>
             ))}
           </div>
@@ -501,55 +480,11 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
 
         {/* Paso 5 */}
         {paso === 5 && (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                value={nombreFoto}
-                onChange={(e) => setNombreFoto(e.target.value)}
-                placeholder="nombre-de-la-foto.jpg"
-                className="input"
-              />
-              <button
-                onClick={() => {
-                  if (!nombreFoto.trim()) return;
-                  setFotos((prev) => [...prev, nombreFoto.trim()]);
-                  setNombreFoto("");
-                }}
-                className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-              >
-                Agregar
-              </button>
-            </div>
-            {fotos.length === 0 ? (
-              <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                Aún no agregas fotografías.
-              </p>
-            ) : (
-              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {fotos.map((f, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs"
-                  >
-                    <span className="flex items-center gap-1.5 truncate text-slate-600">
-                      <Camera className="size-3.5 shrink-0 text-slate-500" /> {f}
-                    </span>
-                    <button
-                      onClick={() => setFotos((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="shrink-0 text-slate-500 hover:text-rose-500"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {fotos.length < 5 && (
-              <p className="flex items-center gap-1.5 text-xs text-amber-600">
-                <AlertTriangle className="size-3.5" /> Se recomiendan al menos 5 fotos para publicar (no
-                bloquea, solo es una advertencia).
-              </p>
-            )}
+          <div className="rounded-lg bg-slate-50 px-4 py-8 text-center">
+            <p className="text-sm font-semibold text-slate-700">Función todavía no disponible.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Las fotografías requieren almacenamiento real; no se guardarán nombres de archivo simulados.
+            </p>
           </div>
         )}
       </div>
@@ -565,10 +500,10 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
         </button>
         <button
           onClick={guardarBorrador}
-          disabled={!hayDatosCapturados}
+          disabled={guardando || !hayDatosCapturados}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40"
         >
-          Guardar como borrador
+          {guardando ? "Guardando…" : "Guardar como borrador"}
         </button>
         {paso < 5 ? (
           <button
@@ -590,16 +525,14 @@ export default function NuevaPropiedad({ usuario, propiedades, onCancelar, onGua
               !paso1Valido ||
               !paso2Valido ||
               !paso3Valido ||
-              (usuario.rol === "asesor_independiente" && !documentosCompletos)
+              guardando
             }
             title={
-              usuario.rol === "asesor_independiente" && !documentosCompletos
-                ? "Faltan documentos para publicar directamente"
-                : undefined
+              undefined
             }
             className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
-            {usuario.rol === "asesor_independiente" ? "Guardar y publicar" : "Guardar y enviar a validación"}
+            Guardar para validación
           </button>
         )}
       </div>

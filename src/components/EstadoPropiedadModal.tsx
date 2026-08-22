@@ -28,9 +28,9 @@ interface Props {
   solicitudPendiente?: SolicitudEstado | null;
   onCerrar: () => void;
   /** Broker / independiente: aplica el cambio. */
-  onGuardar: (nuevoEstado: PropertyStatus, motivo?: string) => void;
+  onGuardar: (nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
   /** Asesor de equipo: envía la solicitud a revisión. */
-  onSolicitar?: (nuevoEstado: PropertyStatus, motivo?: string) => void;
+  onSolicitar?: (nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
 }
 
 export default function EstadoPropiedadModal({
@@ -45,13 +45,18 @@ export default function EstadoPropiedadModal({
   const opciones = ESTADOS_PROPIEDAD.filter((e) => e !== propiedad.estatus);
   const [nuevoEstado, setNuevoEstado] = useState<PropertyStatus>(opciones[0]);
   const [motivo, setMotivo] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   const requiereMotivoCierre = nuevoEstado === "Vendida o Rentada";
   const puedeEnviar = !requiereMotivoCierre || motivo !== "";
 
-  const enviar = () => {
-    if (esSolicitud) onSolicitar?.(nuevoEstado, motivo || undefined);
-    else onGuardar(nuevoEstado, motivo || undefined);
+  const enviar = async () => {
+    setEnviando(true);
+    const guardado = esSolicitud
+      ? await onSolicitar?.(nuevoEstado, motivo || undefined)
+      : await onGuardar(nuevoEstado, motivo || undefined);
+    setEnviando(false);
+    if (guardado) onCerrar();
   };
 
   return (
@@ -138,7 +143,7 @@ export default function EstadoPropiedadModal({
           )}
 
           <button
-            disabled={!puedeEnviar}
+            disabled={!puedeEnviar || enviando}
             onClick={enviar}
             className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 ${
               esSolicitud
@@ -146,7 +151,9 @@ export default function EstadoPropiedadModal({
                 : "bg-slate-900 enabled:hover:bg-slate-700"
             }`}
           >
-            {esSolicitud ? (
+            {enviando ? (
+              "Guardando…"
+            ) : esSolicitud ? (
               <>
                 <Send className="size-4" /> Enviar a revisión
               </>

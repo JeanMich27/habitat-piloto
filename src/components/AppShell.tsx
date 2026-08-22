@@ -89,7 +89,9 @@ export default function AppShell({
                   : "bg-amber-50/80 text-amber-700 ring-1 ring-amber-200/80"
               }`}
             >
-              {modoNube && !avisoNube ? "● En vivo" : <><CloudOff className="size-3" /> Local</>}
+              {modoNube && !avisoNube
+                ? "● En vivo"
+                : <><CloudOff className="size-3" /> {modoNube ? "Error" : "Demo"}</>}
             </span>
           </div>
 

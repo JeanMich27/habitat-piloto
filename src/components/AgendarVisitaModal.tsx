@@ -36,7 +36,7 @@ interface Props {
   leadInicialId?: string | null;
   /** Fecha precargada (al tocar un hueco de la agenda). */
   fechaInicial?: Date | null;
-  onGuardar: (cita: CitaAgenda) => void;
+  onGuardar: (cita: CitaAgenda) => Promise<boolean>;
   onCerrar: () => void;
 }
 
@@ -67,6 +67,7 @@ export default function AgendarVisitaModal({
 }: Props) {
   const editando = Boolean(citaExistente);
   const esBroker = usuario.rol === "broker";
+  const [guardando, setGuardando] = useState(false);
 
   const partesIniciales = citaExistente
     ? isoALocal(citaExistente.inicio)
@@ -164,9 +165,10 @@ export default function AgendarVisitaModal({
   const enPasado = inicioISO ? new Date(inicioISO).getTime() < Date.now() : false;
   const puedeGuardar = Boolean(hora && titulo);
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!inicioISO || !finISO) return;
-    onGuardar({
+    setGuardando(true);
+    const guardada = await onGuardar({
       id: citaExistente?.id ?? nuevoId(),
       asesorId,
       leadId: leadId || undefined,
@@ -181,7 +183,8 @@ export default function AgendarVisitaModal({
       creadaPor: citaExistente?.creadaPor ?? usuario.id,
       creadoEn: citaExistente?.creadoEn ?? new Date().toISOString(),
     });
-    onCerrar();
+    setGuardando(false);
+    if (guardada) onCerrar();
   };
 
   // Chips de día: los próximos 10 días. Cubre el 95% de lo que se agenda en
@@ -441,11 +444,11 @@ export default function AgendarVisitaModal({
           </button>
           <button
             onClick={guardar}
-            disabled={!puedeGuardar}
+            disabled={guardando || !puedeGuardar}
             className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-violet-600 py-3 text-sm font-bold text-white shadow-md shadow-violet-300/60 transition hover:bg-violet-700 disabled:bg-slate-300 disabled:shadow-none"
           >
             <Check className="size-4" />
-            {editando ? "Guardar cambios" : "Agendar"}
+            {guardando ? "Guardando…" : editando ? "Guardar cambios" : "Agendar"}
           </button>
         </div>
         {!hora && (

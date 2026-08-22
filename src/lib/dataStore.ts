@@ -37,6 +37,17 @@ import type {
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
+export type OperationResult<T = undefined> =
+  | { ok: true; data: T }
+  | { ok: false; error: { message: string; cause?: unknown } };
+
+const ok = <T = undefined>(data?: T): OperationResult<T> => ({ ok: true, data: data as T });
+
+const fail = (operation: string, message: string, cause?: unknown): OperationResult<never> => {
+  console.error(`[Supabase] ${operation}`, cause);
+  return { ok: false, error: { message, cause } };
+};
+
 // PostgREST corta TODA respuesta en 1,000 filas. No avisa: simplemente devuelve
 // menos. Con 1,289 clientes en la base, `select("*")` a secas dejaba fuera a
 // los últimos ~289 — y como no había ORDER BY, los que se caían eran justo los
@@ -173,45 +184,61 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
 
 // Siembra la base de datos compartida con los datos de ejemplo la primera
 // vez que alguien abre la app y las tablas están vacías.
-export async function sembrarDatosDeEjemplo(estado: EstadoCompleto) {
-  if (!supabase || sinAgencia("sembrarDatosDeEjemplo")) return;
-  await supabase.from("usuarios").upsert(estado.usuarios.map(usuarioToRow));
-  await supabase.from("propiedades").upsert(estado.propiedades.map(propiedadToRow));
-  await supabase.from("leads").upsert(estado.leads.map(leadToRow));
-  await supabase.from("agencias").upsert(agenciaToRow(estado.agencia));
-  await supabase
-    .from("configuracion")
-    .upsert(configuracionToRow(estado.permisoEquipoVerTodas, estado.notificaciones));
+export async function sembrarDatosDeEjemplo(estado: EstadoCompleto): Promise<OperationResult> {
+  if (!supabase) return fail("sembrarDatosDeEjemplo", "Sin conexión a la nube.");
+  if (sinAgencia("sembrarDatosDeEjemplo"))
+    return fail("sembrarDatosDeEjemplo", "Esta sesión no tiene oficina asociada.");
+  const resultados = await Promise.all([
+    supabase.from("usuarios").upsert(estado.usuarios.map(usuarioToRow)),
+    supabase.from("propiedades").upsert(estado.propiedades.map(propiedadToRow)),
+    supabase.from("leads").upsert(estado.leads.map(leadToRow)),
+    supabase.from("agencias").upsert(agenciaToRow(estado.agencia)),
+    supabase
+      .from("configuracion")
+      .upsert(configuracionToRow(estado.permisoEquipoVerTodas, estado.notificaciones)),
+  ]);
+  const error = resultados.find((resultado) => resultado.error)?.error;
+  return error
+    ? fail("sembrarDatosDeEjemplo", "No se pudieron crear los datos iniciales.", error)
+    : ok();
 }
 
-export async function upsertPropiedad(p: Propiedad) {
-  if (!supabase || sinAgencia("upsertPropiedad")) return;
+export async function upsertPropiedad(p: Propiedad): Promise<OperationResult> {
+  if (!supabase) return fail("upsertPropiedad", "Sin conexión a la nube.");
+  if (sinAgencia("upsertPropiedad")) return fail("upsertPropiedad", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("propiedades").upsert(propiedadToRow(p));
-  if (error) console.error("[Supabase] upsertPropiedad", error);
+  return error ? fail("upsertPropiedad", "No se pudo guardar la propiedad.", error) : ok();
 }
 
-export async function bulkUpsertPropiedades(lista: Propiedad[]) {
-  if (!supabase || lista.length === 0 || sinAgencia("bulkUpsertPropiedades")) return;
+export async function bulkUpsertPropiedades(lista: Propiedad[]): Promise<OperationResult> {
+  if (lista.length === 0) return ok();
+  if (!supabase) return fail("bulkUpsertPropiedades", "Sin conexión a la nube.");
+  if (sinAgencia("bulkUpsertPropiedades"))
+    return fail("bulkUpsertPropiedades", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("propiedades").upsert(lista.map(propiedadToRow));
-  if (error) console.error("[Supabase] bulkUpsertPropiedades", error);
+  return error ? fail("bulkUpsertPropiedades", "No se pudieron guardar las propiedades.", error) : ok();
 }
 
-export async function upsertLead(l: Lead) {
-  if (!supabase || sinAgencia("upsertLead")) return;
+export async function upsertLead(l: Lead): Promise<OperationResult> {
+  if (!supabase) return fail("upsertLead", "Sin conexión a la nube.");
+  if (sinAgencia("upsertLead")) return fail("upsertLead", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("leads").upsert(leadToRow(l));
-  if (error) console.error("[Supabase] upsertLead", error);
+  return error ? fail("upsertLead", "No se pudo guardar el lead.", error) : ok();
 }
 
-export async function bulkUpsertLeads(lista: Lead[]) {
-  if (!supabase || lista.length === 0 || sinAgencia("bulkUpsertLeads")) return;
+export async function bulkUpsertLeads(lista: Lead[]): Promise<OperationResult> {
+  if (lista.length === 0) return ok();
+  if (!supabase) return fail("bulkUpsertLeads", "Sin conexión a la nube.");
+  if (sinAgencia("bulkUpsertLeads")) return fail("bulkUpsertLeads", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("leads").upsert(lista.map(leadToRow));
-  if (error) console.error("[Supabase] bulkUpsertLeads", error);
+  return error ? fail("bulkUpsertLeads", "No se pudieron guardar los leads.", error) : ok();
 }
 
-export async function upsertUsuario(u: Usuario) {
-  if (!supabase || sinAgencia("upsertUsuario")) return;
+export async function upsertUsuario(u: Usuario): Promise<OperationResult> {
+  if (!supabase) return fail("upsertUsuario", "Sin conexión a la nube.");
+  if (sinAgencia("upsertUsuario")) return fail("upsertUsuario", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
-  if (error) console.error("[Supabase] upsertUsuario", error);
+  return error ? fail("upsertUsuario", "No se pudo guardar el usuario.", error) : ok();
 }
 
 /**
@@ -239,27 +266,31 @@ export async function upsertUsuarioConError(u: Usuario): Promise<string | null> 
   return error.message;
 }
 
-export async function upsertAgencia(a: AgenciaInfo) {
-  if (!supabase || sinAgencia("upsertAgencia")) return;
+export async function upsertAgencia(a: AgenciaInfo): Promise<OperationResult> {
+  if (!supabase) return fail("upsertAgencia", "Sin conexión a la nube.");
+  if (sinAgencia("upsertAgencia")) return fail("upsertAgencia", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("agencias").upsert(agenciaToRow(a));
-  if (error) console.error("[Supabase] upsertAgencia", error);
+  return error ? fail("upsertAgencia", "No se pudo guardar la agencia.", error) : ok();
 }
 
 export async function upsertConfiguracion(
   permisoEquipoVerTodas: boolean,
   notificaciones: Record<string, boolean>,
-) {
-  if (!supabase || sinAgencia("upsertConfiguracion")) return;
+): Promise<OperationResult> {
+  if (!supabase) return fail("upsertConfiguracion", "Sin conexión a la nube.");
+  if (sinAgencia("upsertConfiguracion"))
+    return fail("upsertConfiguracion", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase
     .from("configuracion")
     .upsert(configuracionToRow(permisoEquipoVerTodas, notificaciones));
-  if (error) console.error("[Supabase] upsertConfiguracion", error);
+  return error ? fail("upsertConfiguracion", "No se pudo guardar la configuración.", error) : ok();
 }
 
-export async function upsertCita(c: CitaAgenda) {
-  if (!supabase || sinAgencia("upsertCita")) return;
+export async function upsertCita(c: CitaAgenda): Promise<OperationResult> {
+  if (!supabase) return fail("upsertCita", "Sin conexión a la nube.");
+  if (sinAgencia("upsertCita")) return fail("upsertCita", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("citas").upsert(citaToRow(c));
-  if (error) console.error("[Supabase] upsertCita", error);
+  return error ? fail("upsertCita", "No se pudo guardar la cita.", error) : ok();
 }
 
 export async function confirmarCitaClienteEnNube(
@@ -279,10 +310,11 @@ export async function confirmarCitaClienteEnNube(
   return null;
 }
 
-export async function eliminarCita(id: string) {
-  if (!supabase || sinAgencia("eliminarCita")) return;
+export async function eliminarCita(id: string): Promise<OperationResult> {
+  if (!supabase) return fail("eliminarCita", "Sin conexión a la nube.");
+  if (sinAgencia("eliminarCita")) return fail("eliminarCita", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("citas").delete().eq("id", id);
-  if (error) console.error("[Supabase] eliminarCita", error);
+  return error ? fail("eliminarCita", "No se pudo eliminar la cita.", error) : ok();
 }
 
 /**

@@ -31,7 +31,6 @@ describe("ClientePortal: confirmación respaldada por backend", () => {
       <ClientePortal
         lead={leadConCita()}
         propiedad={propiedad({ id: "p-1" })}
-        onSubirDocumento={() => {}}
         onConfirmarCita={confirmar}
       />,
     );
@@ -52,7 +51,6 @@ describe("ClientePortal: confirmación respaldada por backend", () => {
         <ClientePortal
           lead={actual}
           propiedad={propiedad({ id: "p-1" })}
-          onSubirDocumento={() => {}}
           onConfirmarCita={async (leadId, citaId) => {
             const error = await confirmar(leadId, citaId);
             if (!error) {
@@ -80,4 +78,3 @@ describe("ClientePortal: confirmación respaldada por backend", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
-

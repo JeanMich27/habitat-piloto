@@ -6,8 +6,6 @@ import {
   Circle,
   Clock,
   MapPin,
-  Upload,
-  X,
 } from "lucide-react";
 import type { Lead, Propiedad } from "../types";
 import { ETAPAS_CIERRE } from "../types";
@@ -35,15 +33,11 @@ const ESTADO_DOC_ESTILO: Record<string, string> = {
 interface Props {
   lead: Lead;
   propiedad: Propiedad | undefined;
-  onSubirDocumento: (leadId: string, nombreDoc: string) => void;
   onConfirmarCita: (leadId: string, citaId: string) => Promise<string | null>;
 }
 
-export default function ClientePortal({ lead, propiedad, onSubirDocumento, onConfirmarCita }: Props) {
+export default function ClientePortal({ lead, propiedad, onConfirmarCita }: Props) {
   const [tab, setTab] = useState<Tab>("proceso");
-  const [modalSubir, setModalSubir] = useState<string | null>(null);
-  const [modalReagendar, setModalReagendar] = useState<string | null>(null);
-  const [reagendarEnviado, setReagendarEnviado] = useState(false);
   const [confirmandoCita, setConfirmandoCita] = useState(false);
   const [errorCita, setErrorCita] = useState<string | null>(null);
 
@@ -183,10 +177,11 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                     </span>
                     {(d.estado === "Pendiente" || d.estado === "Rechazado") && (
                       <button
-                        onClick={() => setModalSubir(d.nombre)}
-                        className="flex items-center gap-1 rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700"
+                        disabled
+                        title="Función todavía no disponible"
+                        className="cursor-not-allowed rounded-lg bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-500"
                       >
-                        <Upload className="size-3.5" /> Subir
+                        No disponible
                       </button>
                     )}
                   </div>
@@ -234,10 +229,11 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                       : "Confirmar asistencia"}
                 </button>
                 <button
-                  onClick={() => setModalReagendar(proximaCita.id)}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white"
+                  disabled
+                  title="Función todavía no disponible"
+                  className="cursor-not-allowed rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400"
                 >
-                  Solicitar reagendar
+                  Reagendar no disponible
                 </button>
               </div>
               {errorCita && <p role="alert" className="mt-2 text-xs text-rose-600">{errorCita}</p>}
@@ -273,87 +269,6 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
         </div>
       )}
 
-      {/* Modal: subir documento (simulado, sin storage real) */}
-      {modalSubir && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Subir {modalSubir}</h2>
-              <button
-                onClick={() => setModalSubir(null)}
-                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-8 text-slate-500">
-              <Upload className="size-6" />
-              <p className="text-xs">PDF o JPG, máx. 10MB</p>
-              <p className="text-[10px] text-slate-300">Sin almacenamiento real en el prototipo</p>
-            </div>
-            <button
-              onClick={() => {
-                onSubirDocumento(lead.id, modalSubir);
-                setModalSubir(null);
-              }}
-              className="mt-4 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
-            >
-              Simular carga
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: solicitar reagendar */}
-      {modalReagendar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-sm">
-            {reagendarEnviado ? (
-              <div className="text-center">
-                <p className="text-sm font-semibold text-emerald-700">Solicitud enviada a tu asesor ✓</p>
-                <button
-                  onClick={() => {
-                    setModalReagendar(null);
-                    setReagendarEnviado(false);
-                  }}
-                  className="mt-4 w-full rounded-lg bg-slate-800 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-                >
-                  Cerrar
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between">
-                  <h2 className="text-lg font-bold text-slate-900">Solicitar reagendar</h2>
-                  <button
-                    onClick={() => setModalReagendar(null)}
-                    className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
-                  >
-                    <X className="size-5" />
-                  </button>
-                </div>
-                <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Motivo
-                </label>
-                <textarea rows={2} className="input mt-1" placeholder="¿Por qué necesitas cambiar la cita?" />
-                <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Fecha preferida
-                </label>
-                <input type="date" className="input mt-1" />
-                <button
-                  onClick={() => setReagendarEnviado(true)}
-                  className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
-                >
-                  Enviar solicitud
-                </button>
-                <p className="mt-2 text-center text-xs text-slate-500">
-                  No reagenda automáticamente — tu asesor confirma la nueva fecha.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

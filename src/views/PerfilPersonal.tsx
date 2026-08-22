@@ -7,22 +7,27 @@ const telefonoValido = (v: string) => /^\d{10}$/.test(v.replace(/\D/g, ""));
 
 interface Props {
   usuario: Usuario;
-  onGuardar: (id: string, cambios: Partial<Usuario>) => void;
+  onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
+  onCambiarContrasena: (actual: string, nueva: string) => Promise<string | null>;
 }
 
-export default function PerfilPersonal({ usuario, onGuardar }: Props) {
+export default function PerfilPersonal({ usuario, onGuardar, onCambiarContrasena }: Props) {
   const [nombre, setNombre] = useState(usuario.nombre);
   const [correo, setCorreo] = useState(usuario.correo);
   const [telefono, setTelefono] = useState(usuario.telefono);
   const [guardado, setGuardado] = useState(false);
   const [modalPassword, setModalPassword] = useState(false);
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
 
   const hayCambios =
     nombre !== usuario.nombre || correo !== usuario.correo || telefono !== usuario.telefono;
   const valido = nombre.trim() !== "" && emailValido(correo) && telefonoValido(telefono);
 
-  const guardar = () => {
-    onGuardar(usuario.id, { nombre, correo, telefono });
+  const guardar = async () => {
+    setGuardandoPerfil(true);
+    const ok = await onGuardar(usuario.id, { nombre, correo, telefono });
+    setGuardandoPerfil(false);
+    if (!ok) return;
     setGuardado(true);
     setTimeout(() => setGuardado(false), 2500);
   };
@@ -70,11 +75,11 @@ export default function PerfilPersonal({ usuario, onGuardar }: Props) {
 
         <div className="mt-6 flex items-center gap-3">
           <button
-            disabled={!hayCambios || !valido}
+            disabled={guardandoPerfil || !hayCambios || !valido}
             onClick={guardar}
             className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
-            Guardar cambios
+            {guardandoPerfil ? "Guardando…" : "Guardar cambios"}
           </button>
           {guardado && <span className="text-xs font-medium text-emerald-600">Guardado ✓</span>}
         </div>
@@ -93,7 +98,9 @@ export default function PerfilPersonal({ usuario, onGuardar }: Props) {
         </button>
       </div>
 
-      {modalPassword && <ModalPassword onCerrar={() => setModalPassword(false)} />}
+      {modalPassword && (
+        <ModalPassword onCerrar={() => setModalPassword(false)} onCambiar={onCambiarContrasena} />
+      )}
     </div>
   );
 }
@@ -120,11 +127,19 @@ function Campo({
   );
 }
 
-function ModalPassword({ onCerrar }: { onCerrar: () => void }) {
+function ModalPassword({
+  onCerrar,
+  onCambiar,
+}: {
+  onCerrar: () => void;
+  onCambiar: (actual: string, nueva: string) => Promise<string | null>;
+}) {
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [listo, setListo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const puedeGuardar = actual !== "" && nueva.length >= 8 && nueva === confirmar;
 
@@ -191,12 +206,20 @@ function ModalPassword({ onCerrar }: { onCerrar: () => void }) {
         )}
 
         <button
-          disabled={!puedeGuardar}
-          onClick={() => setListo(true)}
+          disabled={!puedeGuardar || guardando}
+          onClick={async () => {
+            setGuardando(true);
+            setError(null);
+            const resultado = await onCambiar(actual, nueva);
+            setGuardando(false);
+            if (resultado) setError(resultado);
+            else setListo(true);
+          }}
           className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
-          Guardar nueva contraseña
+          {guardando ? "Guardando…" : "Guardar nueva contraseña"}
         </button>
+        {error && <p role="alert" className="mt-2 text-xs text-rose-600">{error}</p>}
       </div>
     </div>
   );

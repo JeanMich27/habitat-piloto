@@ -88,13 +88,13 @@ interface Props {
   citas: CitaAgenda[];
   solicitudes: SolicitudEstado[];
   onVolver: () => void;
-  onCambiarEstado: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
-  onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => void;
+  onCambiarEstado: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
+  onSolicitarCambio: (propiedadId: string, nuevoEstado: PropertyStatus, motivo?: string) => Promise<boolean>;
   onResolverSolicitud: (solicitud: SolicitudEstado, resultado: "aprobada" | "rechazada") => void;
-  onGuardarInformacion: (propiedadId: string, cambios: Partial<Propiedad>) => void;
+  onGuardarInformacion: (propiedadId: string, cambios: Partial<Propiedad>) => Promise<boolean>;
   onAgregarEvento: (propiedadId: string, descripcion: string) => void;
-  onAgregarComparable: (propiedadId: string, comparable: Omit<Comparable, "id">) => void;
-  onResolverOferta: (leadId: string, resultado: "Aceptada" | "Rechazada") => void;
+  onAgregarComparable: (propiedadId: string, comparable: Omit<Comparable, "id">) => Promise<boolean>;
+  onResolverOferta: (leadId: string, resultado: "Aceptada" | "Rechazada") => Promise<boolean>;
   /** Solo se pasa cuando el usuario es asesor: abre la calculadora de comisiones. */
   onCalcularComision?: (propiedadId: string) => void;
 }
@@ -153,24 +153,24 @@ export default function DetalleDePropiedad({
   const portada = imagenes[fotoActiva] ?? imagenes[0];
   const enlaces = propiedad.enlacesPromocion ?? [];
 
-  const guardarInfo = () => {
-    onGuardarInformacion(propiedad.id, form);
-    setEditando(false);
+  const guardarInfo = async () => {
+    if (await onGuardarInformacion(propiedad.id, form)) setEditando(false);
   };
   const cancelarInfo = () => {
     setForm(propiedad);
     setEditando(false);
   };
 
-  const agregarEnlace = () => {
+  const agregarEnlace = async () => {
     const url = nuevoEnlace.url.trim();
     if (!url) return;
     const enlace: EnlacePromocion = {
       portal: nuevoEnlace.portal.trim() || "Portal",
       url: /^https?:\/\//i.test(url) ? url : `https://${url}`,
     };
-    onGuardarInformacion(propiedad.id, { enlacesPromocion: [...enlaces, enlace] });
-    setNuevoEnlace({ portal: "", url: "" });
+    if (await onGuardarInformacion(propiedad.id, { enlacesPromocion: [...enlaces, enlace] })) {
+      setNuevoEnlace({ portal: "", url: "" });
+    }
   };
   const quitarEnlace = (index: number) => {
     onGuardarInformacion(propiedad.id, {
@@ -1028,14 +1028,14 @@ export default function DetalleDePropiedad({
             />
             <button
               disabled={!nuevoComparable.direccion || !nuevoComparable.precio || !nuevoComparable.m2}
-              onClick={() => {
-                onAgregarComparable(propiedad.id, {
+              onClick={async () => {
+                const guardado = await onAgregarComparable(propiedad.id, {
                   direccion: nuevoComparable.direccion,
                   precio: Number(nuevoComparable.precio) || 0,
                   m2: Number(nuevoComparable.m2) || 0,
                   fuente: nuevoComparable.fuente || "Captura manual",
                 });
-                setNuevoComparable({ direccion: "", precio: "", m2: "", fuente: "" });
+                if (guardado) setNuevoComparable({ direccion: "", precio: "", m2: "", fuente: "" });
               }}
               className="flex items-center gap-1 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
             >
@@ -1055,14 +1055,8 @@ export default function DetalleDePropiedad({
           rolUsuario={usuario.rol}
           solicitudPendiente={solicitudPendiente}
           onCerrar={() => setModalEstado(false)}
-          onGuardar={(nuevoEstado, motivo) => {
-            onCambiarEstado(propiedad.id, nuevoEstado, motivo);
-            setModalEstado(false);
-          }}
-          onSolicitar={(nuevoEstado, motivo) => {
-            onSolicitarCambio(propiedad.id, nuevoEstado, motivo);
-            setModalEstado(false);
-          }}
+          onGuardar={(nuevoEstado, motivo) => onCambiarEstado(propiedad.id, nuevoEstado, motivo)}
+          onSolicitar={(nuevoEstado, motivo) => onSolicitarCambio(propiedad.id, nuevoEstado, motivo)}
         />
       )}
     </div>

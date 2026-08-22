@@ -17,10 +17,10 @@ interface Props {
   usuarios: Usuario[];
   propiedades: Propiedad[];
   leads: Lead[];
-  onInvitar: (nombre: string, correo: string) => void;
-  onDesactivar: (asesorId: string, reasignarAId: string) => void;
-  onReactivar: (asesorId: string) => void;
-  onEditarPermisos: (asesorId: string, puedeVerOtras: boolean) => void;
+  onInvitar: (nombre: string, correo: string) => Promise<boolean>;
+  onDesactivar: (asesorId: string, reasignarAId: string) => Promise<boolean>;
+  onReactivar: (asesorId: string) => Promise<boolean>;
+  onEditarPermisos: (asesorId: string, puedeVerOtras: boolean) => Promise<boolean>;
   onVerDesempeno: (asesorId: string) => void;
 }
 
@@ -144,9 +144,8 @@ export default function Asesores({
                         </button>
                         {u.estadoCuenta === "Inactivo" ? (
                           <button
-                            onClick={() => {
-                              onReactivar(u.id);
-                              setMenuAbierto(null);
+                            onClick={async () => {
+                              if (await onReactivar(u.id)) setMenuAbierto(null);
                             }}
                             className="block w-full px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50"
                           >
@@ -177,9 +176,10 @@ export default function Asesores({
         <ModalInvitar
           usuarios={usuarios}
           onCerrar={() => setModalInvitar(false)}
-          onEnviar={(nombre, correo) => {
-            onInvitar(nombre, correo);
-            setModalInvitar(false);
+          onEnviar={async (nombre, correo) => {
+            const guardado = await onInvitar(nombre, correo);
+            if (guardado) setModalInvitar(false);
+            return guardado;
           }}
         />
       )}
@@ -188,9 +188,8 @@ export default function Asesores({
         <PermisosModal
           asesor={modalPermisos}
           onCerrar={() => setModalPermisos(null)}
-          onGuardar={(valor) => {
-            onEditarPermisos(modalPermisos.id, valor);
-            setModalPermisos(null);
+          onGuardar={async (valor) => {
+            if (await onEditarPermisos(modalPermisos.id, valor)) setModalPermisos(null);
           }}
         />
       )}
@@ -200,9 +199,8 @@ export default function Asesores({
           asesor={modalDesactivar}
           otrosAsesores={asesores.filter((a) => a.id !== modalDesactivar.id && a.estadoCuenta === "Activo")}
           onCerrar={() => setModalDesactivar(null)}
-          onConfirmar={(reasignarAId) => {
-            onDesactivar(modalDesactivar.id, reasignarAId);
-            setModalDesactivar(null);
+          onConfirmar={async (reasignarAId) => {
+            if (await onDesactivar(modalDesactivar.id, reasignarAId)) setModalDesactivar(null);
           }}
         />
       )}
@@ -217,10 +215,11 @@ function ModalInvitar({
 }: {
   usuarios: Usuario[];
   onCerrar: () => void;
-  onEnviar: (nombre: string, correo: string) => void;
+  onEnviar: (nombre: string, correo: string) => Promise<boolean>;
 }) {
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const yaExiste = usuarios.some((u) => u.correo.toLowerCase() === correo.toLowerCase());
   const correoInvalido = correo !== "" && !emailValido(correo);
   const puedeEnviar = nombre.trim() !== "" && emailValido(correo) && !yaExiste;
@@ -265,14 +264,18 @@ function ModalInvitar({
         </div>
 
         <button
-          disabled={!puedeEnviar}
-          onClick={() => onEnviar(nombre.trim(), correo.trim())}
+          disabled={enviando || !puedeEnviar}
+          onClick={async () => {
+            setEnviando(true);
+            await onEnviar(nombre.trim(), correo.trim());
+            setEnviando(false);
+          }}
           className="mt-6 w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
         >
-          Enviar invitación
+          {enviando ? "Creando ficha…" : "Crear ficha de asesor"}
         </button>
         <p className="mt-2 text-center text-xs text-slate-500">
-          Crea la cuenta en estado "Invitado" — sin envío real de correo en el prototipo.
+          Crea la ficha en estado "Invitado". No se enviará correo: comparte manualmente las instrucciones de registro.
         </p>
       </div>
     </div>

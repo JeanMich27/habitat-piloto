@@ -110,6 +110,7 @@ import {
   upsertUsuario,
   upsertUsuarioConError,
   type EstadoCompleto,
+  type OperationResult,
 } from "./lib/dataStore";
 
 type Vista =
@@ -185,7 +186,14 @@ export default function App() {
 }
 
 function AplicacionConfigurada() {
-  const { sesion, perfil, cargando: cargandoAuth, cerrarSesion, enRecuperacion } = useAuth();
+  const {
+    sesion,
+    perfil,
+    cargando: cargandoAuth,
+    cerrarSesion,
+    enRecuperacion,
+    cambiarContrasenaActual,
+  } = useAuth();
 
   // --- Estado de datos ---
   const snapshotLocal = isDemoMode ? cargarSnapshotLocal() : null;
@@ -245,7 +253,8 @@ function AplicacionConfigurada() {
         // Solo el broker siembra los datos de ejemplo (RLS bloquea al resto).
         if (datos && vacio && usuarioActual?.rol === "broker" && !yaSembrado.current) {
           yaSembrado.current = true;
-          await sembrarDatosDeEjemplo(snapshotDeFabrica);
+          const siembra = await sembrarDatosDeEjemplo(snapshotDeFabrica);
+          if (!siembra.ok) throw new Error(siembra.error.message);
           datos = await fetchInitialData();
         }
         if (!vivo || !datos) return;
@@ -596,6 +605,43 @@ function AplicacionConfigurada() {
   // ============================================================
   // Acciones (idénticas a antes; RLS valida cada escritura en la nube)
   // ============================================================
+  const confirmarPersistencia = async (
+    operacion: () => Promise<OperationResult>,
+    aplicar: () => void,
+  ): Promise<boolean> => {
+    if (!isCloudEnabled) {
+      aplicar();
+      return true;
+    }
+    const resultado = await operacion();
+    if (!resultado.ok) {
+      setAvisoNube(resultado.error.message);
+      return false;
+    }
+    aplicar();
+    setAvisoNube(null);
+    return true;
+  };
+
+  const confirmarPersistencias = async (
+    operaciones: Array<() => Promise<OperationResult>>,
+    aplicar: () => void,
+  ): Promise<boolean> => {
+    if (!isCloudEnabled) {
+      aplicar();
+      return true;
+    }
+    const resultados = await Promise.all(operaciones.map((operacion) => operacion()));
+    const fallo = resultados.find((resultado) => !resultado.ok);
+    if (fallo && !fallo.ok) {
+      setAvisoNube(fallo.error.message);
+      return false;
+    }
+    aplicar();
+    setAvisoNube(null);
+    return true;
+  };
+
   // Agrega un evento a la bitácora del prospecto. El historial solo crece:
   // nunca se reescribe ni se borra (la base también lo impide con un trigger).
   const conHistorial = (l: Lead, tipo: TipoInteraccion, descripcion: string): Lead => {
@@ -609,15 +655,15 @@ function AplicacionConfigurada() {
     return { ...l, historial: [...(l.historial ?? []), evento] };
   };
 
-  const guardarLead = (next: Lead[], leadId: string) => {
-    setLeads(next);
+  const guardarLead = async (next: Lead[], leadId: string) => {
     const cambiado = next.find((l) => l.id === leadId);
-    if (cambiado) upsertLead(cambiado);
+    if (!cambiado) return false;
+    return confirmarPersistencia(() => upsertLead(cambiado), () => setLeads(next));
   };
 
-  const moverLead = (leadId: string, etapa: LeadStage) => {
+  const moverLead = async (leadId: string, etapa: LeadStage): Promise<boolean> => {
     const lead = leads.find((l) => l.id === leadId);
-    if (!lead) return;
+    if (!lead) return false;
 
     // Regla dura: no se avanza a Visitado, Negociación o Cierre sin calificación.
     // Está también en la base de datos; aquí se replica para explicar el porqué
@@ -626,7 +672,7 @@ function AplicacionConfigurada() {
       setAvisoBant(
         `Antes de mover a ${lead.nombre} necesitas calificarlo. Ve a Clientes y responde las cuatro preguntas: toma menos de un minuto.`,
       );
-      return;
+      return false;
     }
 
     const next = leads.map((l) =>
@@ -638,14 +684,14 @@ function AplicacionConfigurada() {
           )
         : l,
     );
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
   // Guarda la calificación BANT y la deja registrada en el historial.
   // Se acepta parcial a propósito: media calificación guardada vale más que
   // cero, que es lo que había cuando el cuestionario exigía las cuatro
   // respuestas y el cliente colgaba a la segunda.
-  const guardarCalificacion = (leadId: string, bant: CalificacionBANT) => {
+  const guardarCalificacion = (leadId: string, bant: CalificacionBANT): Promise<boolean> => {
     const total = totalBant(bant);
     const completo = bantCompleto(bant);
     const faltan = preguntasBantFaltantes(bant);
@@ -662,7 +708,7 @@ function AplicacionConfigurada() {
           )
         : l,
     );
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
   // --- Desenlace del lead ---------------------------------------------------
@@ -670,7 +716,7 @@ function AplicacionConfigurada() {
   // fecha, y a los 4 intentos la app SUGIERE cerrar (nunca cierra sola: un
   // lead que contesta al cuarto intento es un lead ganado que un automatismo
   // habría tirado a la basura).
-  const registrarIntentoSinRespuesta = (leadId: string) => {
+  const registrarIntentoSinRespuesta = (leadId: string): Promise<boolean> => {
     const ahora = new Date().toISOString();
     const next = leads.map((l) => {
       if (l.id !== leadId) return l;
@@ -692,13 +738,13 @@ function AplicacionConfigurada() {
         })`,
       );
     });
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
   const descartarLead = (
     leadId: string,
     r: { familia: FamiliaPerdida; motivo: string; detalle?: string },
-  ) => {
+  ): Promise<boolean> => {
     const ahora = new Date().toISOString();
     const next = leads.map((l) =>
       l.id === leadId
@@ -717,10 +763,10 @@ function AplicacionConfigurada() {
           )
         : l,
     );
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
-  const reactivarLead = (leadId: string) => {
+  const reactivarLead = (leadId: string): Promise<boolean> => {
     const next = leads.map((l) =>
       l.id === leadId
         ? conHistorial(
@@ -742,24 +788,24 @@ function AplicacionConfigurada() {
           )
         : l,
     );
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
   const registrarInteraccion = (
     leadId: string,
     tipo: TipoInteraccion,
     descripcion: string,
-  ) => {
+  ): Promise<boolean> => {
     const next = leads.map((l) => {
       if (l.id !== leadId) return l;
       // El primer contacto registrado alimenta el KPI de tiempo de respuesta.
       const base = l.primerContactoEn ? l : { ...l, primerContactoEn: new Date().toISOString() };
       return conHistorial(base, tipo, descripcion);
     });
-    guardarLead(next, leadId);
+    return guardarLead(next, leadId);
   };
 
-  const toggleDocumento = (propiedadId: string, documento: DocumentName) => {
+  const toggleDocumento = async (propiedadId: string, documento: DocumentName) => {
     const next = propiedades.map((p) =>
       p.id === propiedadId
         ? {
@@ -770,9 +816,8 @@ function AplicacionConfigurada() {
           }
         : p,
     );
-    setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    if (cambiada) await confirmarPersistencia(() => upsertPropiedad(cambiada), () => setPropiedades(next));
   };
 
   // Aprobación de documentos completada: la propiedad sale al mercado.
@@ -780,11 +825,11 @@ function AplicacionConfigurada() {
     cambiarEstadoPropiedad(propiedadId, "Publicada", "Documentos validados por el broker");
   };
 
-  const registrarEvento = (
+  const registrarEvento = async (
     propiedadId: string,
     tipo: "Estado" | "Documento" | "Nota" | "Publicacion",
     descripcion: string,
-  ) => {
+  ): Promise<boolean> => {
     const next = propiedades.map((p) =>
       p.id === propiedadId
         ? {
@@ -796,16 +841,16 @@ function AplicacionConfigurada() {
           }
         : p,
     );
-    setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    if (!cambiada) return false;
+    return confirmarPersistencia(() => upsertPropiedad(cambiada), () => setPropiedades(next));
   };
 
-  const cambiarEstadoPropiedad = (
+  const cambiarEstadoPropiedad = async (
     propiedadId: string,
     nuevoEstado: PropertyStatus,
     motivo?: string,
-  ) => {
+  ): Promise<boolean> => {
     const descripcionEvento = motivo
       ? `Cambió a estado "${nuevoEstado}" — motivo: ${motivo}`
       : `Cambió a estado "${nuevoEstado}"`;
@@ -824,9 +869,9 @@ function AplicacionConfigurada() {
         ],
       };
     });
-    setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    if (!cambiada) return false;
+    return confirmarPersistencia(() => upsertPropiedad(cambiada), () => setPropiedades(next));
   };
 
   // --- Flujo de solicitudes (asesor de equipo → broker) ---------------------
@@ -836,9 +881,9 @@ function AplicacionConfigurada() {
     propiedadId: string,
     nuevoEstado: PropertyStatus,
     motivo?: string,
-  ) => {
+  ): Promise<boolean> => {
     const propiedad = propiedades.find((p) => p.id === propiedadId);
-    if (!propiedad || !usuarioActual) return;
+    if (!propiedad || !usuarioActual) return false;
     const solicitud: SolicitudEstado = {
       id: (crypto.randomUUID?.() ?? `sol-${Date.now()}`) as string,
       propiedadId,
@@ -853,18 +898,19 @@ function AplicacionConfigurada() {
       const error = await crearSolicitudEstado(solicitud);
       if (error) {
         setAvisoBant(error);
-        return;
+        return false;
       }
     }
     setSolicitudes((prev) => reemplazarEnArreglo(prev, solicitud));
     // Queda en la cronología de la propiedad desde el momento de pedirlo.
-    registrarEvento(
+    await registrarEvento(
       propiedadId,
       "Estado",
       `${usuarioActual.nombre} solicitó cambiar el estado a "${nuevoEstado}"${
         motivo ? ` — motivo: ${motivo}` : ""
       } (en revisión del broker)`,
     );
+    return true;
   };
 
   // Solo broker. Al aprobar, el cambio de estado se aplica de inmediato.
@@ -890,13 +936,13 @@ function AplicacionConfigurada() {
       }),
     );
     if (resultado === "aprobada") {
-      cambiarEstadoPropiedad(
+      await cambiarEstadoPropiedad(
         solicitud.propiedadId,
         solicitud.estadoSolicitado,
         `solicitud aprobada por ${usuarioActual?.nombre ?? "el broker"}`,
       );
     } else {
-      registrarEvento(
+      await registrarEvento(
         solicitud.propiedadId,
         "Estado",
         `Solicitud de cambio a "${solicitud.estadoSolicitado}" rechazada por ${
@@ -906,25 +952,34 @@ function AplicacionConfigurada() {
     }
   };
 
-  const guardarInformacionPropiedad = (propiedadId: string, cambios: Partial<Propiedad>) => {
+  const guardarInformacionPropiedad = async (
+    propiedadId: string,
+    cambios: Partial<Propiedad>,
+  ): Promise<boolean> => {
     const next = propiedades.map((p) => (p.id === propiedadId ? { ...p, ...cambios } : p));
-    setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    if (!cambiada) return false;
+    return confirmarPersistencia(() => upsertPropiedad(cambiada), () => setPropiedades(next));
   };
 
-  const agregarComparable = (propiedadId: string, comparable: Omit<Comparable, "id">) => {
+  const agregarComparable = async (
+    propiedadId: string,
+    comparable: Omit<Comparable, "id">,
+  ): Promise<boolean> => {
     const next = propiedades.map((p) =>
       p.id === propiedadId
         ? { ...p, comparables: [...(p.comparables ?? []), { id: `cmp-${Date.now()}`, ...comparable }] }
         : p,
     );
-    setPropiedades(next);
     const cambiada = next.find((p) => p.id === propiedadId);
-    if (cambiada) upsertPropiedad(cambiada);
+    if (!cambiada) return false;
+    return confirmarPersistencia(() => upsertPropiedad(cambiada), () => setPropiedades(next));
   };
 
-  const resolverOferta = (leadId: string, resultado: "Aceptada" | "Rechazada") => {
+  const resolverOferta = async (
+    leadId: string,
+    resultado: "Aceptada" | "Rechazada",
+  ): Promise<boolean> => {
     const next = leads.map((l) =>
       l.id === leadId
         ? {
@@ -934,9 +989,7 @@ function AplicacionConfigurada() {
           }
         : l,
     );
-    setLeads(next);
-    const cambiado = next.find((l) => l.id === leadId);
-    if (cambiado) upsertLead(cambiado);
+    return guardarLead(next, leadId);
   };
 
   const irADetalle = (propiedadId: string) => {
@@ -1006,20 +1059,22 @@ function AplicacionConfigurada() {
     setVista("salud");
   };
 
-  const crearCliente = (nuevo: Lead) => {
+  const crearCliente = async (nuevo: Lead): Promise<boolean> => {
     const conAlta = conHistorial(nuevo, "Nota", "Cliente dado de alta");
-    setLeads((prev) => [...prev, conAlta]);
-    upsertLead(conAlta);
+    return confirmarPersistencia(() => upsertLead(conAlta), () => setLeads((prev) => [...prev, conAlta]));
   };
 
   // --- Agenda ---------------------------------------------------------------
   // Toda cita queda registrada también en la bitácora del prospecto. Sin eso,
   // la agenda sería un calendario aparte y el historial del cliente seguiría
   // incompleto — que es justo el problema que se quiere resolver.
-  const guardarCita = (cita: CitaAgenda) => {
+  const guardarCita = async (cita: CitaAgenda): Promise<boolean> => {
     const existe = citas.some((c) => c.id === cita.id);
-    setCitas((prev) => reemplazarEnArreglo(prev, cita));
-    upsertCita(cita);
+    const guardada = await confirmarPersistencia(
+      () => upsertCita(cita),
+      () => setCitas((prev) => reemplazarEnArreglo(prev, cita)),
+    );
+    if (!guardada) return false;
     if (!existe && cita.leadId) {
       const cuando = new Date(cita.inicio).toLocaleString("es-MX", {
         day: "numeric",
@@ -1027,28 +1082,35 @@ function AplicacionConfigurada() {
         hour: "2-digit",
         minute: "2-digit",
       });
-      registrarInteraccion(cita.leadId, "Nota", `Cita agendada para el ${cuando}`);
+      await registrarInteraccion(cita.leadId, "Nota", `Cita agendada para el ${cuando}`);
     }
+    return true;
   };
 
-  const cambiarEstadoCita = (citaId: string, estado: EstadoCitaAgenda) => {
+  const cambiarEstadoCita = async (citaId: string, estado: EstadoCitaAgenda): Promise<boolean> => {
     const cita = citas.find((c) => c.id === citaId);
-    if (!cita) return;
+    if (!cita) return false;
     const actualizada = { ...cita, estado };
-    setCitas((prev) => reemplazarEnArreglo(prev, actualizada));
-    upsertCita(actualizada);
+    const guardada = await confirmarPersistencia(
+      () => upsertCita(actualizada),
+      () => setCitas((prev) => reemplazarEnArreglo(prev, actualizada)),
+    );
+    if (!guardada) return false;
     if (cita.leadId && (estado === "Realizada" || estado === "No asistió")) {
-      registrarInteraccion(
+      await registrarInteraccion(
         cita.leadId,
         estado === "Realizada" ? "Visita" : "Nota",
         estado === "Realizada" ? "Visita realizada" : "El cliente no asistió a la cita",
       );
     }
+    return true;
   };
 
-  const borrarCita = (citaId: string) => {
-    setCitas((prev) => prev.filter((c) => c.id !== citaId));
-    eliminarCita(citaId);
+  const borrarCita = async (citaId: string): Promise<boolean> => {
+    return confirmarPersistencia(
+      () => eliminarCita(citaId),
+      () => setCitas((prev) => prev.filter((c) => c.id !== citaId)),
+    );
   };
 
   // Abre la calculadora de comisiones con una propiedad precargada.
@@ -1058,20 +1120,27 @@ function AplicacionConfigurada() {
     setVista("comisiones");
   };
 
-  const guardarNuevaPropiedad = (nueva: Propiedad) => {
-    setPropiedades((prev) => [...prev, nueva]);
-    upsertPropiedad(nueva);
-    irADetalle(nueva.id);
+  const guardarNuevaPropiedad = async (nueva: Propiedad): Promise<boolean> => {
+    const guardada = await confirmarPersistencia(
+      () => upsertPropiedad(nueva),
+      () => setPropiedades((prev) => [...prev, nueva]),
+    );
+    if (guardada) irADetalle(nueva.id);
+    return guardada;
   };
 
-  const importarPropiedades = (nuevas: Propiedad[]) => {
-    setPropiedades((prev) => [...prev, ...nuevas]);
-    bulkUpsertPropiedades(nuevas);
+  const importarPropiedades = async (nuevas: Propiedad[]): Promise<boolean> => {
+    return confirmarPersistencia(
+      () => bulkUpsertPropiedades(nuevas),
+      () => setPropiedades((prev) => [...prev, ...nuevas]),
+    );
   };
 
-  const importarLeads = (nuevos: Lead[]) => {
-    setLeads((prev) => [...prev, ...nuevos]);
-    bulkUpsertLeads(nuevos);
+  const importarLeads = async (nuevos: Lead[]): Promise<boolean> => {
+    return confirmarPersistencia(
+      () => bulkUpsertLeads(nuevos),
+      () => setLeads((prev) => [...prev, ...nuevos]),
+    );
   };
 
   // Alta de una persona del equipo por parte del broker.
@@ -1118,7 +1187,7 @@ function AplicacionConfigurada() {
     return null;
   };
 
-  const invitarAsesor = (nombre: string, correo: string) => {
+  const invitarAsesor = async (nombre: string, correo: string): Promise<boolean> => {
     const nuevo: Usuario = {
       id: `user-${Date.now()}`,
       nombre,
@@ -1130,36 +1199,38 @@ function AplicacionConfigurada() {
       estadoCuenta: "Invitado",
       puedeVerOtrasPropiedades: permisoEquipoVerTodas,
     };
-    setUsuarios((prev) => [...prev, nuevo]);
-    upsertUsuario(nuevo);
+    return confirmarPersistencia(() => upsertUsuario(nuevo), () => setUsuarios((prev) => [...prev, nuevo]));
   };
 
-  const guardarAgencia = (nueva: AgenciaInfo) => {
-    setAgencia(nueva);
-    upsertAgencia(nueva);
+  const guardarAgencia = async (nueva: AgenciaInfo): Promise<boolean> => {
+    return confirmarPersistencia(() => upsertAgencia(nueva), () => setAgencia(nueva));
   };
-  const guardarPermisoEquipo = (valor: boolean) => {
-    setPermisoEquipoVerTodas(valor);
-    upsertConfiguracion(valor, notificaciones);
+  const guardarPermisoEquipo = async (valor: boolean): Promise<boolean> => {
+    return confirmarPersistencia(
+      () => upsertConfiguracion(valor, notificaciones),
+      () => setPermisoEquipoVerTodas(valor),
+    );
   };
-  const guardarNotificaciones = (valor: Record<string, boolean>) => {
-    setNotificaciones(valor);
-    upsertConfiguracion(permisoEquipoVerTodas, valor);
+  const guardarNotificaciones = async (valor: Record<string, boolean>): Promise<boolean> => {
+    return confirmarPersistencia(
+      () => upsertConfiguracion(permisoEquipoVerTodas, valor),
+      () => setNotificaciones(valor),
+    );
   };
 
-  const guardarPerfilPersonal = (id: string, cambios: Partial<Usuario>) => {
+  const guardarPerfilPersonal = async (id: string, cambios: Partial<Usuario>) => {
     const next = usuarios.map((u) => (u.id === id ? { ...u, ...cambios } : u));
-    setUsuarios(next);
     const cambiado = next.find((u) => u.id === id);
-    if (cambiado) upsertUsuario(cambiado);
+    if (!cambiado) return false;
+    return confirmarPersistencia(() => upsertUsuario(cambiado), () => setUsuarios(next));
   };
 
   // Aprobar/rechazar solicitudes de acceso (solo broker).
   const resolverSolicitud = (usuarioId: string, cambios: Partial<Usuario>) => {
-    guardarPerfilPersonal(usuarioId, cambios);
+    return guardarPerfilPersonal(usuarioId, cambios);
   };
 
-  const desactivarAsesor = (asesorId: string, reasignarAId: string) => {
+  const desactivarAsesor = async (asesorId: string, reasignarAId: string): Promise<boolean> => {
     const usuariosNext = usuarios.map((u) =>
       u.id === asesorId ? { ...u, estadoCuenta: "Inactivo" as const } : u,
     );
@@ -1167,53 +1238,41 @@ function AplicacionConfigurada() {
       p.asesorId === asesorId ? { ...p, asesorId: reasignarAId } : p,
     );
     const leadsNext = leads.map((l) => (l.asesorId === asesorId ? { ...l, asesorId: reasignarAId } : l));
-    setUsuarios(usuariosNext);
-    setPropiedades(propiedadesNext);
-    setLeads(leadsNext);
     const usuarioCambiado = usuariosNext.find((u) => u.id === asesorId);
-    if (usuarioCambiado) upsertUsuario(usuarioCambiado);
-    bulkUpsertPropiedades(propiedadesNext.filter((p) => p.asesorId === reasignarAId));
-    bulkUpsertLeads(leadsNext.filter((l) => l.asesorId === reasignarAId));
+    if (!usuarioCambiado) return false;
+    return confirmarPersistencias(
+      [
+        () => upsertUsuario(usuarioCambiado),
+        () => bulkUpsertPropiedades(propiedadesNext.filter((p) => p.asesorId === reasignarAId)),
+        () => bulkUpsertLeads(leadsNext.filter((l) => l.asesorId === reasignarAId)),
+      ],
+      () => {
+        setUsuarios(usuariosNext);
+        setPropiedades(propiedadesNext);
+        setLeads(leadsNext);
+      },
+    );
   };
 
-  const reactivarAsesor = (asesorId: string) => {
+  const reactivarAsesor = async (asesorId: string): Promise<boolean> => {
     const next = usuarios.map((u) => (u.id === asesorId ? { ...u, estadoCuenta: "Activo" as const } : u));
-    setUsuarios(next);
     const cambiado = next.find((u) => u.id === asesorId);
-    if (cambiado) upsertUsuario(cambiado);
+    if (!cambiado) return false;
+    return confirmarPersistencia(() => upsertUsuario(cambiado), () => setUsuarios(next));
   };
 
-  const editarPermisosAsesor = (asesorId: string, puedeVerOtras: boolean) => {
+  const editarPermisosAsesor = async (asesorId: string, puedeVerOtras: boolean): Promise<boolean> => {
     const next = usuarios.map((u) =>
       u.id === asesorId ? { ...u, puedeVerOtrasPropiedades: puedeVerOtras } : u,
     );
-    setUsuarios(next);
     const cambiado = next.find((u) => u.id === asesorId);
-    if (cambiado) upsertUsuario(cambiado);
+    if (!cambiado) return false;
+    return confirmarPersistencia(() => upsertUsuario(cambiado), () => setUsuarios(next));
   };
 
   const irAPerfil = (asesorId: string) => {
     setAsesorSeleccionadoId(asesorId);
     setVista("perfil");
-  };
-
-  const subirDocumentoCliente = (leadId: string, nombreDoc: string) => {
-    const next = leads.map((l) =>
-      l.id === leadId && l.cierre
-        ? {
-            ...l,
-            cierre: {
-              ...l.cierre,
-              documentos: l.cierre.documentos.map((d) =>
-                d.nombre === nombreDoc ? { ...d, estado: "Cargado" as const, motivoRechazo: undefined } : d,
-              ),
-            },
-          }
-        : l,
-    );
-    setLeads(next);
-    const cambiado = next.find((l) => l.id === leadId);
-    if (cambiado) upsertLead(cambiado);
   };
 
   const confirmarCitaCliente = async (leadId: string, citaId: string): Promise<string | null> => {
@@ -1530,7 +1589,17 @@ function AplicacionConfigurada() {
                 }
               />
             )}
-          {vista === "mi-perfil" && <PerfilPersonal usuario={yo} onGuardar={guardarPerfilPersonal} />}
+          {vista === "mi-perfil" && (
+            <PerfilPersonal
+              usuario={yo}
+              onGuardar={guardarPerfilPersonal}
+              onCambiarContrasena={async (actual, nueva) => {
+                if (!isCloudEnabled) return "Función todavía no disponible en modo demostración.";
+                const resultado = await cambiarContrasenaActual(actual, nueva);
+                return resultado.error ?? null;
+              }}
+            />
+          )}
           {vista === "propietario" && yo.rol === "propietario" && (
             <PropietarioPortal
               propiedadesPropietario={propiedadesDelPropietario}
@@ -1543,7 +1612,6 @@ function AplicacionConfigurada() {
               <ClientePortal
                 lead={leadCliente}
                 propiedad={propiedades.find((p) => p.id === leadCliente.interesPropiedadId)}
-                onSubirDocumento={subirDocumentoCliente}
                 onConfirmarCita={confirmarCitaCliente}
               />
             ) : (

@@ -61,8 +61,8 @@ interface Props {
   propiedades: Propiedad[];
   onNueva: (fecha?: Date) => void;
   onEditar: (cita: CitaAgenda) => void;
-  onCambiarEstado: (citaId: string, estado: EstadoCitaAgenda) => void;
-  onEliminar: (citaId: string) => void;
+  onCambiarEstado: (citaId: string, estado: EstadoCitaAgenda) => Promise<boolean>;
+  onEliminar: (citaId: string) => Promise<boolean>;
   onVerCliente: (leadId: string) => void;
   /** Token del feed ICS. null mientras carga o si no hay nube. */
   tokenAgenda: string | null;
@@ -441,13 +441,11 @@ export default function Agenda({
             setDetalle(null);
             onEditar(c);
           }}
-          onCambiarEstado={(estado) => {
-            onCambiarEstado(detalle.id, estado);
-            setDetalle({ ...detalle, estado });
+          onCambiarEstado={async (estado) => {
+            if (await onCambiarEstado(detalle.id, estado)) setDetalle({ ...detalle, estado });
           }}
-          onEliminar={() => {
-            onEliminar(detalle.id);
-            setDetalle(null);
+          onEliminar={async () => {
+            if (await onEliminar(detalle.id)) setDetalle(null);
           }}
           onVerCliente={() => {
             if (detalle.leadId) {
@@ -564,8 +562,8 @@ function DetalleCita({
   puedeEliminar: boolean;
   onCerrar: () => void;
   onEditar: () => void;
-  onCambiarEstado: (e: EstadoCitaAgenda) => void;
-  onEliminar: () => void;
+  onCambiarEstado: (e: EstadoCitaAgenda) => Promise<void>;
+  onEliminar: () => Promise<void>;
   onVerCliente: () => void;
 }) {
   const descripcion = descripcionCita(cita, lead, propiedad, asesor);

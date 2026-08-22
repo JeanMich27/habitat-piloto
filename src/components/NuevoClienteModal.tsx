@@ -15,7 +15,7 @@ interface Props {
   propiedades: Propiedad[];
   asesorId: string;
   onCancelar: () => void;
-  onGuardar: (lead: Lead) => void;
+  onGuardar: (lead: Lead) => Promise<boolean>;
 }
 
 export default function NuevoClienteModal({
@@ -31,14 +31,16 @@ export default function NuevoClienteModal({
   const [propiedadId, setPropiedadId] = useState("");
   const [origen, setOrigen] = useState<LeadOrigin>("Directo");
   const [nota, setNota] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   const valido = nombre.trim().length > 1;
 
   useDialogoAccesible(onCancelar);
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!valido) return;
-    onGuardar({
+    setGuardando(true);
+    await onGuardar({
       id: `lead-${Date.now()}`,
       nombre: nombre.trim(),
       telefono: telefono.trim(),
@@ -52,6 +54,7 @@ export default function NuevoClienteModal({
       ocupacion: ocupacion.trim() || undefined,
       historial: [],
     });
+    setGuardando(false);
   };
 
   const input =
@@ -202,10 +205,10 @@ export default function NuevoClienteModal({
           </button>
           <button
             onClick={guardar}
-            disabled={!valido}
+          disabled={guardando || !valido}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
-            Guardar cliente
+          {guardando ? "Guardando…" : "Guardar cliente"}
           </button>
         </div>
       </div>
