@@ -25,6 +25,7 @@ import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
 import DescartarLeadModal, { type ResultadoDescarte } from "../components/DescartarLeadModal";
 import NuevoClienteModal from "../components/NuevoClienteModal";
+import { evaluarBant } from "../domain/leads/qualification";
 import { etiquetaEtapa } from "../lib/metrics";
 import {
   RANGOS_RESPUESTA,
@@ -47,12 +48,9 @@ import {
   BANT_AUTORIDAD,
   BANT_NECESIDAD,
   BANT_PLAZO,
-  bantCompleto,
   catalogoPresupuesto,
-  clasificarLead,
   formatoMXN,
   motivoPerdidaEtiqueta,
-  preguntasBantFaltantes,
   puntajeBant,
   sugiereDescarte,
   totalBant,
@@ -124,7 +122,8 @@ const etiquetaDe = (catalogo: { valor: string; etiqueta: string }[], valor?: str
 
 /** Insignia de calificación reutilizada en la lista y en la ficha. */
 function Insignia({ lead }: { lead: Lead }) {
-  if (!lead.bant) {
+  const evaluacion = evaluarBant(lead.bant);
+  if (evaluacion.estado === "vacio") {
     return (
       <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
         Sin calificar
@@ -133,16 +132,16 @@ function Insignia({ lead }: { lead: Lead }) {
   }
   // Calificación a medias: se muestra el avance, NO un nivel. Llamar "Cold" a
   // quien no alcanzó a contestar sería un diagnóstico inventado.
-  if (!bantCompleto(lead.bant)) {
-    const faltan = preguntasBantFaltantes(lead.bant);
+  if (!evaluacion.calificado) {
+    const respondidas = 4 - evaluacion.faltantes.length;
     return (
       <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-        Parcial · {4 - faltan}/4
+        {evaluacion.estado === "invalido" ? "Datos inválidos" : `Parcial · ${respondidas}/4`}
       </span>
     );
   }
-  const total = totalBant(lead.bant);
-  const clase = clasificarLead(total);
+  const total = evaluacion.puntaje!;
+  const clase = evaluacion.clasificacion!;
   return (
     <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${COLOR[clase]}`}>
       {clase} · {total} pts
@@ -308,7 +307,7 @@ export default function Clientes({
           l.nombre.toLowerCase().includes(q) ||
           (l.correo ?? "").toLowerCase().includes(q) ||
           l.telefono.includes(q);
-        const clase = l.bant ? clasificarLead(totalBant(l.bant)) : "Sin calificar";
+        const clase = evaluarBant(l.bant).clasificacion ?? "Sin calificar";
         const coincideClase = filtroClase === "Todas" || clase === filtroClase;
         const coincideEtapa = filtroEtapa === "Todas" || l.etapa === filtroEtapa;
         const coincideRespuesta =
@@ -343,11 +342,11 @@ export default function Clientes({
           const fa = Date.parse(a.creado) || 0;
           const fb = Date.parse(b.creado) || 0;
           if (fb !== fa) return fb - fa;
-          return (b.bant ? totalBant(b.bant) : -1) - (a.bant ? totalBant(a.bant) : -1);
+          return (evaluarBant(b.bant).puntaje ?? -1) - (evaluarBant(a.bant).puntaje ?? -1);
         }
         // Los calificados alto primero: la cartera se lee por prioridad de cierre.
-        const pa = a.bant ? totalBant(a.bant) : -1;
-        const pb = b.bant ? totalBant(b.bant) : -1;
+        const pa = evaluarBant(a.bant).puntaje ?? -1;
+        const pb = evaluarBant(b.bant).puntaje ?? -1;
         if (pb !== pa) return pb - pa;
         return (Date.parse(b.creado) || 0) - (Date.parse(a.creado) || 0);
       });
@@ -377,9 +376,9 @@ export default function Clientes({
   const propiedadInteres = propiedades.find((p) => p.id === seleccionado?.interesPropiedadId);
   const asesor = usuarios.find((u) => u.id === seleccionado?.asesorId);
 
-  const sinCalificar = visibles.filter((l) => !l.bant).length;
+  const sinCalificar = visibles.filter((l) => !evaluarBant(l.bant).calificado).length;
   const calientes = visibles.filter(
-    (l) => l.bant && clasificarLead(totalBant(l.bant)) === "Hot",
+    (l) => evaluarBant(l.bant).clasificacion === "Hot",
   ).length;
 
   const registrar = async () => {
@@ -394,8 +393,9 @@ export default function Clientes({
   );
 
   const bant = seleccionado?.bant;
-  const total = bant ? totalBant(bant) : 0;
-  const clase = bant ? clasificarLead(total) : null;
+  const evaluacionBant = evaluarBant(bant);
+  const total = evaluacionBant.puntaje ?? (bant ? totalBant(bant) : 0);
+  const clase = evaluacionBant.clasificacion;
   const desglose = bant ? puntajeBant(bant) : null;
 
   return (

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
+import { finanzasDeLead } from "../lib/comisiones";
 import { formatFecha, formatMin, minutosRespuesta, promedio } from "../lib/metrics";
 import type { Lead, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
@@ -194,15 +195,17 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
     } else if (tab === "cierres") {
       descargarCSV(
         `reporte-cierres-${fechaArchivo}.csv`,
-        ["Lead", "Propiedad", "Asesor", "Monto oferta", "Comisión estimada (3%)", "Fecha"],
+        ["Lead", "Propiedad", "Asesor", "Valor operación", "Comisión estimada", "Fecha"],
         cierresRango.map((l) => {
           const propiedad = propiedades.find((p) => p.id === l.interesPropiedadId);
           return [
             l.nombre,
             propiedad?.titulo ?? "—",
             nombreAsesor(l.asesorId),
-            l.montoOferta ?? 0,
-            Math.round((l.montoOferta ?? 0) * 0.03),
+            finanzasDeLead(l, propiedad).valorOperacion,
+            finanzasDeLead(l, propiedad).cerrada
+              ? finanzasDeLead(l, propiedad).ingresoConfirmado
+              : "Pendiente",
             isoADiaInput(l.creado),
           ];
         }),
@@ -415,23 +418,26 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                   <th className="px-4 py-3">Propiedad</th>
                   <th className="px-4 py-3">Asesor</th>
                   <th className="px-4 py-3">Monto oferta</th>
-                  <th className="px-4 py-3">Comisión est. (3%)</th>
+                  <th className="px-4 py-3">Comisión confirmada</th>
                   <th className="px-4 py-3">Fecha</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {cierresRango.map((l) => {
                   const propiedad = propiedades.find((p) => p.id === l.interesPropiedadId);
+                  const finanzas = finanzasDeLead(l, propiedad);
                   return (
                     <tr key={l.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{l.nombre}</td>
                       <td className="px-4 py-3 text-slate-600">{propiedad?.titulo ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-600">{nombreAsesor(l.asesorId)}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {l.montoOferta ? formatoMXN(l.montoOferta) : "—"}
+                        {finanzas.valorOperacion > 0 ? formatoMXN(finanzas.valorOperacion) : "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {l.montoOferta ? formatoMXN(Math.round(l.montoOferta * 0.03)) : "—"}
+                        {finanzas.cerrada
+                          ? formatoMXN(finanzas.ingresoConfirmado)
+                          : "Pendiente"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{formatFecha(l.creado)}</td>
                     </tr>

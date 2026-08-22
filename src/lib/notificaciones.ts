@@ -9,7 +9,7 @@
 // Cada aviso responde a "¿qué pasó?" y lleva directo al registro que lo
 // originó: nunca es un mensaje sin destino.
 import type { Lead, Propiedad, SolicitudEstado, Usuario } from "../types";
-import { totalBant } from "../types";
+import { evaluarBant } from "../domain/leads/qualification";
 
 export type DestinoNotificacion = "cliente" | "propiedad";
 
@@ -115,7 +115,7 @@ export function construirNotificaciones(
 
   // --- Prospectos avanzados sin calificar ---
   misLeads.forEach((l) => {
-    if (l.bant) return;
+    if (evaluarBant(l.bant).calificado) return;
     if (!["Visitado", "Negociacion", "Cierre"].includes(l.etapa)) return;
     avisos.push({
       id: `lead-sincalificar-${l.id}`,
@@ -130,13 +130,13 @@ export function construirNotificaciones(
 
   // --- Clientes listos para cerrar ---
   misLeads.forEach((l) => {
-    if (!l.bant) return;
-    if (totalBant(l.bant) < 80) return;
+    const evaluacion = evaluarBant(l.bant);
+    if (evaluacion.puntaje === null || evaluacion.puntaje < 80 || !l.bant) return;
     if (["Cierre"].includes(l.etapa)) return;
     avisos.push({
       id: `lead-hot-${l.id}-${l.bant.calificadoEl}`,
       titulo: "Cliente listo para cerrar",
-      detalle: `${l.nombre} calificó ${totalBant(l.bant)}/100. Agenda visita.`,
+      detalle: `${l.nombre} calificó ${evaluacion.puntaje}/100. Agenda visita.`,
       fecha: l.bant.calificadoEl,
       destino: "cliente",
       refId: l.id,

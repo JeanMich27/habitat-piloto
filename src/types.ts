@@ -137,6 +137,8 @@ export interface Comparable {
 
 export interface Propiedad {
   id: string;
+  /** Versión de concurrencia; cambia en cada escritura confirmada por la base. */
+  version?: number;
   titulo: string;
   ubicacion: string;
   municipio: string;
@@ -482,6 +484,8 @@ export interface Interaccion {
 
 export interface Lead {
   id: string;
+  /** Versión de concurrencia; evita sobrescribir una ficha desactualizada. */
+  version?: number;
   nombre: string;
   telefono: string;
   // Correo del interesado: es lo que vincula su cuenta (rol "cliente") con
@@ -808,6 +812,8 @@ export type EstadoCitaAgenda =
 
 export interface CitaAgenda {
   id: string;
+  /** Versión de concurrencia; evita perder reprogramaciones o estados ajenos. */
+  version?: number;
   /** Oficina (tenant). Lo fija la capa de datos, no el formulario. */
   agenciaId?: string;
   /** Dueño de la cita. Es el filtro que separa "mis citas" de "las del equipo". */

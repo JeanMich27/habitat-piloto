@@ -25,6 +25,7 @@ import GlassModal from "../components/GlassModal";
 import KpiCard from "../components/KpiCard";
 import { ETAPAS_LEAD } from "../data/etapasLead";
 import { diasDesde, formatMin, minutosRespuesta } from "../lib/metrics";
+import { finanzasDeLead } from "../lib/comisiones";
 import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
 
@@ -82,11 +83,15 @@ export default function BrokerDashboard({
     ? tiemposRespuesta.reduce((a, b) => a + b, 0) / tiemposRespuesta.length
     : null;
 
-  const leadsComisionables = leadsPeriodo.filter(
-    (l) => (l.etapa === "Negociacion" || l.etapa === "Cierre") && l.montoOferta,
-  );
+  const leadsComisionables = leadsPeriodo
+    .filter((l) => l.etapa === "Negociacion" || l.etapa === "Cierre")
+    .map((lead) => {
+      const propiedad = propiedades.find((p) => p.id === lead.interesPropiedadId);
+      return { lead, propiedad, finanzas: finanzasDeLead(lead, propiedad) };
+    })
+    .filter(({ finanzas }) => finanzas.valorOperacion > 0);
   const comisionesProyectadas = leadsComisionables.reduce(
-    (sum, l) => sum + (l.montoOferta ?? 0) * 0.03,
+    (sum, { finanzas }) => sum + finanzas.ingresoEsperado,
     0,
   );
 
@@ -368,11 +373,11 @@ export default function BrokerDashboard({
       {detalle === "comisiones" && (
         <GlassModal
           titulo="Comisiones proyectadas"
-          subtitulo="Leads en negociación o cierre con oferta registrada (3%)"
+          subtitulo="Leads en negociación o cierre · tarifa pactada o predeterminada"
           onCerrar={() => setDetalle(null)}
         >
           <ul className="space-y-2">
-            {leadsComisionables.map((l) => (
+            {leadsComisionables.map(({ lead: l, finanzas }) => (
               <li
                 key={l.id}
                 className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-4 py-3 shadow-sm"
@@ -380,11 +385,11 @@ export default function BrokerDashboard({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">{l.nombre}</p>
                   <p className="text-xs text-slate-500">
-                    {l.etapa} · oferta {formatoMXN(l.montoOferta ?? 0)}
+                    {l.etapa} · operación {formatoMXN(finanzas.valorOperacion)}
                   </p>
                 </div>
                 <span className="shrink-0 text-sm font-bold text-emerald-700">
-                  {formatoMXN(Math.round((l.montoOferta ?? 0) * 0.03))}
+                  {formatoMXN(finanzas.ingresoEsperado)}
                 </span>
               </li>
             ))}

@@ -23,11 +23,11 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, TrendingUp } from "lucide-react";
 import type { Lead, Propiedad } from "../types";
+import { evaluarBant } from "../domain/leads/qualification";
 import {
   BANT_PLAZO,
   clasificarLead,
   formatoMXN,
-  totalBant,
 } from "../types";
 import { etiquetaEtapa } from "../lib/metrics";
 import {
@@ -35,6 +35,7 @@ import {
   PCT_VENTA_DEFAULT,
   comisionBase,
   tarifaDePropiedad,
+  valorOperacionDeLead,
 } from "../lib/comisiones";
 
 type Corte = "etapa" | "calificacion" | "plazo";
@@ -79,11 +80,11 @@ export default function ProyeccionComisiones({ leads, propiedades }: Props) {
         const prop = propiedades.find((p) => p.id === l.interesPropiedadId);
         // Valor real: la oferta que se puso sobre la mesa, o el precio de lista.
         // En renta, este valor es la renta MENSUAL.
-        const valor = l.montoOferta ?? prop?.precio ?? 0;
+        const valor = valorOperacionDeLead(l, prop);
         const tipoOperacion = prop?.tipoOperacion ?? "Venta";
         // Tarifa pactada en el CRM para esa propiedad, si existe.
         const tarifa = tarifaDePropiedad(prop);
-        const puntaje = l.bant ? totalBant(l.bant) : null;
+        const puntaje = evaluarBant(l.bant).puntaje;
         return { lead: l, valor, tipoOperacion, tarifa, puntaje };
       })
       .filter((x) => x.valor > 0);

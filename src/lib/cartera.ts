@@ -10,7 +10,7 @@
 // en móvil la etiqueta de texto es lo primero que se pierde.
 import { Flame, HelpCircle, Snowflake, Sun, type LucideIcon } from "lucide-react";
 import type { ClasificacionLead, Lead } from "../types";
-import { clasificarLead, totalBant } from "../types";
+import { evaluarBant } from "../domain/leads/qualification";
 
 /** "sin" = prospecto sin calificación BANT capturada. */
 export type NivelCartera = ClasificacionLead | "sin";
@@ -89,7 +89,7 @@ export function claseParaFiltro(nivel: NivelCartera): ClasificacionLead | "Sin c
 
 /** Nivel de un prospecto. Sin BANT capturado devuelve "sin". */
 export function nivelDeLead(lead: Lead): NivelCartera {
-  return lead.bant ? clasificarLead(totalBant(lead.bant)) : "sin";
+  return evaluarBant(lead.bant).clasificacion ?? "sin";
 }
 
 /** Conteo por nivel, en el mismo orden de NIVELES_CARTERA. */

@@ -11,12 +11,14 @@
 //     pactada en el CRM manda sobre los defaults).
 //   · Ponderada → bruta × (puntaje BANT / 100). Sin calificar aporta 0.
 import type { Lead, Propiedad } from "../types";
-import { totalBant } from "../types";
+import { evaluarBant } from "../domain/leads/qualification";
 import {
   MESES_RENTA_DEFAULT,
   PCT_VENTA_DEFAULT,
   comisionBase,
+  redondearDinero,
   tarifaDePropiedad,
+  valorOperacionDeLead,
 } from "./comisiones";
 
 export interface TotalesProyeccion {
@@ -48,7 +50,7 @@ export function totalesProyeccion(
 
   leads.forEach((l) => {
     const prop = propiedades.find((p) => p.id === l.interesPropiedadId);
-    const valor = l.montoOferta ?? prop?.precio ?? 0;
+    const valor = valorOperacionDeLead(l, prop);
     if (valor <= 0) return;
 
     const tarifa = tarifaDePropiedad(prop);
@@ -59,7 +61,7 @@ export function totalesProyeccion(
       mesesRenta: tarifa.delCrm ? tarifa.mesesRenta : mesesRenta,
     });
 
-    const puntaje = l.bant ? totalBant(l.bant) : null;
+    const puntaje = evaluarBant(l.bant).puntaje;
     prospectosConValor += 1;
     valorCartera += valor;
     brutoTotal += comision;
@@ -70,9 +72,9 @@ export function totalesProyeccion(
   });
 
   return {
-    valorCartera,
-    brutoTotal,
-    ponderadoTotal,
+    valorCartera: redondearDinero(valorCartera),
+    brutoTotal: redondearDinero(brutoTotal),
+    ponderadoTotal: redondearDinero(ponderadoTotal),
     prospectosConValor,
     calificados,
     sinCalificar: prospectosConValor - calificados,
