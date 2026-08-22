@@ -24,3 +24,16 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  database-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.115.0
+      - name: Rebuild canonical database
+        run: supabase db start
+      - name: Run pgTAP security tests
+        run: supabase test db
