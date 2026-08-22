@@ -36,7 +36,7 @@ interface Props {
   lead: Lead;
   propiedad: Propiedad | undefined;
   onSubirDocumento: (leadId: string, nombreDoc: string) => void;
-  onConfirmarCita: (leadId: string, citaId: string) => void;
+  onConfirmarCita: (leadId: string, citaId: string) => Promise<string | null>;
 }
 
 export default function ClientePortal({ lead, propiedad, onSubirDocumento, onConfirmarCita }: Props) {
@@ -44,6 +44,8 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
   const [modalSubir, setModalSubir] = useState<string | null>(null);
   const [modalReagendar, setModalReagendar] = useState<string | null>(null);
   const [reagendarEnviado, setReagendarEnviado] = useState(false);
+  const [confirmandoCita, setConfirmandoCita] = useState(false);
+  const [errorCita, setErrorCita] = useState<string | null>(null);
 
   const cierre = lead.cierre;
 
@@ -215,11 +217,21 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
               </p>
               <div className="mt-3 flex gap-2">
                 <button
-                  disabled={proximaCita.estado === "Confirmada"}
-                  onClick={() => onConfirmarCita(lead.id, proximaCita.id)}
+                  disabled={proximaCita.estado === "Confirmada" || confirmandoCita}
+                  onClick={async () => {
+                    setConfirmandoCita(true);
+                    setErrorCita(null);
+                    const error = await onConfirmarCita(lead.id, proximaCita.id);
+                    setErrorCita(error);
+                    setConfirmandoCita(false);
+                  }}
                   className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white enabled:hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                 >
-                  {proximaCita.estado === "Confirmada" ? "Confirmada ✓" : "Confirmar asistencia"}
+                  {proximaCita.estado === "Confirmada"
+                    ? "Confirmada ✓"
+                    : confirmandoCita
+                      ? "Confirmando…"
+                      : "Confirmar asistencia"}
                 </button>
                 <button
                   onClick={() => setModalReagendar(proximaCita.id)}
@@ -228,6 +240,7 @@ export default function ClientePortal({ lead, propiedad, onSubirDocumento, onCon
                   Solicitar reagendar
                 </button>
               </div>
+              {errorCita && <p role="alert" className="mt-2 text-xs text-rose-600">{errorCita}</p>}
             </div>
           ) : (
             <p className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">

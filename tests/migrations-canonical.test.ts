@@ -10,7 +10,7 @@ const sql = migrationFiles
 
 describe("migraciones Supabase canónicas", () => {
   it("usa nombres únicos y ordenables compatibles con Supabase CLI", () => {
-    expect(migrationFiles).toHaveLength(19);
+    expect(migrationFiles).toHaveLength(20);
     expect(new Set(migrationFiles.map((file) => file.slice(0, 14))).size).toBe(migrationFiles.length);
     for (const file of migrationFiles) {
       expect(file).toMatch(/^\d{14}_[a-z0-9_]+\.sql$/);
@@ -36,5 +36,11 @@ describe("migraciones Supabase canónicas", () => {
       "20260813000100_multitenant_modelo_datos.sql",
       "20260813000200_multitenant_rls.sql",
     ]);
+  });
+
+  it("incluye la remediación P0 de leads y directorio al final", () => {
+    expect(migrationFiles.at(-1)).toBe("20260822000100_p0_leads_y_directorio.sql");
+    expect(sql).toContain("cliente_confirmar_cita");
+    expect(sql).toContain("directorio_visible");
   });
 });

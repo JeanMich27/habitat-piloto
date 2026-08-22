@@ -65,6 +65,23 @@ async function leerTodo<T>(
   return filas;
 }
 
+async function leerDirectorioVisible<T>(): Promise<T[]> {
+  if (!supabase) return [];
+  const filas: T[] = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data, error } = await supabase
+      .rpc("directorio_visible")
+      .order("id", { ascending: true })
+      .range(desde, desde + PAGINA - 1);
+    if (error) throw error;
+    const lote = (data ?? []) as T[];
+    filas.push(...lote);
+    if (lote.length < PAGINA) break;
+    if (desde > 200_000) break;
+  }
+  return filas;
+}
+
 export interface EstadoCompleto {
   propiedades: Propiedad[];
   leads: Lead[];
@@ -130,7 +147,7 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes] = await Promise.all([
     leerTodo<any>("propiedades"),
     leerTodo<any>("leads", { columna: "creado", ascendente: false }),
-    leerTodo<any>("usuarios"),
+    leerDirectorioVisible<any>(),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
@@ -243,6 +260,23 @@ export async function upsertCita(c: CitaAgenda) {
   if (!supabase || sinAgencia("upsertCita")) return;
   const { error } = await supabase.from("citas").upsert(citaToRow(c));
   if (error) console.error("[Supabase] upsertCita", error);
+}
+
+export async function confirmarCitaClienteEnNube(
+  leadId: string,
+  citaId: string,
+): Promise<string | null> {
+  if (!supabase) return "Sin conexión a la nube.";
+  const { data, error } = await supabase.rpc("cliente_confirmar_cita", {
+    p_lead_id: leadId,
+    p_cita_id: citaId,
+  });
+  if (error) {
+    console.error("[Supabase] cliente_confirmar_cita", error);
+    return "No se pudo confirmar la cita. Intenta de nuevo.";
+  }
+  if (data !== true) return "La cita ya no está disponible para confirmar.";
+  return null;
 }
 
 export async function eliminarCita(id: string) {

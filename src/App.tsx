@@ -89,6 +89,7 @@ import {
   bulkUpsertLeads,
   bulkUpsertPropiedades,
   cargarSnapshotLocal,
+  confirmarCitaClienteEnNube,
   crearSolicitudEstado,
   eliminarCita,
   exportarSnapshotJSON,
@@ -1197,7 +1198,11 @@ export default function App() {
     if (cambiado) upsertLead(cambiado);
   };
 
-  const confirmarCitaCliente = (leadId: string, citaId: string) => {
+  const confirmarCitaCliente = async (leadId: string, citaId: string): Promise<string | null> => {
+    if (isCloudEnabled) {
+      const error = await confirmarCitaClienteEnNube(leadId, citaId);
+      if (error) return error;
+    }
     const next = leads.map((l) =>
       l.id === leadId && l.cierre
         ? {
@@ -1212,8 +1217,7 @@ export default function App() {
         : l,
     );
     setLeads(next);
-    const cambiado = next.find((l) => l.id === leadId);
-    if (cambiado) upsertLead(cambiado);
+    return null;
   };
 
   const salir = async () => {
