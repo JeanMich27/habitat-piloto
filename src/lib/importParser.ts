@@ -1,9 +1,8 @@
-// Parseo y mapeo de archivos CSV/Excel para el importador de datos reales
+// Parseo y mapeo de archivos CSV para el importador de datos reales.
 // (Configuración > Importar datos). Enfocado en que 10 personas puedan subir
 // su inventario/leads reales sin depender de un formato exacto de columnas:
 // detectamos el encabezado más parecido a cada campo por nombre.
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import type {
   DocumentName,
   Lead,
@@ -29,25 +28,55 @@ const normaliza = (s: string) =>
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_IMPORT_ROWS = 5_000;
+export const MAX_IMPORT_COLUMNS = 100;
+
+const MIME_CSV_PERMITIDOS = new Set([
+  "",
+  "text/csv",
+  "application/csv",
+  "text/plain",
+  // Algunos navegadores asignan este MIME a archivos .csv creados por Excel.
+  "application/vnd.ms-excel",
+]);
+
 export function parseArchivo(file: File): Promise<ResultadoParseo> {
-  const esCSV = /\.csv$/i.test(file.name) || file.type === "text/csv";
-  if (esCSV) {
-    return new Promise((resolve, reject) => {
-      Papa.parse<FilaImportada>(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) =>
-          resolve({ encabezados: res.meta.fields ?? [], filas: res.data }),
-        error: reject,
-      });
-    });
+  if (!/\.csv$/i.test(file.name) || !MIME_CSV_PERMITIDOS.has(file.type.toLowerCase())) {
+    return Promise.reject(new Error("Formato no permitido. Usa un archivo .csv."));
   }
-  return file.arrayBuffer().then((buffer) => {
-    const libro = XLSX.read(buffer, { type: "array" });
-    const hoja = libro.Sheets[libro.SheetNames[0]];
-    const filas: FilaImportada[] = XLSX.utils.sheet_to_json(hoja, { defval: "", raw: false });
-    const encabezados = filas.length > 0 ? Object.keys(filas[0]) : [];
-    return { encabezados, filas };
+
+  if (file.size > MAX_IMPORT_BYTES) {
+    return Promise.reject(new Error("El archivo supera el límite de 5 MiB."));
+  }
+
+  return new Promise((resolve, reject) => {
+    Papa.parse<FilaImportada>(file, {
+      header: true,
+      skipEmptyLines: true,
+      preview: MAX_IMPORT_ROWS + 1,
+      complete: (res) => {
+        const encabezados = res.meta.fields ?? [];
+        if (res.errors.length > 0) {
+          reject(new Error("El CSV está corrupto o tiene filas con columnas inconsistentes."));
+          return;
+        }
+        if (encabezados.length === 0) {
+          reject(new Error("El CSV no contiene encabezados."));
+          return;
+        }
+        if (encabezados.length > MAX_IMPORT_COLUMNS) {
+          reject(new Error(`El CSV supera el límite de ${MAX_IMPORT_COLUMNS} columnas.`));
+          return;
+        }
+        if (res.data.length > MAX_IMPORT_ROWS) {
+          reject(new Error(`El CSV supera el límite de ${MAX_IMPORT_ROWS.toLocaleString("es-MX")} filas.`));
+          return;
+        }
+        resolve({ encabezados, filas: res.data });
+      },
+      error: (error) => reject(new Error(`No se pudo leer el CSV: ${error.message}`)),
+    });
   });
 }
 
@@ -151,7 +180,7 @@ export function filasAPropiedades(
           id: `ev-import-${Date.now()}-${i}`,
           fecha: ahora,
           tipo: "Nota",
-          descripcion: "Propiedad creada por importación masiva (CSV/Excel).",
+          descripcion: "Propiedad creada por importación masiva (CSV).",
         },
       ],
     };
@@ -183,7 +212,7 @@ export function filasALeads(
       interesPropiedadId: "",
       asesorId,
       creado: ahora,
-      nota: val("nota") || "Importado por CSV/Excel.",
+      nota: val("nota") || "Importado por CSV.",
       montoOferta: monto ? numerico(monto) : undefined,
     };
     return nuevo;

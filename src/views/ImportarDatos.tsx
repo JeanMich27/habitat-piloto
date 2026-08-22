@@ -52,7 +52,7 @@ export default function ImportarDatos({
       setMapeo(autoMapear(h, campos));
       setNombreArchivo(file.name);
     } catch (e) {
-      setError("No se pudo leer el archivo. Verifica que sea un .csv o .xlsx válido.");
+      setError(e instanceof Error ? e.message : "No se pudo leer el archivo CSV.");
     }
   };
 
@@ -89,7 +89,7 @@ export default function ImportarDatos({
       <header>
         <h1 className="text-xl font-bold text-slate-900">Importar datos</h1>
         <p className="text-sm text-slate-500">
-          Sube un CSV o Excel con propiedades o leads reales para arrancar el piloto con información
+          Sube un CSV con propiedades o leads reales para arrancar el piloto con información
           del negocio en vez de datos de ejemplo.
         </p>
       </header>
@@ -138,12 +138,12 @@ export default function ImportarDatos({
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-6 py-10 text-center hover:bg-slate-50">
           <Upload className="size-6 text-slate-500" />
           <span className="text-sm font-semibold text-slate-700">
-            {nombreArchivo || "Selecciona un archivo .csv o .xlsx"}
+            {nombreArchivo || "Selecciona un archivo .csv"}
           </span>
           <span className="text-xs text-slate-500">Se detecta el encabezado automáticamente</span>
           <input
             type="file"
-            accept=".csv,.xlsx,.xls"
+            accept=".csv,text/csv"
             className="hidden"
             onChange={(e) => onArchivo(e.target.files?.[0])}
           />

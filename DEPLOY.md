@@ -17,7 +17,7 @@
 >   recuperación de contraseña redirigen mal.
 
 El código ya está listo (backend compartido con Supabase, importador de
-CSV/Excel, paquete descargable). Conectaste Supabase y Vercel en esta sesión,
+CSV, paquete descargable). Conectaste Supabase y Vercel en esta sesión,
 pero esta sesión de Cowork no tiene control directo sobre esas cuentas para
 crear el proyecto y desplegar por ti — son ~10 minutos de pasos manuales,
 detallados abajo. Cuando tengas la URL de Supabase y el sitio en Vercel,
