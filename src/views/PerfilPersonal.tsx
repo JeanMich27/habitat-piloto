@@ -9,15 +9,25 @@ interface Props {
   usuario: Usuario;
   onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
   onCambiarContrasena: (actual: string, nueva: string) => Promise<string | null>;
+  onCambiarCorreo?: (
+    nuevo: string,
+  ) => Promise<{ error?: string; requiereConfirmacion?: boolean }>;
 }
 
-export default function PerfilPersonal({ usuario, onGuardar, onCambiarContrasena }: Props) {
+export default function PerfilPersonal({
+  usuario,
+  onGuardar,
+  onCambiarContrasena,
+  onCambiarCorreo,
+}: Props) {
   const [nombre, setNombre] = useState(usuario.nombre);
   const [correo, setCorreo] = useState(usuario.correo);
   const [telefono, setTelefono] = useState(usuario.telefono);
   const [guardado, setGuardado] = useState(false);
   const [modalPassword, setModalPassword] = useState(false);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
+  const [correoPendiente, setCorreoPendiente] = useState(false);
 
   const hayCambios =
     nombre !== usuario.nombre || correo !== usuario.correo || telefono !== usuario.telefono;
@@ -25,9 +35,33 @@ export default function PerfilPersonal({ usuario, onGuardar, onCambiarContrasena
 
   const guardar = async () => {
     setGuardandoPerfil(true);
-    const ok = await onGuardar(usuario.id, { nombre, correo, telefono });
+    setErrorPerfil(null);
+    setCorreoPendiente(false);
+    const correoCambio = correo.trim().toLowerCase() !== usuario.correo.toLowerCase();
+    if (correoCambio) {
+      if (!onCambiarCorreo) {
+        setErrorPerfil("El cambio de correo no está disponible en esta sesión.");
+        setGuardandoPerfil(false);
+        return;
+      }
+      const resultadoCorreo = await onCambiarCorreo(correo);
+      if (resultadoCorreo.error) {
+        setErrorPerfil(resultadoCorreo.error);
+        setGuardandoPerfil(false);
+        return;
+      }
+      setCorreoPendiente(resultadoCorreo.requiereConfirmacion === true);
+    }
+
+    const cambioPerfil = nombre !== usuario.nombre || telefono !== usuario.telefono;
+    const ok = cambioPerfil
+      ? await onGuardar(usuario.id, { nombre: nombre.trim(), telefono })
+      : true;
     setGuardandoPerfil(false);
-    if (!ok) return;
+    if (!ok) {
+      setErrorPerfil("No se pudieron guardar los datos del perfil.");
+      return;
+    }
     setGuardado(true);
     setTimeout(() => setGuardado(false), 2500);
   };
@@ -83,6 +117,12 @@ export default function PerfilPersonal({ usuario, onGuardar, onCambiarContrasena
           </button>
           {guardado && <span className="text-xs font-medium text-emerald-600">Guardado ✓</span>}
         </div>
+        {correoPendiente && (
+          <p role="status" className="mt-3 text-xs text-amber-700">
+            Revisa ambos correos para confirmar el cambio. Hasta entonces seguirás entrando con {usuario.correo}.
+          </p>
+        )}
+        {errorPerfil && <p role="alert" className="mt-3 text-xs text-rose-600">{errorPerfil}</p>}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">

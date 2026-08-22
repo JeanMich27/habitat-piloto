@@ -7,7 +7,7 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
-import type { Lead, Propiedad } from "../types";
+import type { CitaAgenda, Lead, Propiedad } from "../types";
 import { ETAPAS_CIERRE } from "../types";
 
 type Tab = "proceso" | "documentos" | "citas";
@@ -33,10 +33,11 @@ const ESTADO_DOC_ESTILO: Record<string, string> = {
 interface Props {
   lead: Lead;
   propiedad: Propiedad | undefined;
+  citas: CitaAgenda[];
   onConfirmarCita: (leadId: string, citaId: string) => Promise<string | null>;
 }
 
-export default function ClientePortal({ lead, propiedad, onConfirmarCita }: Props) {
+export default function ClientePortal({ lead, propiedad, citas, onConfirmarCita }: Props) {
   const [tab, setTab] = useState<Tab>("proceso");
   const [confirmandoCita, setConfirmandoCita] = useState(false);
   const [errorCita, setErrorCita] = useState<string | null>(null);
@@ -54,10 +55,13 @@ export default function ClientePortal({ lead, propiedad, onConfirmarCita }: Prop
   const docPendienteOReclamado = cierre.documentos.find(
     (d) => d.estado === "Pendiente" || d.estado === "Rechazado",
   );
-  const proximaCita = cierre.citas
-    .filter((c) => c.estado !== "Realizada")
-    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())[0];
-  const historialCitas = cierre.citas.filter((c) => c.estado === "Realizada");
+  const citasDelLead = citas.filter((c) => c.leadId === lead.id);
+  const proximaCita = citasDelLead
+    .filter((c) => c.estado === "Agendada" || c.estado === "Confirmada")
+    .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime())[0];
+  const historialCitas = citasDelLead.filter((c) =>
+    ["Realizada", "No asistió", "Cancelada"].includes(c.estado),
+  );
 
   const queSigue = docPendienteOReclamado
     ? {
@@ -203,9 +207,9 @@ export default function ClientePortal({ lead, propiedad, onConfirmarCita }: Prop
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Próxima cita
               </p>
-              <p className="mt-1 text-base font-bold text-slate-900">{proximaCita.tipo}</p>
+              <p className="mt-1 text-base font-bold text-slate-900">{proximaCita.titulo}</p>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-                <Calendar className="size-4" /> {fmtFecha(proximaCita.fecha)} · {fmtHora(proximaCita.fecha)}
+                <Calendar className="size-4" /> {fmtFecha(proximaCita.inicio)} · {fmtHora(proximaCita.inicio)}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
                 <MapPin className="size-4" /> {proximaCita.ubicacion}
@@ -257,9 +261,9 @@ export default function ClientePortal({ lead, propiedad, onConfirmarCita }: Prop
                     key={c.id}
                     className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm"
                   >
-                    <span className="text-slate-700">{c.tipo}</span>
+                    <span className="text-slate-700">{c.titulo}</span>
                     <span className="flex items-center gap-1 text-xs text-slate-500">
-                      <Clock className="size-3.5" /> {fmtFecha(c.fecha)}
+                      <Clock className="size-3.5" /> {fmtFecha(c.inicio)}
                     </span>
                   </li>
                 ))}

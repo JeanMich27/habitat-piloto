@@ -42,11 +42,10 @@
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { resolverEasyBrokerTenant } from "../_shared/easybrokerTenant.ts";
 
 const EB_BASE = "https://api.easybroker.com/v1";
-const EB_KEY = Deno.env.get("EASYBROKER_API_KEY") ?? "";
 const DIAS_DEFAULT = Number(Deno.env.get("SYNC_DIAS_VENTANA") ?? "30");
-const AGENCIA = Deno.env.get("AGENCIA_ID") ?? "default";
 const PAGINA_DB = 1000;
 
 const sb = createClient(
@@ -55,9 +54,9 @@ const sb = createClient(
   { auth: { persistSession: false } },
 );
 
-async function eb(path: string): Promise<any> {
+async function eb(apiKey: string, path: string): Promise<any> {
   const r = await fetch(`${EB_BASE}${path}`, {
-    headers: { "X-Authorization": EB_KEY, accept: "application/json" },
+    headers: { "X-Authorization": apiKey, accept: "application/json" },
   });
   if (!r.ok) throw new Error(`EasyBroker ${path} respondió ${r.status}: ${(await r.text()).slice(0, 300)}`);
   return r.json();
@@ -101,6 +100,10 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  let contexto;
+  try { contexto = resolverEasyBrokerTenant(req); }
+  catch { return new Response(JSON.stringify({ ok: false, error: "Integración no configurada" }), { status: 503 }); }
+  const { agenciaId: AGENCIA, apiKey: EB_KEY } = contexto;
 
   const corridaEn = new Date().toISOString();
   const bitacora: any[] = [];
@@ -141,7 +144,7 @@ Deno.serve(async (req) => {
 
     const solicitudes: any[] = [];
     for (let page = 1; page <= 60; page++) {
-      const data = await eb(`/contact_requests?happened_after=${desde}&page=${page}&limit=50`);
+      const data = await eb(EB_KEY, `/contact_requests?happened_after=${desde}&page=${page}&limit=50`);
       solicitudes.push(...(data.content ?? []));
       if (!data.pagination?.next_page) break;
     }
@@ -175,7 +178,7 @@ Deno.serve(async (req) => {
       const crId = Number(cr.id);
       const tel = normTel(cr.phone);
       const ebProp = cr.property_id ?? null;
-      const base = { agencia_id: AGENCIA, proceso: "sync-leads", corrida_en: corridaEn, fuente: cr.source ?? null,
+      const base = { agencia_id: AGENCIA, proveedor_externo: "easybroker", proceso: "sync-leads", corrida_en: corridaEn, fuente: cr.source ?? null,
                      eb_contact_request_id: crId, eb_property_id: ebProp, telefono_norm: tel };
 
       try {
@@ -248,8 +251,9 @@ Deno.serve(async (req) => {
         if (!tel) motivos.push("sin teléfono");
 
         const ins = await sb.from("leads").insert({
-          id: `eb-${crId}`,
+          id: `eb-${AGENCIA}-${crId}`,
           agencia_id: AGENCIA,
+          proveedor_externo: "easybroker",
           nombre: cr.name || "Sin nombre",
           telefono: cr.phone || "",
           correo: (cr.email ?? "").toLowerCase(),

@@ -37,18 +37,15 @@ import type {
   Usuario,
 } from "./types";
 import {
-  ETAPAS_QUE_EXIGEN_BANT,
   INTENTOS_PARA_SUGERIR_DESCARTE,
-  bantCompleto,
-  clasificarLead,
   motivoPerdidaEtiqueta,
-  preguntasBantFaltantes,
   puedeCargarPropiedades,
   tieneAgenda,
   totalBant,
   esLeadEnSeguimiento,
   esLeadOperativo,
 } from "./types";
+import { evaluarBant, puedeAvanzarAEtapa } from "./domain/leads/qualification";
 import Agenda from "./views/Agenda";
 import SaludInmobiliaria from "./views/SaludInmobiliaria";
 import AsesorDashboard from "./views/AsesorDashboard";
@@ -91,6 +88,7 @@ import {
   cargarSnapshotLocal,
   confirmarCitaClienteEnNube,
   crearSolicitudEstado,
+  desactivarAsesorAtomico,
   eliminarCita,
   exportarSnapshotJSON,
   fetchInitialData,
@@ -110,6 +108,7 @@ import {
   upsertUsuario,
   upsertUsuarioConError,
   type EstadoCompleto,
+  type MetricasPropietario,
   type OperationResult,
 } from "./lib/dataStore";
 
@@ -193,6 +192,7 @@ function AplicacionConfigurada() {
     cerrarSesion,
     enRecuperacion,
     cambiarContrasenaActual,
+    cambiarCorreo,
   } = useAuth();
 
   // --- Estado de datos ---
@@ -215,6 +215,12 @@ function AplicacionConfigurada() {
   const leadsEnSeguimiento = useMemo(() => leads.filter(esLeadEnSeguimiento), [leads]);
   const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
   const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
+  const [metricasPropietario, setMetricasPropietario] = useState<Record<string, MetricasPropietario>>(
+    inicial.metricasPropietario ?? {},
+  );
+  const [errorMetricasPropietario, setErrorMetricasPropietario] = useState<string | null>(
+    inicial.errorMetricasPropietario ?? null,
+  );
   // Solicitudes de cambio de estado (pendientes + resueltas recientes).
   const [solicitudes, setSolicitudes] = useState<SolicitudEstado[]>([]);
   const [agencia, setAgencia] = useState<AgenciaInfo>(inicial.agencia);
@@ -263,6 +269,8 @@ function AplicacionConfigurada() {
         setLeads(datos.leads);
         setUsuarios(datos.usuarios);
         setCitas(datos.citas);
+        setMetricasPropietario(datos.metricasPropietario ?? {});
+        setErrorMetricasPropietario(datos.errorMetricasPropietario ?? null);
         setAgencia(datos.agencia);
         setPermisoEquipoVerTodas(datos.permisoEquipoVerTodas);
         setNotificaciones(datos.notificaciones);
@@ -317,6 +325,8 @@ function AplicacionConfigurada() {
         setLeads(datos.leads);
         setUsuarios(datos.usuarios);
         setCitas(datos.citas);
+        setMetricasPropietario(datos.metricasPropietario ?? {});
+        setErrorMetricasPropietario(datos.errorMetricasPropietario ?? null);
         fetchSolicitudes().then(setSolicitudes);
       } catch (err) {
         console.warn("[Supabase] no se pudo refrescar al volver a la pestaña", err);
@@ -623,25 +633,6 @@ function AplicacionConfigurada() {
     return true;
   };
 
-  const confirmarPersistencias = async (
-    operaciones: Array<() => Promise<OperationResult>>,
-    aplicar: () => void,
-  ): Promise<boolean> => {
-    if (!isCloudEnabled) {
-      aplicar();
-      return true;
-    }
-    const resultados = await Promise.all(operaciones.map((operacion) => operacion()));
-    const fallo = resultados.find((resultado) => !resultado.ok);
-    if (fallo && !fallo.ok) {
-      setAvisoNube(fallo.error.message);
-      return false;
-    }
-    aplicar();
-    setAvisoNube(null);
-    return true;
-  };
-
   // Agrega un evento a la bitácora del prospecto. El historial solo crece:
   // nunca se reescribe ni se borra (la base también lo impide con un trigger).
   const conHistorial = (l: Lead, tipo: TipoInteraccion, descripcion: string): Lead => {
@@ -668,7 +659,7 @@ function AplicacionConfigurada() {
     // Regla dura: no se avanza a Visitado, Negociación o Cierre sin calificación.
     // Está también en la base de datos; aquí se replica para explicar el porqué
     // en vez de mostrar un error técnico de Postgres.
-    if (ETAPAS_QUE_EXIGEN_BANT.includes(etapa) && !lead.bant) {
+    if (!puedeAvanzarAEtapa(lead.bant, etapa)) {
       setAvisoBant(
         `Antes de mover a ${lead.nombre} necesitas calificarlo. Ve a Clientes y responde las cuatro preguntas: toma menos de un minuto.`,
       );
@@ -692,9 +683,10 @@ function AplicacionConfigurada() {
   // cero, que es lo que había cuando el cuestionario exigía las cuatro
   // respuestas y el cliente colgaba a la segunda.
   const guardarCalificacion = (leadId: string, bant: CalificacionBANT): Promise<boolean> => {
-    const total = totalBant(bant);
-    const completo = bantCompleto(bant);
-    const faltan = preguntasBantFaltantes(bant);
+    const evaluacion = evaluarBant(bant);
+    const total = evaluacion.puntaje ?? totalBant(bant);
+    const completo = evaluacion.calificado;
+    const faltan = evaluacion.faltantes.length;
     const next = leads.map((l) =>
       l.id === leadId
         ? conHistorial(
@@ -703,7 +695,7 @@ function AplicacionConfigurada() {
             { ...l, bant, estado: l.estado === "Sin respuesta" ? "Activo" : l.estado },
             "Calificacion",
             completo
-              ? `Calificado en ${total}/100 puntos — nivel ${clasificarLead(total)}`
+              ? `Calificado en ${total}/100 puntos — nivel ${evaluacion.clasificacion}`
               : `Calificación parcial: ${total} pts con ${4 - faltan} de 4 respuestas`,
           )
         : l,
@@ -1238,18 +1230,20 @@ function AplicacionConfigurada() {
       p.asesorId === asesorId ? { ...p, asesorId: reasignarAId } : p,
     );
     const leadsNext = leads.map((l) => (l.asesorId === asesorId ? { ...l, asesorId: reasignarAId } : l));
+    const citasNext = citas.map((c) =>
+      c.asesorId === asesorId && (c.estado === "Agendada" || c.estado === "Confirmada")
+        ? { ...c, asesorId: reasignarAId }
+        : c,
+    );
     const usuarioCambiado = usuariosNext.find((u) => u.id === asesorId);
     if (!usuarioCambiado) return false;
-    return confirmarPersistencias(
-      [
-        () => upsertUsuario(usuarioCambiado),
-        () => bulkUpsertPropiedades(propiedadesNext.filter((p) => p.asesorId === reasignarAId)),
-        () => bulkUpsertLeads(leadsNext.filter((l) => l.asesorId === reasignarAId)),
-      ],
+    return confirmarPersistencia(
+      () => desactivarAsesorAtomico(asesorId, reasignarAId),
       () => {
         setUsuarios(usuariosNext);
         setPropiedades(propiedadesNext);
         setLeads(leadsNext);
+        setCitas(citasNext);
       },
     );
   };
@@ -1280,20 +1274,9 @@ function AplicacionConfigurada() {
       const error = await confirmarCitaClienteEnNube(leadId, citaId);
       if (error) return error;
     }
-    const next = leads.map((l) =>
-      l.id === leadId && l.cierre
-        ? {
-            ...l,
-            cierre: {
-              ...l.cierre,
-              citas: l.cierre.citas.map((c) =>
-                c.id === citaId ? { ...c, estado: "Confirmada" as const } : c,
-              ),
-            },
-          }
-        : l,
+    setCitas((prev) =>
+      prev.map((c) => c.id === citaId && c.leadId === leadId ? { ...c, estado: "Confirmada" } : c),
     );
-    setLeads(next);
     return null;
   };
 
@@ -1593,6 +1576,11 @@ function AplicacionConfigurada() {
             <PerfilPersonal
               usuario={yo}
               onGuardar={guardarPerfilPersonal}
+              onCambiarCorreo={async (nuevo) => {
+                if (!isCloudEnabled)
+                  return { error: "Función todavía no disponible en modo demostración." };
+                return cambiarCorreo(nuevo);
+              }}
               onCambiarContrasena={async (actual, nueva) => {
                 if (!isCloudEnabled) return "Función todavía no disponible en modo demostración.";
                 const resultado = await cambiarContrasenaActual(actual, nueva);
@@ -1605,6 +1593,8 @@ function AplicacionConfigurada() {
               propiedadesPropietario={propiedadesDelPropietario}
               usuarios={usuarios}
               leads={leadsOperativos}
+              metricas={metricasPropietario}
+              errorMetricas={errorMetricasPropietario}
             />
           )}
           {vista === "cliente" && yo.rol === "cliente" && (
@@ -1612,6 +1602,7 @@ function AplicacionConfigurada() {
               <ClientePortal
                 lead={leadCliente}
                 propiedad={propiedades.find((p) => p.id === leadCliente.interesPropiedadId)}
+                citas={citas}
                 onConfirmarCita={confirmarCitaCliente}
               />
             ) : (

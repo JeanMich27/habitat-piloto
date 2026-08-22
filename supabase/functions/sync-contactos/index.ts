@@ -61,10 +61,9 @@
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { resolverEasyBrokerTenant } from "../_shared/easybrokerTenant.ts";
 
 const EB_BASE = "https://api.easybroker.com/v1";
-const EB_KEY = Deno.env.get("EASYBROKER_API_KEY") ?? "";
-const AGENCIA = Deno.env.get("AGENCIA_ID") ?? "default";
 const PAGINA_DB = 1000; // tope duro de PostgREST por respuesta
 
 const sb = createClient(
@@ -73,9 +72,9 @@ const sb = createClient(
   { auth: { persistSession: false } },
 );
 
-async function eb(path: string): Promise<any> {
+async function eb(apiKey: string, path: string): Promise<any> {
   const r = await fetch(`${EB_BASE}${path}`, {
-    headers: { "X-Authorization": EB_KEY, accept: "application/json" },
+    headers: { "X-Authorization": apiKey, accept: "application/json" },
   });
   if (!r.ok) throw new Error(`EasyBroker ${path} respondió ${r.status}: ${(await r.text()).slice(0, 200)}`);
   return r.json();
@@ -125,6 +124,10 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  let contexto;
+  try { contexto = resolverEasyBrokerTenant(req); }
+  catch { return new Response(JSON.stringify({ ok: false, error: "Integración no configurada" }), { status: 503 }); }
+  const { agenciaId: AGENCIA, apiKey: EB_KEY } = contexto;
 
   const corridaEn = new Date().toISOString();
   const url = new URL(req.url);
@@ -141,7 +144,7 @@ Deno.serve(async (req) => {
     if (!EB_KEY) throw new Error("Falta el secreto EASYBROKER_API_KEY.");
 
     // --- Mapa de asesores -------------------------------------------------
-    const users = await eb("/users?limit=50");
+    const users = await eb(EB_KEY, "/users?limit=50");
     const correoPorNombre = new Map<string, string>();
     for (const u of users.content ?? []) {
       const nom = normNombre(`${u.first_name ?? ""} ${u.last_name ?? ""}`);
@@ -206,7 +209,7 @@ Deno.serve(async (req) => {
     // --- Contactos de EasyBroker ------------------------------------------
     const contactos: any[] = [];
     for (let page = 1; page <= 80; page++) {
-      const data = await eb(`/contacts?page=${page}&limit=50`);
+      const data = await eb(EB_KEY, `/contacts?page=${page}&limit=50`);
       contactos.push(...(data.content ?? []));
       if (!data.pagination?.next_page) break;
       await new Promise((res) => setTimeout(res, 120)); // límite 20 req/s
@@ -272,7 +275,7 @@ Deno.serve(async (req) => {
         // ---- Contacto nuevo --------------------------------------------
         let extra: Record<string, unknown> = {};
         if (conDetalle) {
-          const d = await eb(`/contacts/${cid}`);
+          const d = await eb(EB_KEY, `/contacts/${cid}`);
           const etiquetas = (d.tags ?? []).filter((t: unknown) => typeof t === "string");
           extra = {
             nota: [
@@ -289,8 +292,9 @@ Deno.serve(async (req) => {
         if (!asesorId) r.sin_asesor++;
 
         const fila = {
-          id: `ebc-${cid}`,
+          id: `ebc-${AGENCIA}-${cid}`,
           agencia_id: AGENCIA,
+          proveedor_externo: "easybroker",
           nombre: c.full_name || "Sin nombre",
           telefono: c.phone || "",
           correo: (c.email ?? "").toLowerCase(),

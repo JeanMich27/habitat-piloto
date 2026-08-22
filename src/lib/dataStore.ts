@@ -37,15 +37,41 @@ import type {
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
+export type DomainErrorCode =
+  | "VALIDATION_ERROR"
+  | "AUTH_ERROR"
+  | "PERMISSION_ERROR"
+  | "CONFLICT"
+  | "NOT_FOUND"
+  | "NETWORK_ERROR"
+  | "SERVER_ERROR";
+
 export type OperationResult<T = undefined> =
   | { ok: true; data: T }
-  | { ok: false; error: { message: string; cause?: unknown } };
+  | { ok: false; error: { code: DomainErrorCode; message: string; cause?: unknown } };
 
 const ok = <T = undefined>(data?: T): OperationResult<T> => ({ ok: true, data: data as T });
 
-const fail = (operation: string, message: string, cause?: unknown): OperationResult<never> => {
+export const clasificarErrorDominio = (cause?: unknown): DomainErrorCode => {
+  const code = typeof cause === "object" && cause && "code" in cause ? String(cause.code) : "";
+  const message = cause instanceof Error ? cause.message.toLowerCase() : "";
+  if (code === "42501") return "PERMISSION_ERROR";
+  if (code === "28000" || code === "PGRST301") return "AUTH_ERROR";
+  if (code === "23505" || code === "40001") return "CONFLICT";
+  if (code === "P0002" || code === "PGRST116") return "NOT_FOUND";
+  if (code.startsWith("22") || code === "23502" || code === "23503") return "VALIDATION_ERROR";
+  if (cause instanceof TypeError || message.includes("fetch") || message.includes("network")) return "NETWORK_ERROR";
+  return "SERVER_ERROR";
+};
+
+const fail = (
+  operation: string,
+  message: string,
+  cause?: unknown,
+  code = clasificarErrorDominio(cause),
+): OperationResult<never> => {
   console.error(`[Supabase] ${operation}`, cause);
-  return { ok: false, error: { message, cause } };
+  return { ok: false, error: { code, message, cause } };
 };
 
 // PostgREST corta TODA respuesta en 1,000 filas. No avisa: simplemente devuelve
@@ -101,6 +127,15 @@ export interface EstadoCompleto {
   agencia: AgenciaInfo;
   permisoEquipoVerTodas: boolean;
   notificaciones: Record<string, boolean>;
+  metricasPropietario?: Record<string, MetricasPropietario>;
+  errorMetricasPropietario?: string | null;
+}
+
+export interface MetricasPropietario {
+  leads: number;
+  visitas: number;
+  ofertas: number;
+  actividad: number;
 }
 
 // --- Modo local (localStorage) ---
@@ -155,7 +190,7 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   // crecen con el negocio y las únicas que pueden pasar de 1,000 filas.
   // Los leads llegan del más nuevo al más viejo para que la app no dependa del
   // orden físico de la tabla al decidir qué mostrar primero.
-  const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes] = await Promise.all([
+  const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
     leerTodo<any>("propiedades"),
     leerTodo<any>("leads", { columna: "creado", ascendente: false }),
     leerDirectorioVisible<any>(),
@@ -164,6 +199,8 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
     supabase.from("configuracion").select("*").limit(1).maybeSingle(),
     supabase.from("citas").select("*").gte("inicio", desde.toISOString()).order("inicio"),
+    supabase.rpc("mis_citas_cliente"),
+    supabase.rpc("metricas_propietario"),
   ]);
   for (const r of [aRes, cRes]) {
     if (r.error) throw r.error;
@@ -171,14 +208,30 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   // La agenda no rompe la carga: si la migracion 07 aun no corre en esta
   // instancia, la app entra igual y simplemente no muestra citas.
   if (ciRes.error) console.warn("[Supabase] citas no disponibles todavia", ciRes.error.message);
+  if (ccRes.error) console.warn("[Supabase] citas de cliente no disponibles todavia", ccRes.error.message);
+  const citasPorId = new Map<string, any>();
+  for (const fila of [...(ciRes.data ?? []), ...(ccRes.data ?? [])]) citasPorId.set(fila.id, fila);
+  const metricasPropietario = Object.fromEntries(
+    (mpRes.data ?? []).map((fila: any) => [
+      fila.propiedad_id,
+      {
+        leads: Number(fila.leads),
+        visitas: Number(fila.visitas),
+        ofertas: Number(fila.ofertas),
+        actividad: Number(fila.actividad),
+      },
+    ]),
+  );
   return {
     propiedades: propiedadesFilas.map(rowToPropiedad),
     leads: leadsFilas.map(rowToLead),
     usuarios: usuariosFilas.map(rowToUsuario),
-    citas: (ciRes.data ?? []).map(rowToCita),
+    citas: [...citasPorId.values()].map(rowToCita),
     agencia: aRes.data ? rowToAgencia(aRes.data) : { nombre: "", direccion: "" },
     permisoEquipoVerTodas: cRes.data ? rowToConfiguracion(cRes.data).permisoEquipoVerTodas : false,
     notificaciones: cRes.data ? rowToConfiguracion(cRes.data).notificaciones : {},
+    metricasPropietario,
+    errorMetricasPropietario: mpRes.error ? "No se pudieron cargar las métricas reales." : null,
   };
 }
 
@@ -206,8 +259,14 @@ export async function sembrarDatosDeEjemplo(estado: EstadoCompleto): Promise<Ope
 export async function upsertPropiedad(p: Propiedad): Promise<OperationResult> {
   if (!supabase) return fail("upsertPropiedad", "Sin conexión a la nube.");
   if (sinAgencia("upsertPropiedad")) return fail("upsertPropiedad", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("propiedades").upsert(propiedadToRow(p));
-  return error ? fail("upsertPropiedad", "No se pudo guardar la propiedad.", error) : ok();
+  const query = p.version == null
+    ? supabase.from("propiedades").upsert(propiedadToRow(p)).select("version").maybeSingle()
+    : supabase.from("propiedades").update(propiedadToRow(p)).eq("id", p.id).eq("version", p.version).select("version").maybeSingle();
+  const { data, error } = await query;
+  if (error) return fail("upsertPropiedad", "No se pudo guardar la propiedad.", error);
+  if (!data) return fail("upsertPropiedad", "La propiedad cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
+  p.version = Number(data.version);
+  return ok();
 }
 
 export async function bulkUpsertPropiedades(lista: Propiedad[]): Promise<OperationResult> {
@@ -222,8 +281,57 @@ export async function bulkUpsertPropiedades(lista: Propiedad[]): Promise<Operati
 export async function upsertLead(l: Lead): Promise<OperationResult> {
   if (!supabase) return fail("upsertLead", "Sin conexión a la nube.");
   if (sinAgencia("upsertLead")) return fail("upsertLead", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("leads").upsert(leadToRow(l));
-  return error ? fail("upsertLead", "No se pudo guardar el lead.", error) : ok();
+  const query = l.version == null
+    ? supabase.from("leads").upsert(leadToRow(l)).select("version").maybeSingle()
+    : supabase.from("leads").update(leadToRow(l)).eq("id", l.id).eq("version", l.version).select("version").maybeSingle();
+  const { data, error } = await query;
+  if (error) return fail("upsertLead", "No se pudo guardar el lead.", error);
+  if (!data) return fail("upsertLead", "El lead cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
+  l.version = Number(data.version);
+  return ok();
+}
+
+export interface CrearLeadInput {
+  name: string;
+  phone?: string;
+  email?: string;
+  source: string;
+  origin: Lead["origen"];
+  property_id?: string;
+  message?: string;
+  assigned_agent_id?: string;
+  occupation?: string;
+}
+
+/**
+ * Punto único de alta de leads en nube. La RPC resuelve identidad, tenant,
+ * permisos, asignación y eventos dentro de una sola transacción.
+ */
+export async function crearOEnlazarLead(
+  input: CrearLeadInput,
+): Promise<OperationResult<{ lead: Lead; created: boolean }>> {
+  if (!supabase) return fail("crearOEnlazarLead", "Sin conexión a la nube.");
+  if (sinAgencia("crearOEnlazarLead"))
+    return fail("crearOEnlazarLead", "Esta sesión no tiene oficina asociada.");
+
+  const { data, error } = await supabase.rpc("crear_o_relacionar_lead", {
+    p_input: input,
+  });
+  if (error) return fail("crearOEnlazarLead", "No se pudo crear el lead.", error);
+
+  const resultado = data as { lead_id?: string; created?: boolean } | null;
+  if (!resultado?.lead_id)
+    return fail("crearOEnlazarLead", "La base no confirmó el lead creado.");
+
+  const { data: fila, error: lecturaError } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", resultado.lead_id)
+    .single();
+  if (lecturaError || !fila)
+    return fail("crearOEnlazarLead", "El lead se creó, pero no pudo recuperarse.", lecturaError);
+
+  return ok({ lead: rowToLead(fila), created: resultado.created === true });
 }
 
 export async function bulkUpsertLeads(lista: Lead[]): Promise<OperationResult> {
@@ -239,6 +347,20 @@ export async function upsertUsuario(u: Usuario): Promise<OperationResult> {
   if (sinAgencia("upsertUsuario")) return fail("upsertUsuario", "Esta sesión no tiene oficina asociada.");
   const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
   return error ? fail("upsertUsuario", "No se pudo guardar el usuario.", error) : ok();
+}
+
+export async function desactivarAsesorAtomico(
+  asesorId: string,
+  reasignarAId: string,
+): Promise<OperationResult> {
+  if (!supabase) return fail("desactivarAsesorAtomico", "Sin conexión a la nube.");
+  const { error } = await supabase.rpc("desactivar_asesor_y_reasignar", {
+    p_asesor_id: asesorId,
+    p_reasignar_a_id: reasignarAId,
+  });
+  return error
+    ? fail("desactivarAsesorAtomico", "No se pudo desactivar y reasignar al asesor.", error)
+    : ok();
 }
 
 /**
@@ -289,8 +411,14 @@ export async function upsertConfiguracion(
 export async function upsertCita(c: CitaAgenda): Promise<OperationResult> {
   if (!supabase) return fail("upsertCita", "Sin conexión a la nube.");
   if (sinAgencia("upsertCita")) return fail("upsertCita", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("citas").upsert(citaToRow(c));
-  return error ? fail("upsertCita", "No se pudo guardar la cita.", error) : ok();
+  const query = c.version == null
+    ? supabase.from("citas").upsert(citaToRow(c)).select("version").maybeSingle()
+    : supabase.from("citas").update(citaToRow(c)).eq("id", c.id).eq("version", c.version).select("version").maybeSingle();
+  const { data, error } = await query;
+  if (error) return fail("upsertCita", "No se pudo guardar la cita.", error);
+  if (!data) return fail("upsertCita", "La cita cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
+  c.version = Number(data.version);
+  return ok();
 }
 
 export async function confirmarCitaClienteEnNube(

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import KpiCard from "../components/KpiCard";
 import StatusBadge from "../components/StatusBadge";
+import type { MetricasPropietario } from "../lib/dataStore";
 import type { Lead, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
 
@@ -43,9 +44,17 @@ interface Props {
   propiedadesPropietario: Propiedad[];
   usuarios: Usuario[];
   leads: Lead[];
+  metricas?: Record<string, MetricasPropietario>;
+  errorMetricas?: string | null;
 }
 
-export default function PropietarioPortal({ propiedadesPropietario, usuarios, leads }: Props) {
+export default function PropietarioPortal({
+  propiedadesPropietario,
+  usuarios,
+  leads,
+  metricas,
+  errorMetricas,
+}: Props) {
   const ahora = useMemo(() => Date.now(), []);
   const [propiedadId, setPropiedadId] = useState(propiedadesPropietario[0]?.id);
   const [tab, setTab] = useState<Tab>("resumen");
@@ -63,12 +72,16 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
 
   const asesor = usuarios.find((u) => u.id === propiedad.asesorId);
   const leadsPropiedad = leads.filter((l) => l.interesPropiedadId === propiedad.id);
-  const visitas = leadsPropiedad.filter((l) =>
+  const visitasLocales = leadsPropiedad.filter((l) =>
     (["Visitado", "Negociacion", "Cierre"] as const).includes(
       l.etapa as "Visitado" | "Negociacion" | "Cierre",
     ),
   ).length;
-  const ofertas = leadsPropiedad.filter((l) => l.montoOferta !== undefined).length;
+  const ofertasLocales = leadsPropiedad.filter((l) => l.montoOferta !== undefined).length;
+  const metrica = metricas?.[propiedad.id];
+  const totalLeads = metrica?.leads ?? leadsPropiedad.length;
+  const visitas = metrica?.visitas ?? visitasLocales;
+  const ofertas = metrica?.ofertas ?? ofertasLocales;
   const dias = propiedad.publicadaEl ? diasDesde(propiedad.publicadaEl, ahora) : null;
   const eventos = [...(propiedad.eventos ?? [])].sort(
     (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
@@ -147,8 +160,14 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
       {/* Resumen */}
       {tab === "resumen" && (
         <div className="space-y-5">
+          {errorMetricas && (
+            <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {errorMetricas} No se mostrarán ceros hasta recuperar la información.
+            </p>
+          )}
+          {!errorMetricas && (
           <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <KpiCard label="Leads recibidos" value={String(leadsPropiedad.length)} icon={Users} accent="text-blue-500" />
+            <KpiCard label="Leads recibidos" value={String(totalLeads)} icon={Users} accent="text-blue-500" />
             <KpiCard label="Visitas realizadas" value={String(visitas)} icon={TrendingUp} accent="text-amber-500" />
             <KpiCard label="Ofertas recibidas" value={String(ofertas)} icon={Target} accent="text-emerald-600" />
             <KpiCard
@@ -158,6 +177,7 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               accent="text-slate-500"
             />
           </section>
+          )}
 
           {/* Dónde se anuncia: acceso directo desde el resumen. */}
           <section className="glass p-5">
@@ -218,32 +238,6 @@ export default function PropietarioPortal({ propiedadesPropietario, usuarios, le
               >
                 Ver cronología completa
               </button>
-            )}
-          </section>
-
-          <section className="glass p-5">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Comentarios de prospectos
-            </h2>
-            {leadsPropiedad.filter((l) => l.nota?.trim()).length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-500">
-                Aún no hay comentarios de prospectos.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {[...leadsPropiedad]
-                  .filter((l) => l.nota?.trim())
-                  .sort((a, b) => new Date(b.creado).getTime() - new Date(a.creado).getTime())
-                  .slice(0, 4)
-                  .map((l) => (
-                    <li key={l.id} className="text-sm">
-                      <p className="italic text-slate-600">“{l.nota}”</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {l.nombre} · {new Date(l.creado).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
-                      </p>
-                    </li>
-                  ))}
-              </ul>
             )}
           </section>
 

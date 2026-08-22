@@ -76,6 +76,7 @@ export function propiedadToRow(p: Propiedad) {
 export function rowToPropiedad(r: any): Propiedad {
   return {
     id: r.id,
+    version: r.version != null ? Number(r.version) : undefined,
     titulo: r.titulo,
     ubicacion: r.ubicacion,
     municipio: r.municipio,
@@ -180,6 +181,7 @@ export function leadToRow(l: Lead) {
 export function rowToLead(r: any): Lead {
   return {
     id: r.id,
+    version: r.version != null ? Number(r.version) : undefined,
     nombre: r.nombre,
     telefono: r.telefono,
     correo: r.correo ?? "",
@@ -322,6 +324,7 @@ export function citaToRow(c: CitaAgenda) {
 export function rowToCita(r: any): CitaAgenda {
   return {
     id: r.id,
+    version: r.version != null ? Number(r.version) : undefined,
     agenciaId: r.agencia_id ?? undefined,
     asesorId: r.asesor_id,
     leadId: r.lead_id ?? undefined,

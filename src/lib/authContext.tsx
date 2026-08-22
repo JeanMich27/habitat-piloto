@@ -44,6 +44,7 @@ interface AuthContextValue {
   enviarRecuperacion: (correo: string) => Promise<{ error?: string }>;
   actualizarContrasena: (nueva: string) => Promise<{ error?: string }>;
   cambiarContrasenaActual: (actual: string, nueva: string) => Promise<{ error?: string }>;
+  cambiarCorreo: (nuevo: string) => Promise<{ error?: string; requiereConfirmacion?: boolean }>;
   recargarPerfil: () => Promise<void>;
 }
 
@@ -62,12 +63,13 @@ export interface DatosOficinaNueva {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Mensajes de error de Supabase traducidos a algo entendible.
-function traducirError(mensaje?: string): string {
+export function traducirError(mensaje?: string): string {
   if (!mensaje) return "Ocurrió un error. Intenta de nuevo.";
   const m = mensaje.toLowerCase();
   if (m.includes("invalid login credentials")) return "Correo o contraseña incorrectos.";
   if (m.includes("email not confirmed")) return "Confirma tu correo antes de entrar (revisa tu bandeja).";
-  if (m.includes("already registered")) return "Ya existe una cuenta con ese correo. Inicia sesión.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "Ya existe una cuenta con ese correo. Inicia sesión.";
   if (m.includes("password should be at least")) return "La contraseña debe tener al menos 6 caracteres.";
   if (m.includes("rate limit")) return "Demasiados intentos. Espera un minuto e intenta de nuevo.";
   // Errores que lanza el trigger de alta multi-tenant.
@@ -196,13 +198,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const actualizarContrasena: AuthContextValue["actualizarContrasena"] = async (nueva) => {
     if (!supabase) return { error: "Sin conexión a la nube." };
+    if (nueva.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres." };
     const { error } = await supabase.auth.updateUser({ password: nueva });
     if (!error) setEnRecuperacion(false);
     return error ? { error: traducirError(error.message) } : {};
   };
 
   const cambiarContrasenaActual: AuthContextValue["cambiarContrasenaActual"] = async (actual, nueva) => {
-    if (!supabase || !sesion?.user.email) return { error: "Sin conexión a la nube." };
+    if (!supabase) return { error: "Sin conexión a la nube." };
+    if (!sesion?.user.email) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+    if (!actual) return { error: "Escribe tu contraseña actual." };
+    if (nueva.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres." };
     const { error: reauthError } = await supabase.auth.signInWithPassword({
       email: sesion.user.email,
       password: actual,
@@ -210,6 +216,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (reauthError) return { error: "La contraseña actual no es correcta." };
     const { error } = await supabase.auth.updateUser({ password: nueva });
     return error ? { error: traducirError(error.message) } : {};
+  };
+
+  const cambiarCorreo: AuthContextValue["cambiarCorreo"] = async (nuevo) => {
+    if (!supabase) return { error: "Sin conexión a la nube." };
+    if (!sesion?.user) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+    const normalizado = nuevo.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado))
+      return { error: "Escribe un correo válido." };
+    if (normalizado === sesion.user.email?.toLowerCase()) return {};
+
+    const { data, error } = await supabase.auth.updateUser(
+      { email: normalizado },
+      { emailRedirectTo: window.location.origin },
+    );
+    if (error) return { error: traducirError(error.message) };
+    return { requiereConfirmacion: data.user.email?.toLowerCase() !== normalizado };
   };
 
   const recargarPerfil = useCallback(async () => {
@@ -229,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         enviarRecuperacion,
         actualizarContrasena,
         cambiarContrasenaActual,
+        cambiarCorreo,
         recargarPerfil,
       }}
     >

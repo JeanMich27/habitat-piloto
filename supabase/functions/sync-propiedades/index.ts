@@ -23,22 +23,18 @@
 // ============================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { resolverEasyBrokerTenant } from "../_shared/easybrokerTenant.ts";
 
 const EB_BASE = "https://api.easybroker.com/v1";
-const EB_KEY = Deno.env.get("EASYBROKER_API_KEY") ?? "";
-// Los procesos automáticos corren con service_role: no pasan por RLS y por eso
-// no heredan la oficina del usuario. Hay que mandarla explícita.
-const AGENCIA = Deno.env.get("AGENCIA_ID") ?? "default";
-
 const sb = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { auth: { persistSession: false } },
 );
 
-async function eb(path: string): Promise<any> {
+async function eb(apiKey: string, path: string): Promise<any> {
   const r = await fetch(`${EB_BASE}${path}`, {
-    headers: { "X-Authorization": EB_KEY, accept: "application/json" },
+    headers: { "X-Authorization": apiKey, accept: "application/json" },
   });
   if (!r.ok) throw new Error(`EasyBroker ${path} respondió ${r.status}: ${(await r.text()).slice(0, 300)}`);
   return r.json();
@@ -110,25 +106,26 @@ function normalizarAmenidades(p: any): string[] {
 
 // Resuelve el asesor: primero por vínculo directo, luego por correo
 // (así se conecta con quienes ya están registrados), y si no existe lo crea.
-const cacheAsesor = new Map<number, string | null>();
-async function resolverAsesor(agent: any): Promise<string | null> {
+const cacheAsesor = new Map<string, string | null>();
+async function resolverAsesor(agenciaId: string, agent: any): Promise<string | null> {
   if (!agent?.id) return null;
-  if (cacheAsesor.has(agent.id)) return cacheAsesor.get(agent.id)!;
+  const cacheKey = `${agenciaId}:${agent.id}`;
+  if (cacheAsesor.has(cacheKey)) return cacheAsesor.get(cacheKey)!;
 
-  const porVinculo = await sb.from("usuarios").select("id").eq("eb_agent_id", agent.id).maybeSingle();
-  if (porVinculo.data?.id) { cacheAsesor.set(agent.id, porVinculo.data.id); return porVinculo.data.id; }
+  const porVinculo = await sb.from("usuarios").select("id").eq("agencia_id", agenciaId).eq("eb_agent_id", agent.id).maybeSingle();
+  if (porVinculo.data?.id) { cacheAsesor.set(cacheKey, porVinculo.data.id); return porVinculo.data.id; }
 
   const correo = (agent.email ?? "").toLowerCase().trim();
   if (correo) {
-    const porCorreo = await sb.from("usuarios").select("id").eq("correo", correo).maybeSingle();
+    const porCorreo = await sb.from("usuarios").select("id").eq("agencia_id", agenciaId).eq("correo", correo).maybeSingle();
     if (porCorreo.data?.id) {
       await sb.from("usuarios").update({ eb_agent_id: agent.id }).eq("id", porCorreo.data.id);
-      cacheAsesor.set(agent.id, porCorreo.data.id);
+      cacheAsesor.set(cacheKey, porCorreo.data.id);
       return porCorreo.data.id;
     }
   }
 
-  const id = `eb-agent-${agent.id}`;
+  const id = `eb-agent-${agenciaId}-${agent.id}`;
   const ins = await sb.from("usuarios").upsert({
     id,
     nombre: agent.full_name ?? agent.name ?? "Asesor sin nombre",
@@ -140,11 +137,11 @@ async function resolverAsesor(agent: any): Promise<string | null> {
     estado_cuenta: "Invitado",
     puede_ver_otras_propiedades: false,
     eb_agent_id: agent.id,
-    agencia_id: AGENCIA,
+    agencia_id: agenciaId,
   }, { onConflict: "id" }).select("id").maybeSingle();
 
   const resuelto = ins.data?.id ?? null;
-  cacheAsesor.set(agent.id, resuelto);
+  cacheAsesor.set(cacheKey, resuelto);
   return resuelto;
 }
 
@@ -172,6 +169,10 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  let contexto;
+  try { contexto = resolverEasyBrokerTenant(req); }
+  catch { return new Response(JSON.stringify({ ok: false, error: "Integración no configurada" }), { status: 503 }); }
+  const { agenciaId: AGENCIA, apiKey: EB_KEY } = contexto;
 
   const inicio = Date.now();
   const resumen = {
@@ -190,7 +191,7 @@ Deno.serve(async (req) => {
     // 1) Lista de IDs públicos (paginada)
     const ids: string[] = [];
     for (let page = 1; page <= 40; page++) {
-      const data = await eb(`/properties?page=${page}&limit=50`);
+      const data = await eb(EB_KEY, `/properties?page=${page}&limit=50`);
       for (const p of data.content ?? []) if (p.public_id) ids.push(p.public_id);
       if (!data.pagination?.next_page) break;
     }
@@ -198,11 +199,11 @@ Deno.serve(async (req) => {
     // 2) Detalle de cada una (el detalle trae el asesor con correo; la lista no)
     await enLotes(ids, 5, async (publicId) => {
       try {
-        const p = await eb(`/properties/${publicId}`);
+        const p = await eb(EB_KEY, `/properties/${publicId}`);
         resumen.revisadas++;
         if (p.property_type) resumen.tipos_encontrados.add(p.property_type);
 
-        const asesorId = await resolverAsesor(p.agent);
+        const asesorId = await resolverAsesor(AGENCIA, p.agent);
         if (asesorId) resumen.asesores_vinculados.add(asesorId);
         else resumen.sin_asesor.push(publicId);
 
@@ -259,7 +260,7 @@ Deno.serve(async (req) => {
           publicada_el: p.published_at ?? null,
         };
 
-        const existente = await sb.from("propiedades").select("id").eq("eb_public_id", publicId).maybeSingle();
+        const existente = await sb.from("propiedades").select("id").eq("agencia_id", AGENCIA).eq("eb_public_id", publicId).maybeSingle();
 
         if (existente.data?.id) {
           // Respeta lo capturado a mano: no toca propietario, documentos,
@@ -269,7 +270,7 @@ Deno.serve(async (req) => {
           resumen.actualizadas++;
         } else {
           const ins = await sb.from("propiedades").insert({
-            id: `eb-${publicId.toLowerCase()}`,
+            id: `eb-${AGENCIA}-${publicId.toLowerCase()}`,
             ...camposEB,
             // Estados comerciales (migración 08). Lo que EasyBroker publica
             // entra como "Publicada"; el broker la mueve desde la app.
