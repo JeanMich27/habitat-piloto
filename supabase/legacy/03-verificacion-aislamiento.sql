@@ -1,3 +1,6 @@
+-- LEGACY — NO USAR PARA PRODUCCIÓN NI COMO MIGRACIÓN.
+-- Prueba manual transaccional; termina en ROLLBACK. Ver supabase/legacy/README.md.
+
 -- =============================================================================
 -- VERIFICACIÓN 03 — Prueba de aislamiento entre oficinas
 -- Ejecutar DESPUÉS de 01 y 02.

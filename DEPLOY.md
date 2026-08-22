@@ -1,10 +1,11 @@
 # Poner el piloto en línea para los 10 testers
 
-> **Actualización (julio 2026): la app ahora tiene cuentas y seguridad por rol.**
+> **Importante:** este documento ya no autoriza ejecutar `schema.sql` ni SQL
+> suelto. La única fuente de verdad está en `supabase/migrations/`; consulta
+> `supabase/README.md` antes de crear o reconciliar una base.
 >
-> - La migración `supabase/migracion-auth-rls.sql` **ya está aplicada** al proyecto
->   `habitat-piloto` de Supabase (Auth + RLS por rol). Si algún día creas un
->   proyecto nuevo, corre `schema.sql` y después `migracion-auth-rls.sql`.
+> - Una instancia nueva se construye con Supabase CLI y `supabase db reset`.
+> - Producción requiere reconciliar esquema e historial antes de `db push`.
 > - Cada persona crea su cuenta desde la pantalla de registro; queda **Pendiente**
 >   hasta que el broker la apruebe en **Solicitudes**. Los invitados desde la
 >   pantalla Asesores entran ya activos al registrarse con el mismo correo.
@@ -25,8 +26,8 @@ pégamelos y valido que todo quede conectado.
 ## 1. Crear el backend (Supabase) — 3 min
 
 1. Entra a [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**.
-2. Cuando esté listo: **SQL Editor** → **New query** → pega todo el contenido
-   de `supabase/schema.sql` (en esta carpeta) → **Run**.
+2. Sigue `supabase/README.md` y aplica exclusivamente las migraciones canónicas
+   con Supabase CLI. No uses el SQL Editor para pegar un esquema histórico.
 3. Ve a **Project Settings → API** y copia:
    - `Project URL`
    - `anon public` key

@@ -26,12 +26,14 @@
 
 begin;
 
--- 1. Secreto en Vault (no se repite si esta migración ya corrió).
+-- 1. Secreto aleatorio en Vault (no se repite si esta migración ya corrió).
+-- No se usa un placeholder conocido: una base nueva queda protegida desde el
+-- primer momento. El valor solo se obtiene desde Vault para configurar cron.
 do $$
 begin
   if not exists (select 1 from vault.secrets where name = 'sync_edge_functions') then
     perform vault.create_secret(
-      '__SYNC_SECRET_PLACEHOLDER__',
+      replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''),
       'sync_edge_functions',
       'Secreto compartido para autenticar sync-contactos/sync-leads/sync-propiedades. Si se sospecha exposición, rotar con vault.update_secret(id, nuevo_valor) usando el id de vault.secrets donde name = ''sync_edge_functions''.'
     );
@@ -59,56 +61,9 @@ $$;
 revoke execute on function public.validar_secreto_sync(text) from public, anon, authenticated;
 grant  execute on function public.validar_secreto_sync(text) to service_role;
 
--- 3. Los 3 cron jobs mandan el secreto en X-Sync-Secret, leído de Vault en
---    cada corrida (rol `postgres`: no pasa por RLS ni por los grants de arriba).
---    El valor en texto plano no queda guardado en cron.job.command.
-select cron.alter_job(
-  (select jobid from cron.job where jobname = 'sync-contactos-diario'),
-  command := $cmd$
-  select net.http_post(
-    url     := 'https://zhtwvxarovfohhmrgqoy.supabase.co/functions/v1/sync-contactos',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHd2eGFyb3Zmb2hobXJncW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMDgxNTMsImV4cCI6MjEwMDU4NDE1M30.2fEfpb4lg_N8V2g_lB-BNStoJzqenGg-Rnkv6SqHVgk',
-      'X-Sync-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_edge_functions' limit 1)
-    ),
-    body    := '{}'::jsonb,
-    timeout_milliseconds := 280000
-  );
-  $cmd$
-);
-
-select cron.alter_job(
-  (select jobid from cron.job where jobname = 'sync-leads-30min'),
-  command := $cmd$
-  select net.http_post(
-    url     := 'https://zhtwvxarovfohhmrgqoy.supabase.co/functions/v1/sync-leads',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHd2eGFyb3Zmb2hobXJncW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMDgxNTMsImV4cCI6MjEwMDU4NDE1M30.2fEfpb4lg_N8V2g_lB-BNStoJzqenGg-Rnkv6SqHVgk',
-      'X-Sync-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_edge_functions' limit 1)
-    ),
-    body    := '{}'::jsonb,
-    timeout_milliseconds := 150000
-  );
-  $cmd$
-);
-
-select cron.alter_job(
-  (select jobid from cron.job where jobname = 'sync-propiedades-diario'),
-  command := $cmd$
-  select net.http_post(
-    url     := 'https://zhtwvxarovfohhmrgqoy.supabase.co/functions/v1/sync-propiedades',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHd2eGFyb3Zmb2hobXJncW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMDgxNTMsImV4cCI6MjEwMDU4NDE1M30.2fEfpb4lg_N8V2g_lB-BNStoJzqenGg-Rnkv6SqHVgk',
-      'X-Sync-Secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_edge_functions' limit 1)
-    ),
-    body    := '{}'::jsonb,
-    timeout_milliseconds := 150000
-  );
-  $cmd$
-);
+-- 3. Los cron jobs son configuración por entorno: su URL y Authorization no
+-- pertenecen a una migración portable. Se configuran después del despliegue
+-- siguiendo `supabase/README.md`; nunca con llaves hardcodeadas en Git.
 
 -- 4. search_path fijo (hallazgo MEDIUM de la misma auditoría).
 alter function public.historial_solo_crece()     set search_path = public;
@@ -116,8 +71,7 @@ alter function public.exigir_bant_para_avanzar() set search_path = public;
 
 commit;
 
--- Nota: el valor real del secreto se generó en el momento de aplicar esta
--- migración y NO queda escrito en este archivo (se sustituye el placeholder
--- antes de correr). Está solo en Vault. Rotarlo no requiere tocar código: basta
+-- El valor se genera durante la migración y NO queda escrito en Git. Está solo
+-- en Vault. Rotarlo no requiere tocar código: basta
 -- con vault.update_secret() y las 3 funciones/cron jobs lo recogen solos en la
 -- siguiente llamada.

@@ -64,17 +64,9 @@ el aislamiento por OR. Ninguno de los dos se veía leyendo el SQL.
 
 ## Cómo aplicar
 
-```bash
-# 1. Respaldo primero. No es opcional: la migración altera PKs y agrega NOT NULL.
-#    Supabase → Database → Backups
-
-# 2. En el SQL Editor, en este orden:
-#    01-multitenant-modelo-datos.sql
-#    02-multitenant-rls.sql
-#    03-verificacion-aislamiento.sql   (debe terminar sin ERROR)
-```
-
-Ambas migraciones son idempotentes: re-ejecutarlas no rompe nada.
+Este documento es contexto histórico. No ejecutes estos nombres manualmente.
+La secuencia canónica completa vive en `supabase/migrations/` y su procedimiento
+de reconstrucción y reconciliación está en `supabase/README.md`.
 
 ## Qué falta después de esto
 

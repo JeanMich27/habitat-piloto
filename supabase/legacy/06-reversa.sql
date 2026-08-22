@@ -1,3 +1,6 @@
+-- LEGACY — NO USAR PARA PRODUCCIÓN NI COMO MIGRACIÓN.
+-- Reversa histórica potencialmente destructiva. Ver supabase/legacy/README.md.
+
 -- =============================================================================
 -- REVERSA — deshace las migraciones 01, 02, 04 y 05
 --

@@ -1,16 +1,14 @@
--- Esquema para el piloto de Hábitat (CRM inmobiliario) con 10 personas.
--- Ejecutar completo en Supabase: Dashboard > SQL Editor > New query > Run.
+-- Esquema base canónico. Se aplica únicamente mediante `supabase db reset`
+-- o `supabase migration up`, seguido por el resto de archivos de este directorio.
 --
 -- Diseño deliberadamente simple para el MVP: los campos anidados de cada
 -- registro (propietario, documentos, eventos, comparables, cierre,
 -- notificaciones) se guardan como JSONB con las mismas llaves que usa el
 -- frontend (camelCase), así no hace falta transformarlos campo por campo.
 --
--- Seguridad: RLS con políticas abiertas (cualquiera con la anon key puede
--- leer/escribir). Es intencional para esta prueba interna de 10 personas de
--- confianza. ANTES de usarlo con datos reales de clientes o abrirlo al
--- público, hay que reemplazar estas políticas por reglas basadas en
--- autenticación (Supabase Auth) y roles.
+-- Seguridad: RLS queda habilitado y sin políticas en esta primera migración.
+-- Por tanto falla cerrado hasta que la siguiente migración instala las reglas
+-- autenticadas. Nunca debe existir una ventana con acceso anónimo permisivo.
 
 create table if not exists public.agencia (
   id text primary key default 'default',
@@ -83,24 +81,10 @@ alter publication supabase_realtime add table public.usuarios;
 alter publication supabase_realtime add table public.agencia;
 alter publication supabase_realtime add table public.configuracion;
 
--- RLS abierta (solo para el piloto interno, ver nota arriba).
+-- RLS fail-closed durante el bootstrap. Las políticas por rol se crean en la
+-- siguiente migración canónica.
 alter table public.agencia enable row level security;
 alter table public.configuracion enable row level security;
 alter table public.usuarios enable row level security;
 alter table public.propiedades enable row level security;
 alter table public.leads enable row level security;
-
-drop policy if exists "piloto_todo_acceso" on public.agencia;
-create policy "piloto_todo_acceso" on public.agencia for all using (true) with check (true);
-
-drop policy if exists "piloto_todo_acceso" on public.configuracion;
-create policy "piloto_todo_acceso" on public.configuracion for all using (true) with check (true);
-
-drop policy if exists "piloto_todo_acceso" on public.usuarios;
-create policy "piloto_todo_acceso" on public.usuarios for all using (true) with check (true);
-
-drop policy if exists "piloto_todo_acceso" on public.propiedades;
-create policy "piloto_todo_acceso" on public.propiedades for all using (true) with check (true);
-
-drop policy if exists "piloto_todo_acceso" on public.leads;
-create policy "piloto_todo_acceso" on public.leads for all using (true) with check (true);
