@@ -86,7 +86,9 @@ describe("Clientes: selector de cartera", () => {
 
   it("Todos muestra la cartera completa", async () => {
     pintar();
-    await userEvent.click(screen.getByRole("button", { name: /^Todos/i }));
+    // El primer "Todos" pertenece al selector de cartera; el segundo filtra
+    // el estado del lead y no cambia el universo directorio/histórico.
+    await userEvent.click(screen.getAllByRole("button", { name: /^Todos/i })[0]);
     expect(screen.getAllByText("Prospecto Activo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Contacto Directorio").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Lead Historico").length).toBeGreaterThan(0);
