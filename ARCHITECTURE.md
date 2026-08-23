@@ -17,10 +17,11 @@ Supabase / local demo (src/lib/dataStore, Supabase RLS/RPC)
 ## Responsabilidades
 
 - `src/views` y `src/components`: presentación y estado visual local. No deben consultar Supabase directamente.
-- `src/app/application`: ciclo de datos, carga, realtime, recuperación y coordinación React.
+- `src/app/application`: ciclo de datos y casos de uso por dominio (`leadActions`, `propertyActions`, `appointmentActions`, `teamSettingsActions`). Coordina estado y persistencia sin llevar consultas Supabase a `App.tsx`.
 - `src/app/navigation`: destinos, permisos de navegación e historial tipado.
 - `src/domain`: reglas puras sin React; BANT y futuras reglas de negocio viven aquí.
-- `src/repositories`: API de persistencia agrupada por dominio. `dataStore` conserva por ahora el adaptador compartido y debe reducirse incrementalmente, no duplicarse.
+- `src/repositories`: implementación de persistencia agrupada por dominio. Cada repositorio usa mappers y contratos de resultado compartidos; no es un proxy de `dataStore`.
+- `src/lib/dataStore.ts`: infraestructura transversal mínima: snapshot local, carga/bootstrap, paginación y Realtime. Sus reexportaciones existen sólo como fachada de compatibilidad.
 - `src/types/database.ts`: contrato de filas del esquema canónico en formato compatible con tipos Supabase.
 - `src/lib/rowMappers.ts`: única frontera snake_case → modelo de dominio.
 - `supabase/migrations`: fuente de verdad de esquema, RLS, triggers y RPC.
@@ -45,6 +46,10 @@ supabase gen types typescript --local > /tmp/database.generated.ts
 ```
 
 Compara el resultado con `src/types/database.ts`, integra la diferencia y ejecuta tests de mappers. No reemplaces modelos de dominio por filas SQL cuando exista una transformación real.
+
+## Frontera de integraciones P3
+
+Las entradas externas se implementan del lado servidor en `supabase/functions` o en futuros adaptadores bajo `src/integrations` cuando no manejen secretos. El flujo esperado es adaptador/webhook → caso de uso → dominio → repository/RPC. Ninguna integración debe escribir mediante componentes React ni ampliar `dataStore` con lógica de proveedor.
 
 ## Prohibiciones prácticas
 

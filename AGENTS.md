@@ -28,6 +28,7 @@ No ejecutes `supabase db push` ni modifiques producción sin respaldo, reconcili
 
 - TypeScript estricto; evita `any` especialmente en entradas Supabase e integraciones.
 - UI → Application → Domain → Repositories → Supabase.
+- Las mutaciones se agregan al servicio de aplicación de su dominio; `App.tsx` sólo las compone y los repositories contienen las consultas Supabase.
 - Reglas puras no dependen de React. Mappers viven únicamente en `src/lib/rowMappers.ts`.
 - Nuevas vistas de uso ocasional se cargan con `React.lazy` y tienen loading/error/empty diferenciados.
 - Selectores E2E por role, label o texto accesible; `data-testid` sólo si no existe una semántica adecuada.
