@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { deliveryDecision, normalizeDeliveryError, signWebhook } from "../_shared/webhook.ts";
+import { createWebhookDeliveryRequest, deliveryDecision, normalizeDeliveryError } from "../_shared/webhook.ts";
 
 interface ClaimedDelivery {
   delivery_id: string;
@@ -71,20 +71,18 @@ Deno.serve(async (request) => {
         causationId: delivery.causation_id,
         payload: delivery.payload,
       };
-      const rawBody = JSON.stringify(event);
-      const timestamp = Math.floor(Date.now() / 1000).toString();
-      const signature = await signWebhook(delivery.signing_secret, timestamp, rawBody);
+      const outbound = await createWebhookDeliveryRequest({
+        event,
+        eventType: delivery.event_type,
+        eventVersion: delivery.event_version,
+        deliveryId: delivery.delivery_id,
+        correlationId: delivery.correlation_id,
+        secret: delivery.signing_secret,
+      });
       const response = await fetch(delivery.endpoint_url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Habitat-Signature": signature,
-          "X-Habitat-Timestamp": timestamp,
-          "X-Habitat-Event": `${delivery.event_type}.v${delivery.event_version}`,
-          "X-Habitat-Delivery": delivery.delivery_id,
-          "X-Correlation-ID": delivery.correlation_id,
-        },
-        body: rawBody,
+        headers: outbound.headers,
+        body: outbound.rawBody,
         signal: AbortSignal.timeout(10_000),
       });
       status = response.status;
@@ -112,4 +110,3 @@ Deno.serve(async (request) => {
 
   return json(200, { ok: true, claimed: deliveries.length, request_id: requestId });
 });
-

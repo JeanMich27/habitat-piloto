@@ -41,6 +41,31 @@ export async function verifyWebhookSignature(input: {
   return constantTimeEqual(expected, input.signature);
 }
 
+export async function createWebhookDeliveryRequest(input: {
+  event: Record<string, unknown>;
+  eventType: string;
+  eventVersion: number;
+  deliveryId: string;
+  correlationId: string;
+  secret: string;
+  nowMs?: number;
+}): Promise<{ rawBody: string; headers: Record<string, string> }> {
+  const rawBody = JSON.stringify(input.event);
+  const timestamp = Math.floor((input.nowMs ?? Date.now()) / 1000).toString();
+  const signature = await signWebhook(input.secret, timestamp, rawBody);
+  return {
+    rawBody,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Habitat-Signature": signature,
+      "X-Habitat-Timestamp": timestamp,
+      "X-Habitat-Event": `${input.eventType}.v${input.eventVersion}`,
+      "X-Habitat-Delivery": input.deliveryId,
+      "X-Correlation-ID": input.correlationId,
+    },
+  };
+}
+
 export type DeliveryDecision =
   | { outcome: "success" }
   | { outcome: "retry"; delaySeconds: number }
