@@ -22,4 +22,17 @@ describe("arquitectura de integración", () => {
     expect(edge).toContain('supabase.rpc("crear_o_relacionar_lead"');
     expect(edge).not.toMatch(/console\.(info|warn|error)\([^\n]*(phone|email|message)/i);
   });
+
+  it("mantiene adapters server-side fuera de React y deriva el tenant de una credencial", () => {
+    const inbound = leer("supabase/functions/integration-inbound/index.ts");
+    const dispatcher = leer("supabase/functions/dispatch-webhooks/index.ts");
+    const migration = leer("supabase/migrations/20260823000100_p31_integration_foundation.sql");
+    expect(inbound).toContain('authorization.startsWith("HabitatKey ")');
+    expect(inbound).toContain('client.rpc("process_integration_lead_command"');
+    expect(inbound).not.toMatch(/from\(["'](leads|propiedades|citas)["']\)/);
+    expect(dispatcher).toContain("X-Habitat-Signature");
+    expect(dispatcher).toContain("AbortSignal.timeout");
+    expect(migration).toContain("v_credential.agencia_id");
+    expect(migration).not.toMatch(/VITE_.*SECRET/);
+  });
 });
