@@ -14,3 +14,10 @@
 
 [functions.agenda-ics]
 verify_jwt = false
+
+# Autenticación propia: HabitatKey por tenant y secreto interno de dispatcher.
+[functions.integration-inbound]
+verify_jwt = false
+
+[functions.dispatch-webhooks]
+verify_jwt = false
