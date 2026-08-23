@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Download, Home,
   LayoutDashboard, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
@@ -29,27 +29,27 @@ import {
   totalBant,
 } from "./types";
 import { evaluarBant, puedeAvanzarAEtapa } from "./domain/leads/qualification";
-import Agenda from "./views/Agenda";
-import SaludInmobiliaria from "./views/SaludInmobiliaria";
-import AsesorDashboard from "./views/AsesorDashboard";
-import Asesores from "./views/Asesores";
-import CalculadoraComisiones from "./views/CalculadoraComisiones";
-import Clientes from "./views/Clientes";
+const Agenda = lazy(() => import("./views/Agenda"));
+const SaludInmobiliaria = lazy(() => import("./views/SaludInmobiliaria"));
+const AsesorDashboard = lazy(() => import("./views/AsesorDashboard"));
+const Asesores = lazy(() => import("./views/Asesores"));
+const CalculadoraComisiones = lazy(() => import("./views/CalculadoraComisiones"));
+const Clientes = lazy(() => import("./views/Clientes"));
 import AuthScreen from "./views/AuthScreen";
-import BrokerDashboard from "./views/BrokerDashboard";
-import Configuracion from "./views/Configuracion";
-import DetalleDePropiedad from "./views/DetalleDePropiedad";
-import ImportarDatos from "./views/ImportarDatos";
-import IntakeValidacion from "./views/IntakeValidacion";
-import ListadoPropiedades from "./views/ListadoPropiedades";
-import NuevaPropiedad from "./views/NuevaPropiedad";
+const BrokerDashboard = lazy(() => import("./views/BrokerDashboard"));
+const Configuracion = lazy(() => import("./views/Configuracion"));
+const DetalleDePropiedad = lazy(() => import("./views/DetalleDePropiedad"));
+const ImportarDatos = lazy(() => import("./views/ImportarDatos"));
+const IntakeValidacion = lazy(() => import("./views/IntakeValidacion"));
+const ListadoPropiedades = lazy(() => import("./views/ListadoPropiedades"));
+const NuevaPropiedad = lazy(() => import("./views/NuevaPropiedad"));
 import PendienteAprobacion from "./views/PendienteAprobacion";
-import PerfilDesempeno from "./views/PerfilDesempeno";
-import PerfilPersonal from "./views/PerfilPersonal";
-import ClientePortal from "./views/ClientePortal";
-import PropietarioPortal from "./views/PropietarioPortal";
-import Reportes from "./views/Reportes";
-import SolicitudesAcceso from "./views/SolicitudesAcceso";
+const PerfilDesempeno = lazy(() => import("./views/PerfilDesempeno"));
+const PerfilPersonal = lazy(() => import("./views/PerfilPersonal"));
+const ClientePortal = lazy(() => import("./views/ClientePortal"));
+const PropietarioPortal = lazy(() => import("./views/PropietarioPortal"));
+const Reportes = lazy(() => import("./views/Reportes"));
+const SolicitudesAcceso = lazy(() => import("./views/SolicitudesAcceso"));
 import AppShell, { type NavItem } from "./components/AppShell";
 import CampanaNotificaciones from "./components/CampanaNotificaciones";
 import AgendarVisitaModal from "./components/AgendarVisitaModal";
@@ -66,27 +66,19 @@ import type { RangoRespuesta } from "./lib/respuesta";
 import { useAuth } from "./lib/authContext";
 import { configurationError, isCloudEnabled, isDemoMode } from "./lib/supabaseClient";
 import {
-  bulkUpsertLeads,
-  bulkUpsertPropiedades,
-  confirmarCitaClienteEnNube,
-  crearSolicitudEstado,
-  desactivarAsesorAtomico,
-  eliminarCita,
   exportarSnapshotJSON,
-  obtenerTokenAgenda,
   reemplazarEnArreglo,
-  resolverSolicitudEstado,
-  rotarTokenAgenda,
-  upsertAgencia,
-  upsertCita,
-  upsertConfiguracion,
-  upsertLead,
-  upsertPropiedad,
-  upsertUsuario,
-  upsertUsuarioConError,
   type OperationResult,
 } from "./lib/dataStore";
 import { useAppData } from "./app/application/useAppData";
+import { bulkUpsertLeads, upsertLead } from "./repositories/leadsRepository";
+import { bulkUpsertPropiedades, upsertPropiedad } from "./repositories/propertiesRepository";
+import {
+  confirmarCitaClienteEnNube, eliminarCita, obtenerTokenAgenda, rotarTokenAgenda, upsertCita,
+} from "./repositories/appointmentsRepository";
+import { desactivarAsesorAtomico, upsertUsuario, upsertUsuarioConError } from "./repositories/usersRepository";
+import { upsertAgencia, upsertConfiguracion } from "./repositories/settingsRepository";
+import { crearSolicitudEstado, resolverSolicitudEstado } from "./repositories/statusRequestsRepository";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
@@ -1169,9 +1161,18 @@ function AplicacionConfigurada() {
         />
       )}
 
+      <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-500">Cargando vista…</div>}>
       {cargandoNube ? (
         <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-500">
           Cargando tu información…
+        </div>
+      ) : isCloudEnabled && avisoNube ? (
+        <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 text-center">
+          <h1 className="text-lg font-bold text-slate-900">No pudimos cargar tu información</h1>
+          <p className="mt-2 text-sm text-slate-600">No mostraremos resultados vacíos ni datos de demostración mientras exista este error.</p>
+          <button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            Reintentar
+          </button>
         </div>
       ) : (
         <>
@@ -1428,6 +1429,7 @@ function AplicacionConfigurada() {
           )}
         </>
       )}
+      </Suspense>
     </AppShell>
   );
 }

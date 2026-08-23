@@ -41,8 +41,18 @@ interface UseAppDataInput {
  */
 export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
   const initial = useMemo<EstadoCompleto>(() => {
-    const local = isDemoMode ? cargarSnapshotLocal() : null;
-    return { ...factorySnapshot, ...local };
+    if (isDemoMode) {
+      const local = cargarSnapshotLocal();
+      return { ...factorySnapshot, ...local };
+    }
+    // En nube se inicia vacío: si falla la lectura, nunca se presentan datos
+    // demo como si fueran datos reales de la oficina.
+    return {
+      propiedades: [], leads: [], usuarios: [], citas: [],
+      agencia: { nombre: "", direccion: "" },
+      permisoEquipoVerTodas: false,
+      notificaciones: {},
+    };
   }, []);
 
   const [propiedades, setPropiedades] = useState(initial.propiedades);
