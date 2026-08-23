@@ -16,13 +16,15 @@ describe("integridad P1", () => {
   });
 
   it("aplica concurrencia optimista en lead, propiedad y cita", () => {
-    const store = leer("src/lib/dataStore.ts");
+    const repositories = ["leads", "properties", "appointments"]
+      .map((name) => leer(`src/repositories/${name}Repository.ts`))
+      .join("\n");
     const migration = leer("supabase/migrations/20260822000800_concurrencia_optimista.sql");
     for (const tabla of ["leads", "propiedades", "citas"]) {
       expect(migration).toContain(`alter table public.${tabla} add column if not exists version`);
     }
-    expect(store.match(/\.eq\("version",/g)).toHaveLength(3);
-    expect(store).toContain('"CONFLICT"');
+    expect(repositories.match(/\.eq\("version",/g)).toHaveLength(3);
+    expect(repositories.match(/"CONFLICT"/g)).toHaveLength(3);
   });
 
   it("backend tampoco clasifica ni avanza un BANT parcial", () => {

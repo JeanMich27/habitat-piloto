@@ -9,10 +9,9 @@
 // guardamos una "foto" completa del estado en localStorage para que al menos
 // no se pierda al recargar la pestaña de esa persona.
 import { isCloudEnabled, supabase } from "./supabaseClient";
-import { agenciaActualONull, hayAgencia } from "./agenciaActual";
+import { agenciaActualONull } from "./agenciaActual";
 import {
   agenciaToRow,
-  citaToRow,
   configuracionToRow,
   leadToRow,
   propiedadToRow,
@@ -30,7 +29,6 @@ import type {
   CitaAgenda,
   Lead,
   Propiedad,
-  PropertyStatus,
   SolicitudEstado,
   Usuario,
 } from "../types";
@@ -43,48 +41,17 @@ import type {
   StatusRequestRow,
   UserRow,
 } from "../types/database";
+import {
+  fail,
+  missingAgency as sinAgencia,
+  ok,
+  type OperationResult,
+} from "../repositories/repositoryResult";
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
-export type DomainErrorCode =
-  | "VALIDATION_ERROR"
-  | "AUTH_ERROR"
-  | "PERMISSION_ERROR"
-  | "CONFLICT"
-  | "NOT_FOUND"
-  | "NETWORK_ERROR"
-  | "SERVER_ERROR";
-
-export type OperationResult<T = undefined> =
-  | { ok: true; data: T }
-  | { ok: false; error: { code: DomainErrorCode; message: string; cause?: unknown } };
-
-const ok = <T = undefined>(data?: T): OperationResult<T> => ({ ok: true, data: data as T });
-
-export const clasificarErrorDominio = (cause?: unknown): DomainErrorCode => {
-  const code = typeof cause === "object" && cause && "code" in cause ? String(cause.code) : "";
-  const message = cause instanceof Error ? cause.message.toLowerCase() : "";
-  if (code === "42501") return "PERMISSION_ERROR";
-  if (code === "28000" || code === "PGRST301") return "AUTH_ERROR";
-  if (code === "23505" || code === "40001") return "CONFLICT";
-  if (code === "P0002" || code === "PGRST116") return "NOT_FOUND";
-  if (code.startsWith("22") || code === "23502" || code === "23503") return "VALIDATION_ERROR";
-  if (cause instanceof TypeError || message.includes("fetch") || message.includes("network")) return "NETWORK_ERROR";
-  return "SERVER_ERROR";
-};
-
-const fail = (
-  operation: string,
-  message: string,
-  cause?: unknown,
-  code = clasificarErrorDominio(cause),
-): OperationResult<never> => {
-  console.error(`[Supabase] ${operation}`, cause);
-  return { ok: false, error: { code, message, cause } };
-};
-
-// PostgREST corta TODA respuesta en 1,000 filas. No avisa: simplemente devuelve
-// menos. Con 1,289 clientes en la base, `select("*")` a secas dejaba fuera a
+export { clasificarErrorDominio } from "../repositories/repositoryResult";
+export type { DomainErrorCode, OperationResult } from "../repositories/repositoryResult";
 // los últimos ~289 — y como no había ORDER BY, los que se caían eran justo los
 // más recientes. Por eso todo lo que puede crecer sin techo se lee paginado.
 const PAGINA = 1000;
@@ -175,18 +142,6 @@ export function exportarSnapshotJSON(estado: EstadoCompleto) {
   URL.revokeObjectURL(url);
 }
 
-// Una cuenta pendiente de aprobación no tiene oficina asignada todavía. Sin
-// ella los conversores de fila lanzan, así que se corta antes y se registra el
-// motivo en lugar de dejar reventar una promesa sin manejar.
-function sinAgencia(operacion: string): boolean {
-  if (hayAgencia()) return false;
-  console.error(
-    `[Supabase] ${operacion}: la sesión no tiene oficina asignada. ` +
-      "La cuenta está pendiente de aprobación o la sesión expiró.",
-  );
-  return true;
-}
-
 // --- Modo nube (Supabase) ---
 export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   if (!supabase) return null;
@@ -265,229 +220,8 @@ export async function sembrarDatosDeEjemplo(estado: EstadoCompleto): Promise<Ope
     : ok();
 }
 
-export async function upsertPropiedad(p: Propiedad): Promise<OperationResult> {
-  if (!supabase) return fail("upsertPropiedad", "Sin conexión a la nube.");
-  if (sinAgencia("upsertPropiedad")) return fail("upsertPropiedad", "Esta sesión no tiene oficina asociada.");
-  const query = p.version == null
-    ? supabase.from("propiedades").upsert(propiedadToRow(p)).select("version").maybeSingle()
-    : supabase.from("propiedades").update(propiedadToRow(p)).eq("id", p.id).eq("version", p.version).select("version").maybeSingle();
-  const { data, error } = await query;
-  if (error) return fail("upsertPropiedad", "No se pudo guardar la propiedad.", error);
-  if (!data) return fail("upsertPropiedad", "La propiedad cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
-  p.version = Number(data.version);
-  return ok();
-}
-
-export async function bulkUpsertPropiedades(lista: Propiedad[]): Promise<OperationResult> {
-  if (lista.length === 0) return ok();
-  if (!supabase) return fail("bulkUpsertPropiedades", "Sin conexión a la nube.");
-  if (sinAgencia("bulkUpsertPropiedades"))
-    return fail("bulkUpsertPropiedades", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("propiedades").upsert(lista.map(propiedadToRow));
-  return error ? fail("bulkUpsertPropiedades", "No se pudieron guardar las propiedades.", error) : ok();
-}
-
-export async function upsertLead(l: Lead): Promise<OperationResult> {
-  if (!supabase) return fail("upsertLead", "Sin conexión a la nube.");
-  if (sinAgencia("upsertLead")) return fail("upsertLead", "Esta sesión no tiene oficina asociada.");
-  const query = l.version == null
-    ? supabase.from("leads").upsert(leadToRow(l)).select("version").maybeSingle()
-    : supabase.from("leads").update(leadToRow(l)).eq("id", l.id).eq("version", l.version).select("version").maybeSingle();
-  const { data, error } = await query;
-  if (error) return fail("upsertLead", "No se pudo guardar el lead.", error);
-  if (!data) return fail("upsertLead", "El lead cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
-  l.version = Number(data.version);
-  return ok();
-}
-
-export interface CrearLeadInput {
-  name: string;
-  phone?: string;
-  email?: string;
-  source: string;
-  origin: Lead["origen"];
-  property_id?: string;
-  message?: string;
-  assigned_agent_id?: string;
-  occupation?: string;
-}
-
-/**
- * Punto único de alta de leads en nube. La RPC resuelve identidad, tenant,
- * permisos, asignación y eventos dentro de una sola transacción.
- */
-export async function crearOEnlazarLead(
-  input: CrearLeadInput,
-): Promise<OperationResult<{ lead: Lead; created: boolean }>> {
-  if (!supabase) return fail("crearOEnlazarLead", "Sin conexión a la nube.");
-  if (sinAgencia("crearOEnlazarLead"))
-    return fail("crearOEnlazarLead", "Esta sesión no tiene oficina asociada.");
-
-  const { data, error } = await supabase.rpc("crear_o_relacionar_lead", {
-    p_input: input,
-  });
-  if (error) return fail("crearOEnlazarLead", "No se pudo crear el lead.", error);
-
-  const resultado = data as { lead_id?: string; created?: boolean } | null;
-  if (!resultado?.lead_id)
-    return fail("crearOEnlazarLead", "La base no confirmó el lead creado.");
-
-  const { data: fila, error: lecturaError } = await supabase
-    .from("leads")
-    .select("*")
-    .eq("id", resultado.lead_id)
-    .single();
-  if (lecturaError || !fila)
-    return fail("crearOEnlazarLead", "El lead se creó, pero no pudo recuperarse.", lecturaError);
-
-  return ok({ lead: rowToLead(fila), created: resultado.created === true });
-}
-
-export async function bulkUpsertLeads(lista: Lead[]): Promise<OperationResult> {
-  if (lista.length === 0) return ok();
-  if (!supabase) return fail("bulkUpsertLeads", "Sin conexión a la nube.");
-  if (sinAgencia("bulkUpsertLeads")) return fail("bulkUpsertLeads", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("leads").upsert(lista.map(leadToRow));
-  return error ? fail("bulkUpsertLeads", "No se pudieron guardar los leads.", error) : ok();
-}
-
-export async function upsertUsuario(u: Usuario): Promise<OperationResult> {
-  if (!supabase) return fail("upsertUsuario", "Sin conexión a la nube.");
-  if (sinAgencia("upsertUsuario")) return fail("upsertUsuario", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
-  return error ? fail("upsertUsuario", "No se pudo guardar el usuario.", error) : ok();
-}
-
-export async function desactivarAsesorAtomico(
-  asesorId: string,
-  reasignarAId: string,
-): Promise<OperationResult> {
-  if (!supabase) return fail("desactivarAsesorAtomico", "Sin conexión a la nube.");
-  const { error } = await supabase.rpc("desactivar_asesor_y_reasignar", {
-    p_asesor_id: asesorId,
-    p_reasignar_a_id: reasignarAId,
-  });
-  return error
-    ? fail("desactivarAsesorAtomico", "No se pudo desactivar y reasignar al asesor.", error)
-    : ok();
-}
-
-/**
- * Igual que `upsertUsuario`, pero DEVUELVE el error en vez de solo anotarlo en
- * la consola.
- *
- * El alta de una persona del equipo es de las pocas escrituras donde la base
- * puede decir que no por una regla de negocio —el tope de brokers de la
- * oficina, RLS si la agencia no cuadra— y donde el usuario tiene que
- * enterarse. Tragarse ese error dejaría la persona pintada en pantalla y
- * ausente de la base: el peor de los mundos.
- */
-export async function upsertUsuarioConError(u: Usuario): Promise<string | null> {
-  if (!supabase) return "Sin conexión a la nube.";
-  if (sinAgencia("upsertUsuarioConError")) return "Esta sesión no tiene oficina asociada. Vuelve a entrar.";
-  const { error } = await supabase.from("usuarios").upsert(usuarioToRow(u));
-  if (!error) return null;
-  console.error("[Supabase] upsertUsuarioConError", error);
-  const m = error.message.toLowerCase();
-  if (m.includes("máximo") || m.includes("maximo")) return error.message;
-  if (m.includes("row-level security") || m.includes("violates row-level"))
-    return "Tu cuenta no tiene permiso para dar de alta gente en esta oficina.";
-  if (m.includes("duplicate key") && m.includes("correo"))
-    return "Ya existe una cuenta con ese correo.";
-  return error.message;
-}
-
-export async function upsertAgencia(a: AgenciaInfo): Promise<OperationResult> {
-  if (!supabase) return fail("upsertAgencia", "Sin conexión a la nube.");
-  if (sinAgencia("upsertAgencia")) return fail("upsertAgencia", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("agencias").upsert(agenciaToRow(a));
-  return error ? fail("upsertAgencia", "No se pudo guardar la agencia.", error) : ok();
-}
-
-export async function upsertConfiguracion(
-  permisoEquipoVerTodas: boolean,
-  notificaciones: Record<string, boolean>,
-): Promise<OperationResult> {
-  if (!supabase) return fail("upsertConfiguracion", "Sin conexión a la nube.");
-  if (sinAgencia("upsertConfiguracion"))
-    return fail("upsertConfiguracion", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase
-    .from("configuracion")
-    .upsert(configuracionToRow(permisoEquipoVerTodas, notificaciones));
-  return error ? fail("upsertConfiguracion", "No se pudo guardar la configuración.", error) : ok();
-}
-
-export async function upsertCita(c: CitaAgenda): Promise<OperationResult> {
-  if (!supabase) return fail("upsertCita", "Sin conexión a la nube.");
-  if (sinAgencia("upsertCita")) return fail("upsertCita", "Esta sesión no tiene oficina asociada.");
-  const query = c.version == null
-    ? supabase.from("citas").upsert(citaToRow(c)).select("version").maybeSingle()
-    : supabase.from("citas").update(citaToRow(c)).eq("id", c.id).eq("version", c.version).select("version").maybeSingle();
-  const { data, error } = await query;
-  if (error) return fail("upsertCita", "No se pudo guardar la cita.", error);
-  if (!data) return fail("upsertCita", "La cita cambió en otra sesión. Recarga antes de guardar.", undefined, "CONFLICT");
-  c.version = Number(data.version);
-  return ok();
-}
-
-export async function confirmarCitaClienteEnNube(
-  leadId: string,
-  citaId: string,
-): Promise<string | null> {
-  if (!supabase) return "Sin conexión a la nube.";
-  const { data, error } = await supabase.rpc("cliente_confirmar_cita", {
-    p_lead_id: leadId,
-    p_cita_id: citaId,
-  });
-  if (error) {
-    console.error("[Supabase] cliente_confirmar_cita", error);
-    return "No se pudo confirmar la cita. Intenta de nuevo.";
-  }
-  if (data !== true) return "La cita ya no está disponible para confirmar.";
-  return null;
-}
-
-export async function eliminarCita(id: string): Promise<OperationResult> {
-  if (!supabase) return fail("eliminarCita", "Sin conexión a la nube.");
-  if (sinAgencia("eliminarCita")) return fail("eliminarCita", "Esta sesión no tiene oficina asociada.");
-  const { error } = await supabase.from("citas").delete().eq("id", id);
-  return error ? fail("eliminarCita", "No se pudo eliminar la cita.", error) : ok();
-}
-
-/**
- * Token del feed ICS del usuario. La funcion `mi_token_agenda()` lo crea la
- * primera vez y despues devuelve siempre el mismo. Vive en su propia tabla,
- * no en `usuarios`, porque la politica de lectura de `usuarios` alcanza a toda
- * la oficina: ahi el token seria visible para los companeros y cualquiera
- * podria suscribirse a la agenda del broker.
- */
-export async function obtenerTokenAgenda(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("mi_token_agenda");
-  if (error) {
-    console.error("[Supabase] mi_token_agenda", error);
-    return null;
-  }
-  return (data as string) ?? null;
-}
-
-/** Invalida la URL anterior. Se usa cuando un asesor deja la oficina. */
-export async function rotarTokenAgenda(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("rotar_token_agenda");
-  if (error) {
-    console.error("[Supabase] rotar_token_agenda", error);
-    return null;
-  }
-  return (data as string) ?? null;
-}
-
-// --- Solicitudes de cambio de estado ----------------------------------------
-// El asesor de equipo solicita; el broker resuelve. Al aprobar, un trigger en
-// la base aplica el cambio a la propiedad y notifica al solicitante — el
-// frontend nunca escribe el estatus por su cuenta en este flujo.
-
-/** Pendientes de la oficina + resueltas de los últimos 14 días (para avisos). */
+// Las escrituras viven en repositorios de dominio. Este módulo conserva sólo
+// carga inicial, snapshot local, bootstrap y sincronización Realtime.
 export async function fetchSolicitudes(): Promise<SolicitudEstado[]> {
   if (!supabase) return [];
   const desde = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -502,50 +236,6 @@ export async function fetchSolicitudes(): Promise<SolicitudEstado[]> {
     return [];
   }
   return (data ?? []).map(rowToSolicitud);
-}
-
-export async function crearSolicitudEstado(s: {
-  id: string;
-  propiedadId: string;
-  solicitanteId: string;
-  estadoActual: string;
-  estadoSolicitado: PropertyStatus;
-  motivo?: string;
-}): Promise<string | null> {
-  if (!supabase || sinAgencia("crearSolicitudEstado")) return null;
-  const { error } = await supabase.from("solicitudes_estado").insert({
-    id: s.id,
-    agencia_id: agenciaActualONull(),
-    propiedad_id: s.propiedadId,
-    solicitante_id: s.solicitanteId,
-    estado_actual: s.estadoActual,
-    estado_solicitado: s.estadoSolicitado,
-    motivo: s.motivo ?? null,
-  });
-  if (error) {
-    console.error("[Supabase] crearSolicitudEstado", error);
-    return /pendiente_unica|duplicate/i.test(error.message)
-      ? "Esta propiedad ya tiene una solicitud en revisión."
-      : "No se pudo enviar la solicitud. Intenta de nuevo.";
-  }
-  return null;
-}
-
-/** Solo broker (RLS). El trigger de la base aplica el cambio si se aprueba. */
-export async function resolverSolicitudEstado(
-  solicitudId: string,
-  resultado: "aprobada" | "rechazada",
-): Promise<string | null> {
-  if (!supabase || sinAgencia("resolverSolicitudEstado")) return null;
-  const { error } = await supabase
-    .from("solicitudes_estado")
-    .update({ estatus: resultado })
-    .eq("id", solicitudId);
-  if (error) {
-    console.error("[Supabase] resolverSolicitudEstado", error);
-    return "No se pudo resolver la solicitud. Intenta de nuevo.";
-  }
-  return null;
 }
 
 type RealtimeHandlers = {
@@ -620,3 +310,12 @@ export function reemplazarEnArreglo<T extends { id: string }>(arreglo: T[], item
 }
 
 export { isCloudEnabled };
+// Fachada temporal para consumidores existentes. La implementación pertenece
+// a cada repositorio; código nuevo debe importar el repositorio de su dominio.
+export { bulkUpsertPropiedades, upsertPropiedad } from "../repositories/propertiesRepository";
+export { bulkUpsertLeads, crearOEnlazarLead, upsertLead } from "../repositories/leadsRepository";
+export type { CrearLeadInput } from "../repositories/leadsRepository";
+export { desactivarAsesorAtomico, upsertUsuario, upsertUsuarioConError } from "../repositories/usersRepository";
+export { upsertAgencia, upsertConfiguracion } from "../repositories/settingsRepository";
+export { confirmarCitaClienteEnNube, eliminarCita, obtenerTokenAgenda, rotarTokenAgenda, upsertCita } from "../repositories/appointmentsRepository";
+export { crearSolicitudEstado, resolverSolicitudEstado } from "../repositories/statusRequestsRepository";

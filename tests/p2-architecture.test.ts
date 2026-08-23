@@ -5,13 +5,17 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("límites de arquitectura P2", () => {
-  it("App consume repositorios por dominio para mutaciones", () => {
+  it("App delega mutaciones a application y application consume repositorios", () => {
     const app = read("src/App.tsx");
+    const actionFiles = ["leadActions", "propertyActions", "appointmentActions", "teamSettingsActions"];
+    for (const action of actionFiles) expect(app).toContain(`./app/application/${action}`);
+    const application = actionFiles.map((action) => read(`src/app/application/${action}.ts`)).join("\n");
     for (const repository of ["leads", "properties", "appointments", "users", "settings", "statusRequests"]) {
-      expect(app).toContain(`./repositories/${repository}Repository`);
+      expect(application).toContain(`repositories/${repository}Repository`);
     }
     const legacyImport = app.match(/import \{([\s\S]*?)\} from "\.\/lib\/dataStore";/)?.[1] ?? "";
     expect(legacyImport).not.toMatch(/upsert|bulkUpsert|eliminarCita/);
+    expect(app).not.toMatch(/supabase\.from|\.rpc\(/);
   });
 
   it("mappers no aceptan any en fronteras de tablas", () => {
