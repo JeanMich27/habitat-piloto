@@ -57,4 +57,11 @@ describe("integridad P1", () => {
     expect(agenda).toContain("update public.citas");
     expect(agenda).not.toContain("jsonb_set");
   });
+
+  it("el fallback legacy del directorio no entrega el equipo a cuentas externas", () => {
+    const store = leer("src/lib/dataStore.ts");
+    expect(store).toContain('error.code !== "PGRST202"');
+    expect(store).toContain('["broker", "asesor_equipo", "asesor_independiente"]');
+    expect(store).toContain('.eq("id", usuarioActual.id)');
+  });
 });

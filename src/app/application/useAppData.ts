@@ -103,13 +103,13 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
     setCargandoNube(true);
     void (async () => {
       try {
-        let snapshot = await fetchInitialData();
+        let snapshot = await fetchInitialData(usuarioActual!);
         const empty = snapshot && snapshot.propiedades.length === 0 && snapshot.leads.length === 0;
         if (snapshot && empty && usuarioActual?.rol === "broker" && !yaSembrado.current) {
           yaSembrado.current = true;
           const seed = await sembrarDatosDeEjemplo(factorySnapshot);
           if (!seed.ok) throw new Error(seed.error.message);
-          snapshot = await fetchInitialData();
+          snapshot = await fetchInitialData(usuarioActual!);
         }
         if (!active || !snapshot) return;
         applySnapshot(snapshot);
@@ -125,7 +125,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
     return () => {
       active = false;
     };
-  }, [sesionActiva, usuarioActual?.rol]);
+  }, [sesionActiva, usuarioActual]);
 
   useEffect(() => {
     if (!isCloudEnabled || !sesionActiva) return;
@@ -152,7 +152,8 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
       if (document.visibilityState !== "visible" || Date.now() - lastRead < 120_000) return;
       lastRead = Date.now();
       try {
-        const snapshot = await fetchInitialData();
+        if (!usuarioActual) return;
+        const snapshot = await fetchInitialData(usuarioActual);
         if (!snapshot) return;
         applySnapshot(snapshot);
         void fetchSolicitudes().then(setSolicitudes);
@@ -166,7 +167,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
       document.removeEventListener("visibilitychange", refreshAfterAbsence);
       window.removeEventListener("focus", refreshAfterAbsence);
     };
-  }, [sesionActiva]);
+  }, [sesionActiva, usuarioActual]);
 
   useEffect(() => {
     if (isCloudEnabled) return;

@@ -78,7 +78,7 @@ async function leerTodo<T>(
   return filas;
 }
 
-async function leerDirectorioVisible<T>(): Promise<T[]> {
+async function leerDirectorioVisible<T>(usuarioActual: Usuario): Promise<T[]> {
   if (!supabase) return [];
   const filas: T[] = [];
   for (let desde = 0; ; desde += PAGINA) {
@@ -86,7 +86,26 @@ async function leerDirectorioVisible<T>(): Promise<T[]> {
       .rpc("directorio_visible")
       .order("id", { ascending: true })
       .range(desde, desde + PAGINA - 1);
-    if (error) throw error;
+    if (error) {
+      // Compatibilidad de emergencia mientras producción se reconcilia con las
+      // migraciones canónicas. El frontend no debe quedar inutilizable sólo
+      // porque `directorio_visible` aún no exista en el remoto.
+      if (error.code !== "PGRST202") throw error;
+
+      console.warn("[Supabase] directorio_visible no está desplegada; usando directorio compatible");
+      const esRolInterno = ["broker", "asesor_equipo", "asesor_independiente"].includes(usuarioActual.rol);
+      if (esRolInterno) return leerTodo<T>("usuarios");
+
+      // Cliente y propietario no deben recibir el directorio completo desde la
+      // tabla legacy. Hasta desplegar la RPC sólo se carga su propia ficha.
+      const { data: propia, error: errorPropia } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id", usuarioActual.id)
+        .limit(1);
+      if (errorPropia) throw errorPropia;
+      return (propia ?? []) as T[];
+    }
     const lote = (data ?? []) as T[];
     filas.push(...lote);
     if (lote.length < PAGINA) break;
@@ -143,7 +162,7 @@ export function exportarSnapshotJSON(estado: EstadoCompleto) {
 }
 
 // --- Modo nube (Supabase) ---
-export async function fetchInitialData(): Promise<EstadoCompleto | null> {
+export async function fetchInitialData(usuarioActual: Usuario): Promise<EstadoCompleto | null> {
   if (!supabase) return null;
   // La agenda solo se trae hacia adelante y un mes hacia atras: el historico
   // completo crece sin limite y no se usa en ninguna pantalla.
@@ -157,7 +176,7 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
     leerTodo<PropertyRow>("propiedades"),
     leerTodo<LeadRow>("leads", { columna: "creado", ascendente: false }),
-    leerDirectorioVisible<UserRow>(),
+    leerDirectorioVisible<UserRow>(usuarioActual),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
