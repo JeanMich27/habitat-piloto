@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint . --max-warnings 20",
     "package:standalone": "bash scripts/build-standalone.sh",
     "deploy": "bash scripts/deploy.sh"
   },
@@ -21,6 +22,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -29,9 +31,13 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^5.2.0",
+    "eslint": "^10.9.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.11.0",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.6.2",
+    "typescript-eslint": "^8.67.0",
     "vite": "^7.3.6",
     "vitest": "^4.1.11"
   }
