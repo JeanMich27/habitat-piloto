@@ -37,6 +37,9 @@ export interface Database {
       configuracion: { Row: ConfigurationRow; Insert: Partial<ConfigurationRow>; Update: Partial<ConfigurationRow> };
       citas: { Row: AppointmentRow; Insert: Partial<AppointmentRow>; Update: Partial<AppointmentRow> };
       solicitudes_estado: { Row: StatusRequestRow; Insert: Partial<StatusRequestRow>; Update: Partial<StatusRequestRow> };
+      integration_events: { Row: IntegrationEventRow; Insert: Partial<IntegrationEventRow>; Update: Partial<IntegrationEventRow> };
+      webhook_deliveries: { Row: WebhookDeliveryRow; Insert: Partial<WebhookDeliveryRow>; Update: Partial<WebhookDeliveryRow> };
+      integration_logs: { Row: IntegrationLogRow; Insert: Partial<IntegrationLogRow>; Update: Partial<IntegrationLogRow> };
     };
   };
 }
@@ -92,4 +95,26 @@ export interface StatusRequestRow {
   id: string; agencia_id: string; propiedad_id: string; solicitante_id: string; estado_actual: string;
   estado_solicitado: PropertyStatus; motivo: string | null; estatus: EstatusSolicitud;
   resuelto_por: string | null; resuelto_en: string | null; creado_en: string;
+}
+
+export interface IntegrationEventRow {
+  id: string; agencia_id: string; event_type: string; event_version: number;
+  entity_type: string; entity_id: string; payload: Record<string, unknown>; status: string;
+  attempts: number; available_at: string; created_at: string; occurred_at: string;
+  processed_at: string | null; last_error: string | null; actor_id: string | null;
+  correlation_id: string; causation_id: string | null;
+}
+
+export interface WebhookDeliveryRow {
+  id: string; agencia_id: string; event_id: string; endpoint_id: string;
+  status: "pending" | "processing" | "succeeded" | "failed"; attempts: number;
+  next_attempt_at: string; last_attempt_at: string | null; delivered_at: string | null;
+  response_status: number | null; last_error: string | null; created_at: string;
+}
+
+export interface IntegrationLogRow {
+  id: number; agencia_id: string; provider: string; direction: "inbound" | "outbound";
+  event_type: string | null; entity_id: string | null;
+  result: "accepted" | "succeeded" | "rejected" | "retrying" | "failed";
+  duration_ms: number | null; correlation_id: string; error_summary: string | null; created_at: string;
 }
