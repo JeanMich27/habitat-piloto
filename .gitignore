@@ -13,5 +13,8 @@ tsconfig.tsbuildinfo
 # Carpeta temporal: builds de verificación que no se pueden borrar desde el
 # entorno remoto. Es seguro eliminarla a mano.
 _to_delete
+_respaldo-*
+playwright-report
+test-results
 dist-verificacion-mt
 dist-vmt2

@@ -434,6 +434,7 @@ export default function ListadoPropiedades({
                   <td className="relative px-4 py-3 text-right">
                     <button
                       onClick={() => setMenuAbierto(menuAbierto === p.id ? null : p.id)}
+                      aria-label={`Acciones para ${p.titulo}`}
                       className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
                     >
                       <MoreVertical className="size-4" />
