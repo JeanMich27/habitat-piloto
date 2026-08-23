@@ -29,7 +29,7 @@ const ORIGEN_ESTILOS: Record<LeadOrigin, { clase: string; Icono: typeof Users }>
  * se mueve y parece que la app está rota) y el cambio de etapa se hace con el
  * selector. En escritorio se conserva el arrastre de siempre.
  */
-function usaPunteroPreciso() {
+function usePunteroPreciso() {
   const [preciso, setPreciso] = useState(true);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ interface Props {
 
 export default function KanbanCard({ lead, propiedad, onMoverEtapa }: Props) {
   const { clase, Icono } = ORIGEN_ESTILOS[lead.origen];
-  const arrastrable = usaPunteroPreciso();
+  const arrastrable = usePunteroPreciso();
 
   return (
     <div

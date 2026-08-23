@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3,
-  Building2,
-  CalendarDays,
-  Calculator,
-  ClipboardCheck,
-  Contact,
-  Download,
-  Home,
-  LayoutDashboard,
-  Settings,
-  ShieldCheck,
-  ShieldQuestion,
-  Upload,
-  User as UserIcon,
-  Users,
+  BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Download, Home,
+  LayoutDashboard, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
 } from "lucide-react";
 import type {
   AgenciaInfo,
@@ -100,44 +87,11 @@ import {
   type OperationResult,
 } from "./lib/dataStore";
 import { useAppData } from "./app/application/useAppData";
-
-type Vista =
-  | "broker"
-  | "propiedades"
-  | "detalle"
-  | "nueva"
-  | "asesores"
-  | "solicitudes"
-  | "perfil"
-  | "asesor"
-  | "mi-perfil"
-  | "propietario"
-  | "cliente"
-  | "intake"
-  | "reportes"
-  | "importar"
-  | "comisiones"
-  | "salud"
-  | "clientes"
-  | "agenda"
-  | "configuracion";
-
-const ETIQUETAS_ROL: Record<UserRole, string> = {
-  broker: "Broker / Admin",
-  asesor_independiente: "Asesor independiente",
-  asesor_equipo: "Asesor de equipo",
-  propietario: "Propietario",
-  cliente: "Cliente",
-};
-
-// Vista inicial de cada rol al entrar.
-const VISTA_INICIAL: Record<UserRole, Vista> = {
-  broker: "broker",
-  asesor_independiente: "asesor",
-  asesor_equipo: "asesor",
-  propietario: "propietario",
-  cliente: "cliente",
-};
+import {
+  INITIAL_VIEW as VISTA_INICIAL,
+  ROLE_LABELS as ETIQUETAS_ROL,
+  type Vista,
+} from "./app/navigation/navigation";
 
 export default function App() {
   if (configurationError) {
@@ -215,7 +169,7 @@ function AplicacionConfigurada() {
   useEffect(() => {
     if (usuarioActual) setVista(VISTA_INICIAL[usuarioActual.rol]);
     else setVista(null);
-  }, [usuarioActual?.id, usuarioActual?.rol]);
+  }, [usuarioActual]);
 
   // --- Historial del navegador ---
   // Cada cambio de vista se registra en window.history para que el botón
@@ -267,7 +221,7 @@ function AplicacionConfigurada() {
 
   useEffect(() => {
     setVistasNotif(usuarioActual ? leerVistas(usuarioActual.id) : new Set());
-  }, [usuarioActual?.id]);
+  }, [usuarioActual]);
 
   // El token del feed ICS se pide la primera vez que alguien abre la Agenda,
   // no al iniciar sesión: crear una fila de suscripción para quien nunca va a

@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Clientes from "../src/views/Clientes";
-import { esLeadOperativo, type Lead } from "../src/types";
+import { esLeadOperativo } from "../src/types";
 import { asesor, lead, propiedad } from "./fixtures";
 
 const activo = lead({ id: "l-activo", nombre: "Prospecto Activo" });
