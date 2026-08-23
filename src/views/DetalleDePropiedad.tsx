@@ -53,17 +53,10 @@ import type {
   Usuario,
 } from "../types";
 import { formatoMXN, puedeEditarPropiedades, solicitaCambioDeEstado } from "../types";
+import { Input, MiniInput, MiniStat, Select } from "./detalle/PropertyFormControls";
+import { PropertyTabs, type PropertyTab } from "./detalle/PropertyTabs";
 
-type Tab = "info" | "cronologia" | "leads" | "ofertas" | "documentos" | "comparativo";
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "info", label: "Información" },
-  { key: "cronologia", label: "Cronología" },
-  { key: "leads", label: "Leads y visitas" },
-  { key: "ofertas", label: "Ofertas" },
-  { key: "documentos", label: "Documentos" },
-  { key: "comparativo", label: "Comparativo" },
-];
+type Tab = PropertyTab;
 
 const TIPOS_INMUEBLE: TipoInmueble[] = ["Casa", "Depto", "Terreno", "Local"];
 const TIPOS_OPERACION: TipoOperacion[] = ["Venta", "Renta"];
@@ -372,21 +365,7 @@ export default function DetalleDePropiedad({
       </div>
 
       {/* ---------- Tabs ---------- */}
-      <div className="glass flex gap-1 overflow-x-auto p-1.5">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-              tab === t.key
-                ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
-                : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <PropertyTabs active={tab} onChange={setTab} />
 
       {/* ---------- Información ---------- */}
       {tab === "info" && !editando && (
@@ -1059,85 +1038,6 @@ export default function DetalleDePropiedad({
           onSolicitar={(nuevoEstado, motivo) => onSolicitarCambio(propiedad.id, nuevoEstado, motivo)}
         />
       )}
-    </div>
-  );
-}
-
-function Input({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="input mt-1" />
-    </div>
-  );
-}
-
-function Select({
-  label,
-  value,
-  opciones,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  opciones: string[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="input mt-1">
-        {opciones.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function MiniStat({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="text-lg font-bold text-slate-900">{valor}</p>
-    </div>
-  );
-}
-
-function MiniInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-  className = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white focus:outline-none"
-      />
     </div>
   );
 }

@@ -8,13 +8,10 @@
 // El cálculo es de simulación: no se guarda en la propiedad ni en la nube.
 import { useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Building2,
   CheckCircle2,
-  ClipboardCopy,
   Percent,
   Plus,
-  Printer,
   Receipt,
   Trash2,
   Wand2,
@@ -28,74 +25,22 @@ import {
   explicacionComision,
   tarifaDePropiedad,
 } from "../lib/comisiones";
+import {
+  COLORES,
+  PLANTILLAS,
+  conId,
+  nuevoId,
+  type ModoParticipante,
+  type Participante,
+  type Plantilla,
+} from "./comisiones/commissionTemplates";
+import { CommissionHeader } from "./comisiones/CommissionHeader";
 
 const IVA = 0.16;
-
-const COLORES = [
-  "#2563eb",
-  "#10b981",
-  "#a855f7",
-  "#f59e0b",
-  "#ef4444",
-  "#0ea5e9",
-  "#ec4899",
-  "#14b8a6",
-];
 
 // "tarifa" = % del precio en venta, o meses de renta en renta.
 type ModoComision = "tarifa" | "monto";
 type ModoIva = "sin" | "mas" | "incluido";
-type ModoParticipante = "pct" | "monto";
-
-interface Participante {
-  id: string;
-  nombre: string;
-  nota: string;
-  modo: ModoParticipante;
-  valor: number;
-}
-
-interface Plantilla {
-  etiqueta: string;
-  participantes: Omit<Participante, "id">[];
-}
-
-// Puntos de partida rápidos. El asesor puede borrarlos o reescribirlos todos.
-const PLANTILLAS: Plantilla[] = [
-  {
-    etiqueta: "30% Captador / 30% Vendedor / 40% Agencia",
-    participantes: [
-      { nombre: "Asesor Captador", nota: "Capta la propiedad", modo: "pct", valor: 30 },
-      { nombre: "Asesor Vendedor", nota: "Trae al comprador/inquilino", modo: "pct", valor: 30 },
-      { nombre: "Agencia Inmobiliaria / Broker", nota: "Oficina, mkt y legal", modo: "pct", valor: 40 },
-    ],
-  },
-  {
-    etiqueta: "50% Captación / 50% Venta",
-    participantes: [
-      { nombre: "Asesor Captador", nota: "Capta la propiedad", modo: "pct", valor: 50 },
-      { nombre: "Asesor Vendedor", nota: "Cierra la operación", modo: "pct", valor: 50 },
-    ],
-  },
-  {
-    etiqueta: "50% Compartida con Agencia Externa",
-    participantes: [
-      { nombre: "Nuestra Agencia", nota: "Lado captación", modo: "pct", valor: 50 },
-      { nombre: "Agencia Externa", nota: "Lado comprador", modo: "pct", valor: 50 },
-    ],
-  },
-  {
-    etiqueta: "100% Asesor Único",
-    participantes: [
-      { nombre: "Asesor", nota: "Captó y cerró la operación", modo: "pct", valor: 100 },
-    ],
-  },
-];
-
-const nuevoId = () => `p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-const conId = (lista: Omit<Participante, "id">[]): Participante[] =>
-  lista.map((p) => ({ ...p, id: nuevoId() }));
 
 const pct = (v: number) =>
   `${new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(v)}%`;
@@ -295,46 +240,7 @@ export default function CalculadoraComisiones({
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-      {/* ---------- Encabezado ---------- */}
-      {/* Mismo panel de vidrio con degradado pastel que abre el resto de la
-          app, para que la calculadora no parezca una pantalla de otro
-          producto pegada dentro. */}
-      <section className="glass relative flex flex-wrap items-start justify-between gap-3 overflow-hidden p-5 sm:p-6 print:block">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-100/60 via-sky-100/40 to-violet-100/40" />
-        <div className="relative min-w-0">
-          {onVolver && (
-            <button
-              onClick={onVolver}
-              className="mb-2 flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-white hover:text-slate-900 print:hidden"
-            >
-              <ArrowLeft className="size-4" /> Volver
-            </button>
-          )}
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-            Calculadora de Comisiones y Reparto
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Calcula y distribuye la comisión libremente: elige una propiedad cargada o captura
-            valores personalizados.
-          </p>
-        </div>
-        <div className="relative flex flex-wrap gap-2 print:hidden">
-          <button
-            onClick={copiarResumen}
-            className="flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white"
-          >
-            <ClipboardCopy className="size-3.5" />
-            {copiado ? "¡Copiado!" : "Copiar resumen"}
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-300/60 transition hover:bg-violet-700"
-          >
-            <Printer className="size-3.5" /> Imprimir
-          </button>
-        </div>
-      </section>
-
+      <CommissionHeader copied={copiado} onCopy={copiarResumen} onBack={onVolver} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* ================= Columna izquierda ================= */}
         <div className="space-y-5 lg:col-span-5 xl:col-span-4">
