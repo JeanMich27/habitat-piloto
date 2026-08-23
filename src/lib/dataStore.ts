@@ -34,6 +34,15 @@ import type {
   SolicitudEstado,
   Usuario,
 } from "../types";
+import type {
+  AgencyRow,
+  AppointmentRow,
+  ConfigurationRow,
+  LeadRow,
+  PropertyRow,
+  StatusRequestRow,
+  UserRow,
+} from "../types/database";
 
 const LOCAL_KEY = "habitat-piloto-datos-v1";
 
@@ -191,9 +200,9 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   // Los leads llegan del más nuevo al más viejo para que la app no dependa del
   // orden físico de la tabla al decidir qué mostrar primero.
   const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
-    leerTodo<any>("propiedades"),
-    leerTodo<any>("leads", { columna: "creado", ascendente: false }),
-    leerDirectorioVisible<any>(),
+    leerTodo<PropertyRow>("propiedades"),
+    leerTodo<LeadRow>("leads", { columna: "creado", ascendente: false }),
+    leerDirectorioVisible<UserRow>(),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
@@ -209,10 +218,10 @@ export async function fetchInitialData(): Promise<EstadoCompleto | null> {
   // instancia, la app entra igual y simplemente no muestra citas.
   if (ciRes.error) console.warn("[Supabase] citas no disponibles todavia", ciRes.error.message);
   if (ccRes.error) console.warn("[Supabase] citas de cliente no disponibles todavia", ccRes.error.message);
-  const citasPorId = new Map<string, any>();
+  const citasPorId = new Map<string, AppointmentRow>();
   for (const fila of [...(ciRes.data ?? []), ...(ccRes.data ?? [])]) citasPorId.set(fila.id, fila);
   const metricasPropietario = Object.fromEntries(
-    (mpRes.data ?? []).map((fila: any) => [
+    (mpRes.data ?? []).map((fila: { propiedad_id: string; leads: number; visitas: number; ofertas: number; actividad: number }) => [
       fila.propiedad_id,
       {
         leads: Number(fila.leads),
@@ -565,32 +574,37 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
     .channel(`sync-${agencia ?? "sin-agencia"}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "propiedades", ...soloMiAgencia }, (payload) => {
       if (payload.eventType === "DELETE") {
-        handlers.onPropiedadEliminada((payload.old as any).id);
+        const id = (payload.old as { id?: unknown }).id;
+        if (typeof id === "string") handlers.onPropiedadEliminada(id);
       } else {
-        handlers.onPropiedad(rowToPropiedad(payload.new));
+        handlers.onPropiedad(rowToPropiedad(payload.new as PropertyRow));
       }
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "leads", ...soloMiAgencia }, (payload) => {
-      if (payload.eventType !== "DELETE") handlers.onLead(rowToLead(payload.new));
+      if (payload.eventType !== "DELETE") handlers.onLead(rowToLead(payload.new as LeadRow));
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "usuarios", ...soloMiAgencia }, (payload) => {
-      if (payload.eventType !== "DELETE") handlers.onUsuario(rowToUsuario(payload.new));
+      if (payload.eventType !== "DELETE") handlers.onUsuario(rowToUsuario(payload.new as UserRow));
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "agencias" }, (payload) => {
-      if (payload.eventType !== "DELETE") handlers.onAgencia(rowToAgencia(payload.new));
+      if (payload.eventType !== "DELETE") handlers.onAgencia(rowToAgencia(payload.new as AgencyRow));
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "configuracion", ...soloMiAgencia }, (payload) => {
-      if (payload.eventType !== "DELETE") handlers.onConfiguracion(rowToConfiguracion(payload.new));
+      if (payload.eventType !== "DELETE") handlers.onConfiguracion(rowToConfiguracion(payload.new as ConfigurationRow));
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "citas", ...soloMiAgencia }, (payload) => {
-      if (payload.eventType === "DELETE") handlers.onCitaEliminada((payload.old as any).id);
-      else handlers.onCita(rowToCita(payload.new));
+      if (payload.eventType === "DELETE") {
+        const id = (payload.old as { id?: unknown }).id;
+        if (typeof id === "string") handlers.onCitaEliminada(id);
+      } else handlers.onCita(rowToCita(payload.new as AppointmentRow));
     })
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "solicitudes_estado", ...soloMiAgencia },
       (payload) => {
-        if (payload.eventType !== "DELETE") handlers.onSolicitud?.(rowToSolicitud(payload.new));
+        if (payload.eventType !== "DELETE") {
+          handlers.onSolicitud?.(rowToSolicitud(payload.new as StatusRequestRow));
+        }
       },
     )
     .subscribe();

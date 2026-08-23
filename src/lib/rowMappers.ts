@@ -12,6 +12,15 @@ import type {
   SolicitudEstado,
   Usuario,
 } from "../types";
+import type {
+  AgencyRow,
+  AppointmentRow,
+  ConfigurationRow,
+  LeadRow,
+  PropertyRow,
+  StatusRequestRow,
+  UserRow,
+} from "../types/database";
 
 // Toda fila que se escribe lleva la oficina de la sesión. Ver agenciaActual.ts.
 
@@ -73,7 +82,7 @@ export function propiedadToRow(p: Propiedad) {
   };
 }
 
-export function rowToPropiedad(r: any): Propiedad {
+export function rowToPropiedad(r: PropertyRow): Propiedad {
   return {
     id: r.id,
     version: r.version != null ? Number(r.version) : undefined,
@@ -125,7 +134,7 @@ export function rowToPropiedad(r: any): Propiedad {
 
 // --- Solicitudes de cambio de estado ---------------------------------------
 
-export function rowToSolicitud(r: any): SolicitudEstado {
+export function rowToSolicitud(r: StatusRequestRow): SolicitudEstado {
   return {
     id: r.id,
     propiedadId: r.propiedad_id,
@@ -178,7 +187,7 @@ export function leadToRow(l: Lead) {
   };
 }
 
-export function rowToLead(r: any): Lead {
+export function rowToLead(r: LeadRow): Lead {
   return {
     id: r.id,
     version: r.version != null ? Number(r.version) : undefined,
@@ -228,7 +237,7 @@ export function usuarioToRow(u: Usuario) {
   };
 }
 
-export function rowToUsuario(r: any): Usuario {
+export function rowToUsuario(r: UserRow): Usuario {
   return {
     id: r.id,
     nombre: r.nombre,
@@ -260,7 +269,7 @@ export function agenciaToRow(a: AgenciaInfo) {
   };
 }
 
-export function rowToAgencia(r: any): AgenciaInfo {
+export function rowToAgencia(r: AgencyRow): AgenciaInfo {
   return {
     id: r.id,
     nombre: r.nombre,
@@ -289,7 +298,7 @@ export function configuracionToRow(permisoEquipoVerTodas: boolean, notificacione
   };
 }
 
-export function rowToConfiguracion(r: any): {
+export function rowToConfiguracion(r: ConfigurationRow): {
   permisoEquipoVerTodas: boolean;
   notificaciones: Record<string, boolean>;
 } {
@@ -321,7 +330,7 @@ export function citaToRow(c: CitaAgenda) {
   };
 }
 
-export function rowToCita(r: any): CitaAgenda {
+export function rowToCita(r: AppointmentRow): CitaAgenda {
   return {
     id: r.id,
     version: r.version != null ? Number(r.version) : undefined,

@@ -13,6 +13,15 @@ import {
 
 type TipoImportacion = "propiedades" | "leads";
 
+function valorPreview(registro: Propiedad | Lead, key: string): string {
+  if (key.startsWith("propietario") && "propietario" in registro) {
+    const subcampo = key.replace("propietario", "").toLowerCase() as keyof Propiedad["propietario"];
+    return String(registro.propietario[subcampo] ?? "");
+  }
+  const value = (registro as unknown as Record<string, unknown>)[key];
+  return String(value ?? "");
+}
+
 interface Props {
   usuarios: Usuario[];
   usuarioActivoId: string;
@@ -220,13 +229,11 @@ export default function ImportarDatos({
                     </tr>
                   </thead>
                   <tbody>
-                    {registrosListos.slice(0, 5).map((r: any) => (
+                    {registrosListos.slice(0, 5).map((r: Propiedad | Lead) => (
                       <tr key={r.id} className="border-t border-slate-100">
                         {campos.map((c) => (
                           <td key={c.key} className="px-3 py-2 text-slate-600">
-                            {c.key.startsWith("propietario")
-                              ? r.propietario?.[c.key.replace("propietario", "").toLowerCase()] ?? ""
-                              : String(r[c.key] ?? "")}
+                            {valorPreview(r, c.key)}
                           </td>
                         ))}
                       </tr>
