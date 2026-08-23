@@ -16,8 +16,6 @@ import {
   User as UserIcon,
   Users,
 } from "lucide-react";
-import db from "./data/db.json";
-import { NOTIFICACIONES_DEFAULT } from "./data/configuracionOpciones";
 import type {
   AgenciaInfo,
   CalificacionBANT,
@@ -42,8 +40,6 @@ import {
   puedeCargarPropiedades,
   tieneAgenda,
   totalBant,
-  esLeadEnSeguimiento,
-  esLeadOperativo,
 } from "./types";
 import { evaluarBant, puedeAvanzarAEtapa } from "./domain/leads/qualification";
 import Agenda from "./views/Agenda";
@@ -85,21 +81,15 @@ import { configurationError, isCloudEnabled, isDemoMode } from "./lib/supabaseCl
 import {
   bulkUpsertLeads,
   bulkUpsertPropiedades,
-  cargarSnapshotLocal,
   confirmarCitaClienteEnNube,
   crearSolicitudEstado,
   desactivarAsesorAtomico,
   eliminarCita,
   exportarSnapshotJSON,
-  fetchInitialData,
-  fetchSolicitudes,
-  guardarSnapshotLocal,
   obtenerTokenAgenda,
   reemplazarEnArreglo,
   resolverSolicitudEstado,
   rotarTokenAgenda,
-  sembrarDatosDeEjemplo,
-  suscribirCambiosEnVivo,
   upsertAgencia,
   upsertCita,
   upsertConfiguracion,
@@ -107,10 +97,9 @@ import {
   upsertPropiedad,
   upsertUsuario,
   upsertUsuarioConError,
-  type EstadoCompleto,
-  type MetricasPropietario,
   type OperationResult,
 } from "./lib/dataStore";
+import { useAppData } from "./app/application/useAppData";
 
 type Vista =
   | "broker"
@@ -150,22 +139,6 @@ const VISTA_INICIAL: Record<UserRole, Vista> = {
   cliente: "cliente",
 };
 
-// Snapshot de fábrica (datos de ejemplo): siembra Supabase la primera vez o
-// alimenta el modo local de demostración.
-const snapshotDeFabrica: EstadoCompleto = {
-  propiedades: db.propiedades as Propiedad[],
-  leads: db.leads as Lead[],
-  usuarios: db.usuarios as Usuario[],
-  // La agenda arranca vacia: sembrar citas de ejemplo con fechas fijas se ve
-  // roto a los pocos dias y no ensena nada.
-  citas: [],
-  agencia: db.agencia as AgenciaInfo,
-  permisoEquipoVerTodas: false,
-  notificaciones: NOTIFICACIONES_DEFAULT,
-};
-
-const DEMO_KEY = "habitat-demo-usuario";
-
 export default function App() {
   if (configurationError) {
     return (
@@ -195,164 +168,19 @@ function AplicacionConfigurada() {
     cambiarCorreo,
   } = useAuth();
 
-  // --- Estado de datos ---
-  const snapshotLocal = isDemoMode ? cargarSnapshotLocal() : null;
-  const inicial: EstadoCompleto = { ...snapshotDeFabrica, ...snapshotLocal };
-
-  const [propiedades, setPropiedades] = useState<Propiedad[]>(inicial.propiedades);
-  const [leads, setLeads] = useState<Lead[]>(inicial.leads);
-  // El estado `leads` guarda TODO lo que hay en la tabla: embudo activo,
-  // histórico y directorio importado de EasyBroker. Los tableros y KPIs
-  // consumen `leadsOperativos`; solo la pantalla de Clientes ve la lista
-  // completa (con su propio filtro). Ver esLeadOperativo en types.ts.
-  const leadsOperativos = useMemo(() => leads.filter(esLeadOperativo), [leads]);
-  // Lo que sigue en juego. Alimenta las pantallas de TRABAJO (tableros del día,
-  // agenda, avisos): un lead descartado ahí es ruido que hace que el asesor
-  // deje de confiar en su propia lista de pendientes. Las pantallas de
-  // MEDICIÓN (Reportes, Salud inmobiliaria, desempeño) siguen con
-  // leadsOperativos: un lead perdido sí ocurrió y debe contar en el
-  // denominador, o la tasa de conversión se infla sola.
-  const leadsEnSeguimiento = useMemo(() => leads.filter(esLeadEnSeguimiento), [leads]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>(inicial.usuarios);
-  const [citas, setCitas] = useState<CitaAgenda[]>(inicial.citas ?? []);
-  const [metricasPropietario, setMetricasPropietario] = useState<Record<string, MetricasPropietario>>(
-    inicial.metricasPropietario ?? {},
-  );
-  const [errorMetricasPropietario, setErrorMetricasPropietario] = useState<string | null>(
-    inicial.errorMetricasPropietario ?? null,
-  );
-  // Solicitudes de cambio de estado (pendientes + resueltas recientes).
-  const [solicitudes, setSolicitudes] = useState<SolicitudEstado[]>([]);
-  const [agencia, setAgencia] = useState<AgenciaInfo>(inicial.agencia);
-  const [permisoEquipoVerTodas, setPermisoEquipoVerTodas] = useState(inicial.permisoEquipoVerTodas);
-  const [notificaciones, setNotificaciones] = useState<Record<string, boolean>>(
-    inicial.notificaciones,
-  );
-
-  // Modo demo local (sin Supabase): se elige un usuario de ejemplo para probar.
-  const [demoUsuarioId, setDemoUsuarioId] = useState<string | null>(() =>
-    isDemoMode ? window.localStorage.getItem(DEMO_KEY) : null,
-  );
-
-  // Usuario con el que se navega: el perfil real (nube) o el elegido en demo.
-  const usuarioActual: Usuario | null = isCloudEnabled
-    ? perfil
-    : usuarios.find((u) => u.id === demoUsuarioId) ?? null;
-
-  const sesionActiva = isCloudEnabled
-    ? Boolean(sesion && perfil && perfil.estadoCuenta === "Activo")
-    : Boolean(usuarioActual);
-
-  // --- Sincronización con Supabase (solo con sesión activa: RLS filtra por rol) ---
-  const [cargandoNube, setCargandoNube] = useState(false);
-  const [avisoNube, setAvisoNube] = useState<string | null>(null);
-  const yaSembrado = useRef(false);
-
-  useEffect(() => {
-    if (!isCloudEnabled || !sesionActiva) return;
-    let vivo = true;
-    setCargandoNube(true);
-    (async () => {
-      try {
-        let datos = await fetchInitialData();
-        const vacio = datos && datos.propiedades.length === 0 && datos.leads.length === 0;
-        // Solo el broker siembra los datos de ejemplo (RLS bloquea al resto).
-        if (datos && vacio && usuarioActual?.rol === "broker" && !yaSembrado.current) {
-          yaSembrado.current = true;
-          const siembra = await sembrarDatosDeEjemplo(snapshotDeFabrica);
-          if (!siembra.ok) throw new Error(siembra.error.message);
-          datos = await fetchInitialData();
-        }
-        if (!vivo || !datos) return;
-        fetchSolicitudes().then((s) => vivo && setSolicitudes(s));
-        setPropiedades(datos.propiedades);
-        setLeads(datos.leads);
-        setUsuarios(datos.usuarios);
-        setCitas(datos.citas);
-        setMetricasPropietario(datos.metricasPropietario ?? {});
-        setErrorMetricasPropietario(datos.errorMetricasPropietario ?? null);
-        setAgencia(datos.agencia);
-        setPermisoEquipoVerTodas(datos.permisoEquipoVerTodas);
-        setNotificaciones(datos.notificaciones);
-        setAvisoNube(null);
-      } catch (err) {
-        console.error("[Supabase] fetchInitialData", err);
-        if (vivo) setAvisoNube("No se pudo conectar con la base de datos. Intenta recargar.");
-      } finally {
-        if (vivo) setCargandoNube(false);
-      }
-    })();
-    return () => {
-      vivo = false;
-    };
-  }, [sesionActiva]);
-
-  useEffect(() => {
-    if (!isCloudEnabled || !sesionActiva) return;
-    return suscribirCambiosEnVivo({
-      onPropiedad: (p) => setPropiedades((prev) => reemplazarEnArreglo(prev, p)),
-      onPropiedadEliminada: (id) => setPropiedades((prev) => prev.filter((p) => p.id !== id)),
-      onLead: (l) => setLeads((prev) => reemplazarEnArreglo(prev, l)),
-      onUsuario: (u) => setUsuarios((prev) => reemplazarEnArreglo(prev, u)),
-      onAgencia: (a) => setAgencia(a),
-      onConfiguracion: (c) => {
-        setPermisoEquipoVerTodas(c.permisoEquipoVerTodas);
-        setNotificaciones(c.notificaciones);
-      },
-      onCita: (c) => setCitas((prev) => reemplazarEnArreglo(prev, c)),
-      onCitaEliminada: (id) => setCitas((prev) => prev.filter((c) => c.id !== id)),
-      onSolicitud: (s) => setSolicitudes((prev) => reemplazarEnArreglo(prev, s)),
-    });
-  }, [sesionActiva]);
-
-  // Realtime empuja los cambios en vivo, pero solo mientras la pestaña está
-  // conectada: si la laptop se durmió o el celular se quedó sin señal, los
-  // eventos de ese rato NO se reenvían al reconectar. Sin esto, el asesor
-  // vuelve a una lista congelada que se ve perfectamente normal — que es la
-  // peor forma de estar desactualizado. Al volver a la pestaña después de más
-  // de dos minutos, se vuelve a leer todo.
-  useEffect(() => {
-    if (!isCloudEnabled || !sesionActiva) return;
-    let ultimaLectura = Date.now();
-    const alVolver = async () => {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - ultimaLectura < 120_000) return;
-      ultimaLectura = Date.now();
-      try {
-        const datos = await fetchInitialData();
-        if (!datos) return;
-        setPropiedades(datos.propiedades);
-        setLeads(datos.leads);
-        setUsuarios(datos.usuarios);
-        setCitas(datos.citas);
-        setMetricasPropietario(datos.metricasPropietario ?? {});
-        setErrorMetricasPropietario(datos.errorMetricasPropietario ?? null);
-        fetchSolicitudes().then(setSolicitudes);
-      } catch (err) {
-        console.warn("[Supabase] no se pudo refrescar al volver a la pestaña", err);
-      }
-    };
-    document.addEventListener("visibilitychange", alVolver);
-    window.addEventListener("focus", alVolver);
-    return () => {
-      document.removeEventListener("visibilitychange", alVolver);
-      window.removeEventListener("focus", alVolver);
-    };
-  }, [sesionActiva]);
-
-  // Modo local: autoguarda en el navegador.
-  useEffect(() => {
-    if (isCloudEnabled) return;
-    guardarSnapshotLocal({
-      propiedades,
-      leads,
-      usuarios,
-      citas,
-      agencia,
-      permisoEquipoVerTodas,
-      notificaciones,
-    });
-  }, [propiedades, leads, usuarios, citas, agencia, permisoEquipoVerTodas, notificaciones]);
+  const {
+    propiedades, setPropiedades,
+    leads, setLeads, leadsOperativos, leadsEnSeguimiento,
+    usuarios, setUsuarios,
+    citas, setCitas,
+    solicitudes, setSolicitudes,
+    agencia, setAgencia,
+    permisoEquipoVerTodas, setPermisoEquipoVerTodas,
+    notificaciones, setNotificaciones,
+    metricasPropietario, errorMetricasPropietario,
+    usuarioActual, clearDemoUser, selectDemoUser,
+    cargandoNube, avisoNube, setAvisoNube,
+  } = useAppData({ perfil, cloudSessionPresent: Boolean(sesion) });
 
   // --- Navegación ---
   const [vista, setVista] = useState<Vista | null>(null);
@@ -590,8 +418,7 @@ function AplicacionConfigurada() {
                 <button
                   key={u.id}
                   onClick={() => {
-                    window.localStorage.setItem(DEMO_KEY, u.id);
-                    setDemoUsuarioId(u.id);
+                    selectDemoUser(u.id);
                   }}
                   className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-left hover:border-slate-400"
                 >
@@ -1284,8 +1111,7 @@ function AplicacionConfigurada() {
     if (isCloudEnabled) {
       await cerrarSesion();
     } else {
-      window.localStorage.removeItem(DEMO_KEY);
-      setDemoUsuarioId(null);
+      clearDemoUser();
     }
   };
 
