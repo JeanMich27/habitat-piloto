@@ -51,6 +51,8 @@ Compara el resultado con `src/types/database.ts`, integra la diferencia y ejecut
 
 Las entradas externas se implementan del lado servidor en `supabase/functions` o en futuros adaptadores bajo `src/integrations` cuando no manejen secretos. El flujo esperado es adaptador/webhook → caso de uso → dominio → repository/RPC. Ninguna integración debe escribir mediante componentes React ni ampliar `dataStore` con lógica de proveedor.
 
+P3.1 materializa esa frontera con `integration-inbound`, credenciales M2M por tenant, commands tipados, outbox transaccional y `dispatch-webhooks`. Los eventos se generan en triggers PostgreSQL para que escritura y outbox compartan transacción. La entrega se desacopla mediante `webhook_deliveries`, firma HMAC, locks `SKIP LOCKED`, retries limitados y auditoría con correlation ID. Los contratos y operación están en `docs/integrations/`.
+
 ## Prohibiciones prácticas
 
 - No llamar Supabase directamente desde una vista nueva si existe repository/service.

@@ -2,6 +2,11 @@
 
 ## Estado actual
 
+> Documento histórico de preparación P1. P3.1 ya implementó el dispatcher
+> genérico y sustituyó la entrada compartida de una sola agencia por
+> `integration-inbound` con credenciales por tenant. La guía vigente es
+> `docs/integrations/README.md`; n8n sigue sin estar conectado.
+
 La aplicación no llama a n8n. Supabase sigue siendo la fuente de verdad y la
 automatización queda separada en dos piezas:
 
@@ -79,11 +84,8 @@ en `README.md`. El orden de despliegue debe ser:
 `SUPABASE_SERVICE_ROLE_KEY` vive únicamente dentro del entorno administrado de
 Supabase Edge Functions. n8n no necesita ni debe recibir esa llave.
 
-## Paso todavía pendiente: salida del outbox
+## Salida del outbox (resuelta como infraestructura en P3.1)
 
-No se implementó un despachador para evitar elegir prematuramente reintentos,
-destinos y credenciales. El primer flujo real debe reclamar eventos `pending`
-de forma atómica, entregarlos a un webhook autenticado de n8n y marcar cada
-evento `processed` o `failed`, incrementando `attempts`, `available_at` y
-`last_error`. Esa operación debe vivir en backend/Edge Function y nunca en el
-frontend.
+`dispatch-webhooks` reclama entregas de forma atómica, firma, reintenta y deja
+dead letters diagnosticables. No apunta a n8n ni configura cron productivo;
+P3.2 deberá aprovisionar un endpoint real y validar la firma antes del workflow.
