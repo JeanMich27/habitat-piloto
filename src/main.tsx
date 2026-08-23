@@ -5,14 +5,17 @@ import App from "./App";
 import { AuthProvider } from "./lib/authContext";
 import { registrarServiceWorker } from "./lib/registrarServiceWorker";
 import BannerInstalacion from "./components/BannerInstalacion";
+import { AppErrorBoundary } from "./app/providers/AppErrorBoundary";
 
 registrarServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
-      <App />
-      <BannerInstalacion />
+      <AppErrorBoundary>
+        <App />
+        <BannerInstalacion />
+      </AppErrorBoundary>
     </AuthProvider>
   </StrictMode>,
 );
