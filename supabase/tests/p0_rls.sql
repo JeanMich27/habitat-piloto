@@ -61,7 +61,14 @@ select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-0000000
 select results_eq('select id from public.leads order by id', array['p0-lead-a']::text[], 'cliente solo ve su lead');
 select results_eq($$update public.leads set agencia_id = 'p0-b' where id = 'p0-lead-a' returning id$$, array[]::text[], 'cliente no cambia agencia ni ningún campo directamente');
 select ok(public.cliente_confirmar_cita('p0-lead-a', 'cita-a'), 'cliente puede confirmar una cita propia mediante RPC estrecha');
+-- citas_select no da visibilidad al rol cliente (solo broker/asesor); verificar el
+-- efecto de la RPC exige salir momentáneamente del rol simulado, igual que las
+-- escrituras directas de la línea 75 más abajo.
+reset role;
+select set_config('request.jwt.claims', '{}', true);
 select results_eq($$select estado from public.citas where id = 'cita-a'$$, array['Confirmada']::text[], 'la RPC solo aplica la confirmación esperada');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000003","email":"cliente-a@p0.test"}', true);
 select is(public.cliente_confirmar_cita('p0-lead-b', 'cita-b'), false, 'cliente no opera recursos de otra agencia');
 select results_eq('select count(*)::int from public.directorio_visible()', array[1], 'cliente no recibe el directorio de la agencia');
 

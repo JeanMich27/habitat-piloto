@@ -61,7 +61,7 @@ select count(*) from public.claim_webhook_deliveries(1);
 select public.complete_webhook_delivery((select value::uuid from p31_state where name='delivery'),'success',204,null,null,8);
 select results_eq($$select status from public.webhook_deliveries where id=(select value::uuid from p31_state where name='delivery')$$,array['succeeded'],'2xx finaliza delivery');
 select results_eq($$select status from public.integration_events where id=(select event_id from public.webhook_deliveries where id=(select value::uuid from p31_state where name='delivery'))$$,array['processed'],'outbox se marca procesada');
-select results_eq($$select count(*)::int from public.integration_logs where direction='inbound' and agencia_id='p31-a'$$,array[1],'auditoría inbound no duplica replay');
+select results_eq($$select count(*)::int from public.integration_logs where direction='inbound' and agencia_id='p31-a'$$,array[2],'auditoría inbound no duplica replay: 1 alta aceptada + 1 rechazo cross-tenant, el replay no agrega una tercera');
 select results_eq($$select count(*)::int from public.integration_logs where direction='outbound' and agencia_id='p31-a'$$,array[2],'auditoría registra retry y éxito');
 
 select * from finish();
