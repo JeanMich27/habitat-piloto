@@ -56,10 +56,10 @@ fuera de los puertos reenviados privados del Codespace.
 
 ## CI efímero sin secretos
 
-`Supabase and P4.1 CI` se ejecuta en PR, push a `main`/`master` y manualmente.
+`Supabase and P4.1 CI` se ejecuta en PR, push a `main`/`master`/`codex/**` y manualmente.
 Usa Node 24.18.0, Supabase CLI 2.115.0 y Deno 2.9.5. En orden ejecuta:
 
-1. `npm ci`, typecheck, lint y 157 pruebas TypeScript.
+1. `npm ci`, typecheck, lint y la suite TypeScript vigente.
 2. Build y presupuesto de bundle.
 3. `supabase start` y `supabase db reset` únicamente en el runner efímero.
 4. Todos los pgTAP, incluido P4.1, Storage y cinco roles cross-tenant.
@@ -139,14 +139,20 @@ asesor de equipo, propietario, cliente y propiedades A/B. Para el smoke cloud:
 Ejecuta **Supabase Cloud DEV → smoke**. El job verifica:
 
 - login del asesor y del propietario ficticios;
-- generación y estructura `%PDF`;
-- registro, auditoría y bucket privado;
+- llamadas reales de generación como broker, independiente y asesor de equipo,
+  y rechazo real como propietario y cliente;
+- al menos cuatro fotografías reales, reordenadas para comprobar portada y galería;
+- generación y estructura `%PDF` de las variantes con y sin asesor;
+- QR de WhatsApp validable por hash o QR de publicación/omisión sin asesor;
+- registro, los cinco eventos de auditoría requeridos y bucket privado sin URL pública;
 - descarga autorizada y rechazo del propietario;
-- enlace válido, revocación, expiración controlada y token inválido;
+- enlace válido e inmutable después de otra configuración, revocación,
+  expiración controlada y token inválido;
 - respuestas públicas sin rutas, hashes ni errores internos.
 
-El PDF queda siete días como artefacto `p41-property-sheet-dev` para revisión
-visual. El workflow no puede ejecutarse si la URL DEV no coincide exactamente
+Las variantes con y sin asesor quedan siete días en el artefacto
+`p42-property-sheets-dev`, junto con un resumen sin PII para revisión visual y
+validación del QR. El workflow no puede ejecutarse si la URL DEV no coincide exactamente
 con `SUPABASE_PROJECT_REF_DEV` o si DEV coincide con PROD.
 
 ## Producción

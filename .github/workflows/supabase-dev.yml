@@ -80,7 +80,9 @@ jobs:
         if: inputs.operation == 'smoke' && success()
         uses: actions/upload-artifact@v4
         with:
-          name: p41-property-sheet-dev
-          path: test-results/p41-property-sheet-dev.pdf
+          name: p42-property-sheets-dev
+          path: |
+            test-results/p42-property-sheet-dev-*.pdf
+            test-results/p42-cloud-smoke-summary.json
           if-no-files-found: error
           retention-days: 7

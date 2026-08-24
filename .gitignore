@@ -17,5 +17,6 @@ _to_delete
 _respaldo-*
 playwright-report
 test-results
+output/pdf
 dist-verificacion-mt
 dist-vmt2

@@ -9,13 +9,21 @@ interface GenerateInput {
   type: "property_sheet";
   resourceId: string;
   advisorId?: string;
-  options: { includeAdvisorData: boolean; output: Output; expiresInDays?: 1 | 7 | 30 };
+  options: {
+    includeAdvisorData: boolean;
+    output: Output;
+    expiresInDays?: 1 | 7 | 30;
+    selectedImageIndexes?: number[];
+    includeQr: boolean;
+    locationMode: "approximate";
+    template: "commercial";
+  };
 }
 
 interface UserRow {
-  id: string; agencia_id: string; nombre: string; correo: string; telefono: string; rol: string;
+  id: string; agencia_id: string; nombre: string; correo: string; telefono: string; puesto: string; rol: string;
 }
-interface AgencyRow { nombre: string; logo_url: string | null; }
+interface AgencyRow { nombre: string; logo_url: string | null; telefono: string | null; correo: string | null; sitio_web: string | null; }
 interface DocumentRow { id: string; storage_path: string; }
 
 function parseInput(value: unknown): GenerateInput {
@@ -28,11 +36,26 @@ function parseInput(value: unknown): GenerateInput {
   if (options.output !== "pdf" && options.output !== "temporary_link") throw new Error("Salida inválida");
   const expires = options.expiresInDays ?? 7;
   if (![1, 7, 30].includes(Number(expires))) throw new Error("Vigencia inválida");
+  const selected = options.selectedImageIndexes;
+  if (selected !== undefined && (!Array.isArray(selected) || selected.length > 10 || selected.some((index) => !Number.isInteger(index) || Number(index) < 0 || Number(index) > 99) || new Set(selected).size !== selected.length)) {
+    throw new Error("Selección de fotografías inválida");
+  }
+  if (options.locationMode !== undefined && options.locationMode !== "approximate") throw new Error("La dirección completa no está habilitada");
+  if (options.template !== undefined && options.template !== "commercial") throw new Error("Plantilla inválida");
+  if (options.includeQr !== undefined && typeof options.includeQr !== "boolean") throw new Error("Configuración QR inválida");
   return {
     type: "property_sheet",
     resourceId: input.resourceId,
     advisorId: typeof input.advisorId === "string" ? input.advisorId : undefined,
-    options: { includeAdvisorData: options.includeAdvisorData, output: options.output, expiresInDays: Number(expires) as 1 | 7 | 30 },
+    options: {
+      includeAdvisorData: options.includeAdvisorData,
+      output: options.output,
+      expiresInDays: Number(expires) as 1 | 7 | 30,
+      selectedImageIndexes: selected?.map(Number),
+      includeQr: options.includeQr !== false,
+      locationMode: "approximate",
+      template: "commercial",
+    },
   };
 }
 
@@ -55,7 +78,7 @@ Deno.serve(async (request) => {
 
   const { data: authData, error: authError } = await userClient.auth.getUser(jwt);
   if (authError || !authData.user) return json(401, { error: "Tu sesión expiró. Inicia sesión de nuevo." });
-  const { data: userData } = await userClient.from("usuarios").select("id,agencia_id,nombre,correo,telefono,rol").eq("auth_id", authData.user.id).maybeSingle();
+  const { data: userData } = await userClient.from("usuarios").select("id,agencia_id,nombre,correo,telefono,puesto,rol").eq("auth_id", authData.user.id).maybeSingle();
   const user = userData as UserRow | null;
   if (!user || !["broker", "asesor_independiente", "asesor_equipo"].includes(user.rol)) return json(403, { error: "No tienes permiso para generar fichas." });
   if (input.advisorId && input.advisorId !== user.id) return json(403, { error: "Solo puedes incluir tus propios datos de contacto." });
@@ -65,15 +88,23 @@ Deno.serve(async (request) => {
   const { data: property, error: propertyError } = await userClient.from("propiedades").select("*").eq("id", input.resourceId).maybeSingle();
   if (propertyError) console.warn("[generate-document] property_query", { code: propertyError.code });
   if (!property) return json(404, { error: "La propiedad no existe o no tienes permiso para verla." });
-  const { data: agencyData } = await userClient.from("agencias").select("nombre,logo_url").eq("id", user.agencia_id).maybeSingle();
+  const { data: agencyData } = await userClient.from("agencias").select("nombre,logo_url,telefono,correo,sitio_web").eq("id", user.agencia_id).maybeSingle();
   const agency = agencyData as AgencyRow | null;
   if (!agency) return json(403, { error: "No fue posible validar la inmobiliaria." });
 
+  const propertyRecord = property as Record<string, unknown>;
+  const propertyImages = Array.isArray(propertyRecord.imagenes) ? propertyRecord.imagenes.filter((url): url is string => typeof url === "string") : [];
+  const selectedImageIndexes = input.options.selectedImageIndexes ?? propertyImages.slice(0, 10).map((_, index) => index);
+  if (selectedImageIndexes.some((index) => index >= propertyImages.length)) return json(400, { error: "La selección de fotografías ya no coincide con la propiedad." });
   const metadata = {
+    template: input.options.template,
     includeAdvisorData: input.options.includeAdvisorData,
     advisorId: input.options.includeAdvisorData ? user.id : null,
-    resourceVersion: Number((property as Record<string, unknown>).version ?? 0),
-    generatorVersion: 1,
+    selectedImageIndexes,
+    includeQr: input.options.includeQr,
+    locationMode: input.options.locationMode,
+    resourceVersion: Number(propertyRecord.version ?? 0),
+    generatorVersion: 2,
   };
   const reuseAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: reusable } = await admin.from("generated_documents")
@@ -85,9 +116,10 @@ Deno.serve(async (request) => {
   if (!document) {
     try {
       const bytes = await createPropertySheetPdf({
-        property: property as Parameters<typeof createPropertySheetPdf>[0]["property"],
+        property: { ...propertyRecord, imagenes: selectedImageIndexes.map((index) => propertyImages[index]) } as unknown as Parameters<typeof createPropertySheetPdf>[0]["property"],
         agency,
-        advisor: input.options.includeAdvisorData ? { nombre: user.nombre, correo: user.correo, telefono: user.telefono } : null,
+        advisor: input.options.includeAdvisorData ? { nombre: user.nombre, correo: user.correo, telefono: user.telefono, puesto: user.puesto } : null,
+        options: { includeQr: input.options.includeQr, locationMode: input.options.locationMode, template: input.options.template },
       });
       const documentId = crypto.randomUUID();
       const storagePath = `${user.agencia_id}/${input.type}/${documentId}.pdf`;
@@ -110,6 +142,7 @@ Deno.serve(async (request) => {
       });
     } catch (error) {
       console.error("[generate-document] generation_failed", { message: error instanceof Error ? error.message : "unknown" });
+      if (error instanceof Error && error.message === "PDF_TOO_LARGE") return json(413, { error: "La ficha supera 10 MB. Selecciona menos fotografías o imágenes más ligeras." });
       return json(500, { error: "No pudimos generar la ficha. Intenta de nuevo." });
     }
   }
