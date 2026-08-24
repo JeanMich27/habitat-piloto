@@ -49,4 +49,17 @@ grant select, update
   on public.notificaciones
   to authenticated;
 
+-- service_role es el rol de confianza para triggers/RPCs "security definer"
+-- e integraciones de backend: en Supabase Cloud tiene privilegio total sobre
+-- estas tablas por el mismo aprovisionamiento por defecto que authenticated
+-- (fuera del historial de migraciones). Mismo hueco, mismo fix: confirmado
+-- por "permission denied for table leads ... GRANT ... TO service_role"
+-- en integration_events_rls.sql y p31_integration_foundation.sql, ambos
+-- corriendo bajo `set local role service_role`.
+grant all
+  on public.agencias, public.usuarios, public.propiedades, public.leads,
+     public.configuracion, public.citas, public.agenda_feeds,
+     public.solicitudes_estado, public.notificaciones
+  to service_role;
+
 commit;
