@@ -58,6 +58,11 @@ select throws_ok(
 );
 
 reset role;
+-- reset role no limpia request.jwt.claims (persiste dentro de la misma
+-- transacción): sin esto, auth.uid()/auth.role() siguen devolviendo la
+-- identidad simulada anterior y disparan triggers de seguridad con el rol
+-- equivocado para estas escrituras directas.
+select set_config('request.jwt.claims', '{}', true);
 insert into public.usuarios
   (id, agencia_id, nombre, correo, telefono, rol, puesto, iniciales, estado_cuenta)
 values ('p1-fallo-a', 'p1-atom-a', 'Fallo', 'p1-fallo@test.mx', '', 'asesor_equipo', 'Asesor', 'FA', 'Activo');

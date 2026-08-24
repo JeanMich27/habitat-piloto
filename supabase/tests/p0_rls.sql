@@ -64,6 +64,11 @@ select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-0000000
 select results_eq('select count(*)::int from public.leads', array[0], 'cuenta pendiente no accede datos');
 
 reset role;
+-- reset role no limpia request.jwt.claims (persiste dentro de la misma
+-- transacción): sin esto, auth.uid()/auth.role() siguen devolviendo la
+-- identidad simulada anterior y disparan triggers de seguridad con el rol
+-- equivocado para estas escrituras directas.
+select set_config('request.jwt.claims', '{}', true);
 update public.usuarios set estado_cuenta = 'Inactivo' where id = 'p0-asesor-a';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000002","email":"asesor-a@p0.test"}', true);

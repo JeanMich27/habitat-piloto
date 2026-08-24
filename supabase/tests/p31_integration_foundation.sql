@@ -17,7 +17,7 @@ values ('p31-prop-b','p31-b','Prop B','Casa','Venta','p31-broker-b','{}');
 select ok(not has_table_privilege('anon','public.integration_credentials','select'),'anon no lee credenciales');
 select ok(not has_table_privilege('authenticated','public.integration_credentials','select'),'usuarios no leen hashes');
 select ok(not has_table_privilege('authenticated','public.webhook_endpoints','select'),'usuarios no leen referencias a secretos');
-select hasnt_function_privilege('authenticated','public.claim_webhook_deliveries(integer)','execute','cliente no reclama entregas');
+select ok(not has_function_privilege('authenticated','public.claim_webhook_deliveries(integer)','execute'),'cliente no reclama entregas');
 
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
