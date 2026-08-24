@@ -56,7 +56,7 @@ fuera de los puertos reenviados privados del Codespace.
 
 ## CI efímero sin secretos
 
-`Supabase and P4.1 CI` se ejecuta en PR, push a `main`/`master` y manualmente.
+`Supabase and P4.1 CI` se ejecuta en PR, push a `main`/`master`/`codex/**` y manualmente.
 Usa Node 24.18.0, Supabase CLI 2.115.0 y Deno 2.9.5. En orden ejecuta:
 
 1. `npm ci`, typecheck, lint y la suite TypeScript vigente.

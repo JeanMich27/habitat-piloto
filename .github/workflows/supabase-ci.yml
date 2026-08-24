@@ -13,7 +13,7 @@ on:
       - "playwright.config.ts"
       - ".github/workflows/supabase-ci.yml"
   push:
-    branches: [main, master]
+    branches: [main, master, "codex/**"]
     paths:
       - "supabase/**"
       - "src/**"
