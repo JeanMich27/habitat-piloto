@@ -1,0 +1,26 @@
+{
+  "name": "Habitat cloud development",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-24-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "28.3.3",
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/deno:1": {
+      "version": "2.9.5"
+    }
+  },
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [5173, 54321, 54323, 54324],
+  "portsAttributes": {
+    "5173": { "label": "Vite" },
+    "54321": { "label": "Supabase API", "onAutoForward": "silent" },
+    "54323": { "label": "Supabase Studio", "onAutoForward": "silent" },
+    "54324": { "label": "Mailpit", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["denoland.vscode-deno", "dbaeumer.vscode-eslint"]
+    }
+  }
+}

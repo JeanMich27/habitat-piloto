@@ -1,0 +1,99 @@
+name: Supabase and P4.1 CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "src/**"
+      - "tests/**"
+      - "e2e/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.ts"
+      - ".github/workflows/supabase-ci.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "supabase/**"
+      - "src/**"
+      - "tests/**"
+      - "e2e/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.ts"
+      - ".github/workflows/supabase-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-p41-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-validation:
+    name: App, database, RLS and Edge Functions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and component tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Bundle budget
+        run: npm run check:bundle
+
+      - name: Setup Deno 2.9.5
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.5
+
+      - name: Show pinned tool versions
+        run: |
+          node --version
+          deno --version
+          npx --no-install supabase --version
+
+      - name: Start ephemeral Supabase on the GitHub runner
+        run: npm run supabase:start
+
+      - name: Rebuild from canonical migrations
+        run: npm run supabase:reset
+
+      - name: Run all pgTAP security and integration tests
+        run: npm run supabase:test
+
+      - name: Check P4.1 Edge Functions
+        run: npm run edge:check
+
+      - name: Test document security and PDF engine
+        run: npm run edge:test
+
+      - name: Stop ephemeral Supabase
+        if: always()
+        run: npx --no-install supabase stop --no-backup || true

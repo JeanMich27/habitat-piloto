@@ -30,6 +30,7 @@ const PerfilDesempeno = lazy(() => import("./views/PerfilDesempeno"));
 const PerfilPersonal = lazy(() => import("./views/PerfilPersonal"));
 const ClientePortal = lazy(() => import("./views/ClientePortal"));
 const PropietarioPortal = lazy(() => import("./views/PropietarioPortal"));
+const PublicSharedDocument = lazy(() => import("./views/PublicSharedDocument"));
 const Reportes = lazy(() => import("./views/Reportes"));
 const SolicitudesAcceso = lazy(() => import("./views/SolicitudesAcceso"));
 import AppShell, { type NavItem } from "./components/AppShell";
@@ -59,6 +60,7 @@ import { createLeadActions } from "./app/application/leadActions";
 import { createPropertyActions } from "./app/application/propertyActions";
 import { createAppointmentActions } from "./app/application/appointmentActions";
 import { createTeamSettingsActions } from "./app/application/teamSettingsActions";
+import { createDocumentActions } from "./app/application/documentActions";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
@@ -66,6 +68,10 @@ import {
 } from "./app/navigation/navigation";
 
 export default function App() {
+  const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/i);
+  if (shareMatch) {
+    return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-300">Abriendo documento…</div>}><PublicSharedDocument token={shareMatch[1].toLowerCase()} /></Suspense>;
+  }
   if (configurationError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
@@ -382,6 +388,7 @@ function AplicacionConfigurada() {
     propiedades, setPropiedades, setSolicitudes, currentUser: yo, cloudEnabled: isCloudEnabled,
     confirmPersistence: confirmarPersistencia, setBusinessNotice: setAvisoBant,
   });
+  const { generatePropertySheet } = createDocumentActions({ currentUserId: yo.id, publicOrigin: window.location.origin });
   const irADetalle = (propiedadId: string) => {
     setPropiedadSeleccionadaId(propiedadId);
     setVista("detalle");
@@ -670,6 +677,7 @@ function AplicacionConfigurada() {
                   ? irACalculadora
                   : undefined
               }
+              onGenerarFicha={generatePropertySheet}
             />
           )}
           {vista === "asesores" && yo.rol === "broker" && (

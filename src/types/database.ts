@@ -40,6 +40,9 @@ export interface Database {
       integration_events: { Row: IntegrationEventRow; Insert: Partial<IntegrationEventRow>; Update: Partial<IntegrationEventRow> };
       webhook_deliveries: { Row: WebhookDeliveryRow; Insert: Partial<WebhookDeliveryRow>; Update: Partial<WebhookDeliveryRow> };
       integration_logs: { Row: IntegrationLogRow; Insert: Partial<IntegrationLogRow>; Update: Partial<IntegrationLogRow> };
+      generated_documents: { Row: GeneratedDocumentRow; Insert: Partial<GeneratedDocumentRow>; Update: Partial<GeneratedDocumentRow> };
+      shared_links: { Row: SharedLinkRow; Insert: Partial<SharedLinkRow>; Update: Partial<SharedLinkRow> };
+      document_audit_events: { Row: DocumentAuditEventRow; Insert: Partial<DocumentAuditEventRow>; Update: Partial<DocumentAuditEventRow> };
     };
   };
 }
@@ -117,4 +120,24 @@ export interface IntegrationLogRow {
   event_type: string | null; entity_id: string | null;
   result: "accepted" | "succeeded" | "rejected" | "retrying" | "failed";
   duration_ms: number | null; correlation_id: string; error_summary: string | null; created_at: string;
+}
+
+export interface GeneratedDocumentRow {
+  id: string; agencia_id: string; created_by: string; document_type: "property_sheet" | "comparative_report";
+  resource_type: "property"; resource_id: string; storage_path: string; mime_type: "application/pdf";
+  file_size: number; metadata: Record<string, unknown>; created_at: string; updated_at: string;
+  expires_at: string | null; deleted_at: string | null;
+}
+
+export interface SharedLinkRow {
+  id: string; agencia_id: string; created_by: string; resource_type: "property"; resource_id: string;
+  document_id: string; token_hash: string; expires_at: string; revoked_at: string | null;
+  created_at: string; last_accessed_at: string | null; access_count: number;
+}
+
+export interface DocumentAuditEventRow {
+  id: number; agencia_id: string; actor_id: string | null;
+  event_type: "document_created" | "document_downloaded" | "share_link_created" | "share_link_accessed" | "share_link_revoked" | "share_link_expired";
+  document_id: string | null; shared_link_id: string | null; correlation_id: string;
+  metadata: Record<string, unknown>; created_at: string;
 }

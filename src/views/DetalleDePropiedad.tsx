@@ -35,6 +35,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import GeneratePropertySheetModal from "../components/GeneratePropertySheetModal";
 import StatusBadge, { EnRevisionBadge } from "../components/StatusBadge";
 import EstadoPropiedadModal from "../components/EstadoPropiedadModal";
 import AntiguedadBadge from "../components/AntiguedadBadge";
@@ -55,6 +56,8 @@ import type {
 import { formatoMXN, puedeEditarPropiedades, solicitaCambioDeEstado } from "../types";
 import { Input, MiniInput, MiniStat, Select } from "./detalle/PropertyFormControls";
 import { PropertyTabs, type PropertyTab } from "./detalle/PropertyTabs";
+import { canGenerateDocuments, type DocumentOptions } from "../domain/documents/documentPolicy";
+import type { GeneratedDocumentOutcome } from "../app/application/documentActions";
 
 type Tab = PropertyTab;
 
@@ -90,6 +93,7 @@ interface Props {
   onResolverOferta: (leadId: string, resultado: "Aceptada" | "Rechazada") => Promise<boolean>;
   /** Solo se pasa cuando el usuario es asesor: abre la calculadora de comisiones. */
   onCalcularComision?: (propiedadId: string) => void;
+  onGenerarFicha: (propiedadId: string, options: DocumentOptions) => Promise<GeneratedDocumentOutcome>;
 }
 
 export default function DetalleDePropiedad({
@@ -108,6 +112,7 @@ export default function DetalleDePropiedad({
   onAgregarComparable,
   onResolverOferta,
   onCalcularComision,
+  onGenerarFicha,
 }: Props) {
   const [tab, setTab] = useState<Tab>("info");
   const [editando, setEditando] = useState(false);
@@ -117,6 +122,7 @@ export default function DetalleDePropiedad({
   const [nuevoComparable, setNuevoComparable] = useState({ direccion: "", precio: "", m2: "", fuente: "" });
   const [fotoActiva, setFotoActiva] = useState(0);
   const [nuevoEnlace, setNuevoEnlace] = useState({ portal: "", url: "" });
+  const [modalFicha, setModalFicha] = useState(false);
 
   const puedeEditar = puedeEditarPropiedades(usuario.rol);
   const esAsesorEquipo = solicitaCambioDeEstado(usuario.rol);
@@ -323,6 +329,14 @@ export default function DetalleDePropiedad({
             </p>
 
             <div className="mt-auto flex flex-wrap gap-2 pt-2">
+              {canGenerateDocuments(usuario.rol) && (
+                <button
+                  onClick={() => setModalFicha(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50/80 px-4 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                >
+                  <FileText className="size-3.5" /> Generar ficha
+                </button>
+              )}
               {onCalcularComision && (
                 <button
                   onClick={() => onCalcularComision(propiedad.id)}
@@ -363,6 +377,14 @@ export default function DetalleDePropiedad({
           </div>
         </div>
       </div>
+
+      {modalFicha && (
+        <GeneratePropertySheetModal
+          propertyTitle={propiedad.titulo}
+          onClose={() => setModalFicha(false)}
+          onGenerate={(options) => onGenerarFicha(propiedad.id, options)}
+        />
+      )}
 
       {/* ---------- Tabs ---------- */}
       <PropertyTabs active={tab} onChange={setTab} />

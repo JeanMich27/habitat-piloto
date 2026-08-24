@@ -1,5 +1,15 @@
 # Base de datos Supabase
 
+## Estrategia cloud-first
+
+Docker local es opcional. La validación canónica completa se ejecuta en GitHub
+Actions con un Supabase efímero; el desarrollo integral usa un proyecto Cloud
+DEV separado. Consulta `docs/cloud-development.md` para Codespaces, secrets,
+workflows y guardas DEV/PROD.
+
+`supabase start`, `db reset`, seeds y pgTAP solo se permiten en runners o
+Codespaces efímeros. Nunca se ejecutan contra un proyecto Cloud vinculado.
+
 ## Fuente de verdad
 
 La única fuente de verdad desplegable es `supabase/migrations/`, aplicada en
@@ -13,6 +23,9 @@ supabase start
 supabase db reset
 supabase test db
 ```
+
+Estos comandos son opcionales localmente; CI los ejecuta obligatoriamente en
+infraestructura cloud.
 
 Para validar qué se aplicaría a un proyecto enlazado, sin modificarlo:
 
@@ -41,8 +54,8 @@ producción. Antes de cualquier `db push`:
 6. Reparar el historial con `supabase migration repair` solo después de validar
    el esquema; marcar una versión como aplicada sin comprobarla puede ocultar
    una migración faltante.
-7. Probar primero en una copia/restauración de producción y ejecutar
-   `supabase test db` antes de programar la ventana productiva.
+7. Probar primero en una copia/restauración aislada y no vinculada a producción;
+   ejecutar allí `supabase test db` antes de programar la ventana productiva.
 
 Las migraciones 14–16 contienen reconciliaciones de datos de la oficina
 histórica. En una base limpia son operaciones sin filas coincidentes; en una
@@ -67,4 +80,3 @@ que lo valida. Después del despliegue, un administrador debe:
 `supabase/legacy/03-verificacion-aislamiento.sql` es una verificación manual que
 termina en `ROLLBACK`. `supabase/legacy/06-reversa.sql` es una reversa histórica
 potencialmente destructiva. Ninguno forma parte del flujo de despliegue.
-

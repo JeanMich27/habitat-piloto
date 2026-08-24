@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "VITE_APP_MODE=demo vite",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
@@ -14,6 +15,12 @@
     "lint": "eslint . --max-warnings 20",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
+    "edge:check": "deno check --node-modules-dir=auto supabase/functions/generate-document/index.ts supabase/functions/download-document/index.ts supabase/functions/share-document/index.ts",
+    "edge:test": "deno test --node-modules-dir=auto supabase/functions/_shared/documentToken.test.ts supabase/functions/_shared/propertySheetPdf.test.ts",
+    "cloud-dev:smoke": "node scripts/cloud-dev-smoke.mjs",
+    "supabase:start": "supabase start",
+    "supabase:reset": "supabase db reset",
+    "supabase:test": "supabase test db",
     "package:standalone": "bash scripts/build-standalone.sh",
     "deploy": "bash scripts/deploy.sh"
   },
@@ -43,6 +50,7 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.67.0",
     "vite": "^7.3.6",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "supabase": "2.115.0"
   }
 }

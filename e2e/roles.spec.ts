@@ -14,6 +14,12 @@ test("broker: dashboard, propiedades, detalle y leads", async ({ page }) => {
   await page.getByRole("button", { name: /Acciones para Casa en Lomas Verdes/ }).click();
   await page.getByRole("button", { name: "Ver detalle", exact: true }).click();
   await expect(page.getByRole("heading", { name: /Casa en Lomas Verdes/ })).toBeVisible();
+  await page.getByRole("button", { name: "Generar ficha" }).click();
+  await expect(page.getByRole("dialog", { name: "Generar ficha" })).toBeVisible();
+  await page.getByRole("radio", { name: "Sin mis datos" }).click();
+  await page.getByRole("button", { name: "Generar enlace" }).click();
+  await expect(page.getByRole("alert")).toContainText("conexión segura a la nube");
+  await page.getByRole("button", { name: "Cerrar" }).click();
   await page.getByRole("button", { name: "Clientes", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible();
 });
