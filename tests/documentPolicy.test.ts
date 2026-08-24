@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canGenerateDocuments, getShareLinkStatus, normalizeDocumentOptions } from "../src/domain/documents/documentPolicy";
+import { canGenerateDocuments, getShareLinkStatus, normalizeDocumentOptions, propertySheetMetadata, sanitizePropertySheetFilename } from "../src/domain/documents/documentPolicy";
 import { generateShareToken, hashShareToken, isShareToken } from "../supabase/functions/_shared/documentToken";
 
 describe("seguridad de documentos P4.1", () => {
@@ -33,7 +33,21 @@ describe("seguridad de documentos P4.1", () => {
   });
 
   it("normaliza opciones extensibles y limita vigencias", () => {
-    expect(normalizeDocumentOptions({ includeAdvisorData: false, output: "temporary_link" })).toEqual({ includeAdvisorData: false, output: "temporary_link", expiresInDays: 7 });
+    expect(normalizeDocumentOptions({ includeAdvisorData: false, output: "temporary_link" })).toEqual({
+      includeAdvisorData: false, output: "temporary_link", expiresInDays: 7,
+      selectedImageIndexes: [], includeQr: true, locationMode: "approximate", template: "commercial",
+    });
     expect(() => normalizeDocumentOptions({ includeAdvisorData: true, output: "pdf", expiresInDays: 2 as 1 })).toThrow("vigencia");
+    expect(() => normalizeDocumentOptions({ includeAdvisorData: true, output: "pdf", selectedImageIndexes: Array.from({ length: 11 }, (_, index) => index) })).toThrow("máximo 10");
+    expect(() => normalizeDocumentOptions({ includeAdvisorData: true, output: "pdf", locationMode: "full" as "approximate" })).toThrow("dirección completa");
+  });
+
+  it("construye metadata no sensible y nombres de archivo sanitizados", () => {
+    const options = normalizeDocumentOptions({ includeAdvisorData: true, output: "pdf", selectedImageIndexes: [2, 0], includeQr: false });
+    expect(propertySheetMetadata(options, 4, "advisor-a")).toEqual({
+      template: "commercial", includeAdvisorData: true, advisorId: "advisor-a", selectedImageIndexes: [2, 0],
+      includeQr: false, locationMode: "approximate", resourceVersion: 4, generatorVersion: 2,
+    });
+    expect(sanitizePropertySheetFilename("Ático / Bosque Esmeralda #1")).toBe("ficha-atico-bosque-esmeralda-1.pdf");
   });
 });

@@ -41,6 +41,7 @@ import EstadoPropiedadModal from "../components/EstadoPropiedadModal";
 import AntiguedadBadge from "../components/AntiguedadBadge";
 import { etiquetaEtapa } from "../lib/metrics";
 import type {
+  AgenciaInfo,
   CitaAgenda,
   Comparable,
   EnlacePromocion,
@@ -78,6 +79,7 @@ const fmtFechaHora = (iso: string) =>
 
 interface Props {
   propiedad: Propiedad;
+  agencia: AgenciaInfo;
   usuario: Usuario;
   usuarios: Usuario[];
   leads: Lead[];
@@ -98,6 +100,7 @@ interface Props {
 
 export default function DetalleDePropiedad({
   propiedad,
+  agencia,
   usuario,
   usuarios,
   leads,
@@ -380,7 +383,9 @@ export default function DetalleDePropiedad({
 
       {modalFicha && (
         <GeneratePropertySheetModal
-          propertyTitle={propiedad.titulo}
+          property={propiedad}
+          advisor={usuario}
+          agency={agencia}
           onClose={() => setModalFicha(false)}
           onGenerate={(options) => onGenerarFicha(propiedad.id, options)}
         />

@@ -659,6 +659,7 @@ function AplicacionConfigurada() {
           {vista === "detalle" && propiedadSeleccionada && (
             <DetalleDePropiedad
               propiedad={propiedadSeleccionada}
+              agencia={agencia}
               usuario={yo}
               usuarios={usuarios}
               leads={leadsOperativos}

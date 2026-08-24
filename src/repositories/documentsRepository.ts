@@ -1,5 +1,5 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabase } from "../lib/supabaseClient";
-import type { DocumentOptions } from "../domain/documents/documentPolicy";
+import type { NormalizedDocumentOptions } from "../domain/documents/documentPolicy";
 
 interface GenerateDocumentResult {
   documentId: string;
@@ -13,7 +13,7 @@ interface GenerateDocumentCommand {
   type: "property_sheet";
   resourceId: string;
   advisorId: string;
-  options: Required<DocumentOptions>;
+  options: NormalizedDocumentOptions;
 }
 
 interface FunctionErrorData { error?: string; }
@@ -37,7 +37,7 @@ export async function generateDocument(input: GenerateDocumentCommand): Promise<
   return data;
 }
 
-export const generatePropertySheet = (input: { propertyId: string; advisorId: string; options: Required<DocumentOptions> }) =>
+export const generatePropertySheet = (input: { propertyId: string; advisorId: string; options: NormalizedDocumentOptions }) =>
   generateDocument({ type: "property_sheet", resourceId: input.propertyId, advisorId: input.advisorId, options: input.options });
 
 export async function downloadGeneratedDocument(documentId: string): Promise<Blob> {
