@@ -81,6 +81,10 @@ for each row execute function public.exigir_bant_para_avanzar();
 
 revoke execute on function public.bant_completo(jsonb) from public, anon;
 grant execute on function public.bant_completo(jsonb) to authenticated;
+-- service_role también la invoca (triggers/RPCs que corren bajo ese rol,
+-- p.ej. crear_o_relacionar_lead vía process_integration_lead_command);
+-- el revoke de arriba no la incluía y rompía con "permission denied".
+grant execute on function public.bant_completo(jsonb) to service_role;
 revoke execute on function public.exigir_bant_para_avanzar() from public, anon, authenticated;
 
 create index if not exists leads_puntaje_idx on public.leads (puntaje_bant desc nulls last);

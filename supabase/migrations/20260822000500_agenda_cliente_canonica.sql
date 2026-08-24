@@ -3,7 +3,7 @@ begin;
 
 create or replace function public.mis_citas_cliente()
 returns table (
-  id uuid,
+  id text,
   agencia_id text,
   asesor_id text,
   lead_id text,
@@ -52,7 +52,7 @@ begin
   if exists (
     select 1 from public.citas c
     join public.leads l on l.id = c.lead_id and l.agencia_id = c.agencia_id
-    where c.id = p_cita_id::uuid
+    where c.id = p_cita_id
       and l.id = p_lead_id
       and c.agencia_id = public.mi_agencia_id()
       and lower(l.correo) = public.mi_correo()
@@ -64,7 +64,7 @@ begin
   update public.citas c
      set estado = 'Confirmada'
     from public.leads l
-   where c.id = p_cita_id::uuid
+   where c.id = p_cita_id
      and l.id = p_lead_id
      and l.id = c.lead_id
      and l.agencia_id = c.agencia_id

@@ -476,14 +476,13 @@ begin
            canal_entrada = v_canal
      where id = v_lead_id;
 
-    insert into public.integration_events (agencia_id, event_type, entity_type, entity_id, payload)
-    values (
-      v_agencia,
-      'lead.updated',
-      'lead',
-      v_lead_id,
-      jsonb_build_object('lead_id', v_lead_id, 'source', v_canal, 'reason', 'existing_identity')
-    );
+    -- No insertamos aquí un evento 'lead.updated' propio: desde
+    -- 20260823000100_p31_integration_foundation.sql el trigger
+    -- leads_registrar_eventos se redefinió como "after insert or update"
+    -- (sin restricción de columnas) y su registrar_eventos_lead() ya emite
+    -- 'lead.updated' para cualquier UPDATE de esta fila, con mejor
+    -- trazabilidad (actor_id, correlation_id, event_version). El insert
+    -- explícito que vivía aquí duplicaba el evento en cada alta repetida.
   end if;
 
   return jsonb_build_object('lead_id', v_lead_id, 'created', v_creado);

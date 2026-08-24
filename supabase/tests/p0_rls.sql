@@ -33,8 +33,17 @@ values
    '{"citas":[{"id":"cita-a","estado":"Pendiente"}],"documentos":[],"etapaActual":0}'),
   ('p0-lead-b', 'p0-b', 'Lead B', 'lead-b@p0.test', 'p0-broker-b', 'p0-prop-b', null);
 
-select hasnt_table_privilege('anon', 'public.leads', 'select', 'anon no puede leer leads');
-select hasnt_table_privilege('anon', 'public.usuarios', 'select', 'anon no puede leer usuarios');
+-- cliente_confirmar_cita() opera sobre la tabla canónica public.citas desde
+-- 20260822000500_agenda_cliente_canonica.sql (el campo cierre->citas de
+-- arriba es legado, se conserva solo porque el propio lead lo trae consigo).
+insert into public.citas
+  (id, agencia_id, asesor_id, lead_id, titulo, inicio, fin, estado)
+values
+  ('cita-a', 'p0-a', 'p0-asesor-a', 'p0-lead-a', 'Visita',
+   now() + interval '1 day', now() + interval '1 day 1 hour', 'Agendada');
+
+select ok(not has_table_privilege('anon', 'public.leads', 'select'), 'anon no puede leer leads');
+select ok(not has_table_privilege('anon', 'public.usuarios', 'select'), 'anon no puede leer usuarios');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000001","email":"broker-a@p0.test"}', true);
@@ -52,7 +61,14 @@ select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-0000000
 select results_eq('select id from public.leads order by id', array['p0-lead-a']::text[], 'cliente solo ve su lead');
 select results_eq($$update public.leads set agencia_id = 'p0-b' where id = 'p0-lead-a' returning id$$, array[]::text[], 'cliente no cambia agencia ni ningún campo directamente');
 select ok(public.cliente_confirmar_cita('p0-lead-a', 'cita-a'), 'cliente puede confirmar una cita propia mediante RPC estrecha');
-select results_eq($$select cierre #>> '{citas,0,estado}' from public.leads where id = 'p0-lead-a'$$, array['Confirmada']::text[], 'la RPC solo aplica la confirmación esperada');
+-- citas_select no da visibilidad al rol cliente (solo broker/asesor); verificar el
+-- efecto de la RPC exige salir momentáneamente del rol simulado, igual que las
+-- escrituras directas de la línea 75 más abajo.
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+select results_eq($$select estado from public.citas where id = 'cita-a'$$, array['Confirmada']::text[], 'la RPC solo aplica la confirmación esperada');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000003","email":"cliente-a@p0.test"}', true);
 select is(public.cliente_confirmar_cita('p0-lead-b', 'cita-b'), false, 'cliente no opera recursos de otra agencia');
 select results_eq('select count(*)::int from public.directorio_visible()', array[1], 'cliente no recibe el directorio de la agencia');
 
@@ -64,6 +80,11 @@ select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-0000000
 select results_eq('select count(*)::int from public.leads', array[0], 'cuenta pendiente no accede datos');
 
 reset role;
+-- reset role no limpia request.jwt.claims (persiste dentro de la misma
+-- transacción): sin esto, auth.uid()/auth.role() siguen devolviendo la
+-- identidad simulada anterior y disparan triggers de seguridad con el rol
+-- equivocado para estas escrituras directas.
+select set_config('request.jwt.claims', '{}', true);
 update public.usuarios set estado_cuenta = 'Inactivo' where id = 'p0-asesor-a';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000002","email":"asesor-a@p0.test"}', true);

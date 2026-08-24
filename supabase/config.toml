@@ -21,3 +21,15 @@ verify_jwt = false
 
 [functions.dispatch-webhooks]
 verify_jwt = false
+
+# Valida el JWT dentro de la función para aplicar permisos de propiedad antes
+# de usar service_role para Storage y persistencia transaccional.
+[functions.generate-document]
+verify_jwt = false
+
+[functions.download-document]
+verify_jwt = false
+
+# Endpoint público por token opaco; resuelve solo hash y transmite el PDF.
+[functions.share-document]
+verify_jwt = false

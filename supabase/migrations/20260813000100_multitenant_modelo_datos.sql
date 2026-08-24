@@ -29,6 +29,13 @@ do $$ begin
   end if;
 end $$;
 
+-- Siembra la fila 'default' si no existe (bases nuevas: reset limpio de CI y
+-- HABITAT DEV). En producción esa fila ya existe -- se creó fuera del
+-- historial de migraciones -- así que aquí es un no-op (on conflict).
+insert into public.agencias (id, nombre)
+values ('default', 'Hábitat Bienes Raíces')
+on conflict (id) do nothing;
+
 alter table public.agencias
   add column if not exists slug              text,
   add column if not exists estado            text not null default 'activa',

@@ -1,5 +1,10 @@
 # Poner el piloto en línea para los 10 testers
 
+> **Flujo vigente:** el desarrollo y la validación son cloud-first. Antes de
+> seguir esta guía de frontend, revisa `docs/cloud-development.md`. HABITAT DEV
+> y HABITAT PROD usan proyectos, Storage, Auth y secretos distintos. Este
+> documento no autoriza desplegar ni probar migraciones directamente en PROD.
+
 > **Importante:** este documento ya no autoriza ejecutar `schema.sql` ni SQL
 > suelto. La única fuente de verdad está en `supabase/migrations/`; consulta
 > `supabase/README.md` antes de crear o reconciliar una base.

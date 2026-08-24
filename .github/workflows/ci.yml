@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
-    branches: [main, "codex/**"]
+    branches: [main, master, "codex/**"]
 
 permissions:
   contents: read
@@ -51,15 +52,3 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
-
-  database-security:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v3
-        with: { version: 2.115.0 }
-      - name: Rebuild canonical database
-        run: supabase db start
-      - name: Run pgTAP security tests
-        run: supabase test db

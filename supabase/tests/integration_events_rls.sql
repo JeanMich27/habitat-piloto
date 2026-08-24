@@ -26,9 +26,9 @@ values
   ('evt-prop-b', 'evt-b', 'Propiedad B', 'Casa', 'Venta', 'evt-broker-b', '{}');
 
 select is(public.norm_tel('+52 55 1234 5678'), '5512345678', 'normaliza teléfono a diez dígitos');
-select hasnt_table_privilege('anon', 'public.integration_events', 'select', 'anon no puede leer el outbox');
-select hasnt_function_privilege(
-  'anon', 'public.crear_o_relacionar_lead(jsonb,text)', 'execute',
+select ok(not has_table_privilege('anon', 'public.integration_events', 'select'), 'anon no puede leer el outbox');
+select ok(
+  not has_function_privilege('anon', 'public.crear_o_relacionar_lead(jsonb,text)', 'execute'),
   'anon no puede ejecutar el alta de leads'
 );
 

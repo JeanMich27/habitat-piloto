@@ -9,6 +9,7 @@ tsconfig.tsbuildinfo
 # paquete descargable que el sitio ofrece desde el botón "Descargar app".
 .vercel
 .env*
+!.env.example
 .fuse_hidden*
 # Carpeta temporal: builds de verificación que no se pueden borrar desde el
 # entorno remoto. Es seguro eliminarla a mano.
