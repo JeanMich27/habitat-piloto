@@ -33,8 +33,8 @@ values
    '{"citas":[{"id":"cita-a","estado":"Pendiente"}],"documentos":[],"etapaActual":0}'),
   ('p0-lead-b', 'p0-b', 'Lead B', 'lead-b@p0.test', 'p0-broker-b', 'p0-prop-b', null);
 
-select hasnt_table_privilege('anon', 'public.leads', 'select', 'anon no puede leer leads');
-select hasnt_table_privilege('anon', 'public.usuarios', 'select', 'anon no puede leer usuarios');
+select ok(not has_table_privilege('anon', 'public.leads', 'select'), 'anon no puede leer leads');
+select ok(not has_table_privilege('anon', 'public.usuarios', 'select'), 'anon no puede leer usuarios');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000001","email":"broker-a@p0.test"}', true);

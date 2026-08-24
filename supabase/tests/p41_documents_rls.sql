@@ -29,16 +29,16 @@ values
  ('81000000-0000-4000-8000-000000000001','p41-a','p41-advisor-a','property','p41-prop-a','71000000-0000-4000-8000-000000000001',repeat('a',64),now()+interval '7 days'),
  ('82000000-0000-4000-8000-000000000001','p41-b','p41-broker-b','property','p41-prop-b','72000000-0000-4000-8000-000000000001',repeat('b',64),now()+interval '7 days');
 
-select hasnt_table_privilege('anon','public.generated_documents','select','anon no consulta documentos');
-select hasnt_table_privilege('anon','public.shared_links','select','anon no consulta enlaces ni hashes');
-select hasnt_table_privilege('authenticated','public.generated_documents','insert','browser no registra documentos');
-select hasnt_table_privilege('authenticated','public.shared_links','insert','browser no crea enlaces');
+select ok(not has_table_privilege('anon','public.generated_documents','select'),'anon no consulta documentos');
+select ok(not has_table_privilege('anon','public.shared_links','select'),'anon no consulta enlaces ni hashes');
+select ok(not has_table_privilege('authenticated','public.generated_documents','insert'),'browser no registra documentos');
+select ok(not has_table_privilege('authenticated','public.shared_links','insert'),'browser no crea enlaces');
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"61000000-0000-4000-8000-000000000002","email":"advisor-a@p41.test"}',true);
 select results_eq('select resource_id from public.generated_documents',array['p41-prop-a']::text[],'advisor ve documento permitido de su tenant');
 select results_eq('select resource_id from public.shared_links',array['p41-prop-a']::text[],'advisor ve solo enlaces del tenant');
-select hasnt_table_privilege('authenticated','public.shared_links','update','browser no altera ni mueve enlaces');
+select ok(not has_table_privilege('authenticated','public.shared_links','update'),'browser no altera ni mueve enlaces');
 select ok(public.revoke_shared_link('81000000-0000-4000-8000-000000000001'),'creador revoca enlace');
 select results_eq($$select count(*)::int from public.document_audit_events where event_type='share_link_revoked'$$,array[0],'advisor no puede leer auditoría');
 

@@ -14,9 +14,9 @@ values ('p31-broker-a','p31-a','51000000-0000-4000-8000-000000000001','Broker A'
 insert into public.propiedades (id,agencia_id,titulo,tipo_inmueble,tipo_operacion,asesor_id,propietario)
 values ('p31-prop-b','p31-b','Prop B','Casa','Venta','p31-broker-b','{}');
 
-select hasnt_table_privilege('anon','public.integration_credentials','select','anon no lee credenciales');
-select hasnt_table_privilege('authenticated','public.integration_credentials','select','usuarios no leen hashes');
-select hasnt_table_privilege('authenticated','public.webhook_endpoints','select','usuarios no leen referencias a secretos');
+select ok(not has_table_privilege('anon','public.integration_credentials','select'),'anon no lee credenciales');
+select ok(not has_table_privilege('authenticated','public.integration_credentials','select'),'usuarios no leen hashes');
+select ok(not has_table_privilege('authenticated','public.webhook_endpoints','select'),'usuarios no leen referencias a secretos');
 select hasnt_function_privilege('authenticated','public.claim_webhook_deliveries(integer)','execute','cliente no reclama entregas');
 
 set local role service_role;
