@@ -1,5 +1,6 @@
 # Contexto para Claude Code
 
+El estado actual y los pendientes viven en **`ESTADO-DE-LA-PLATAFORMA.md`**.
 Las reglas de este proyecto viven en **`AGENTS.md`**. Léelo completo antes de
 tocar nada — en especial la sección "Reglas que no se negocian".
 

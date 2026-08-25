@@ -1,5 +1,7 @@
 # Guía para agentes
 
+Lee primero `ESTADO-DE-LA-PLATAFORMA.md`.
+
 > Si sólo vas a leer una sección, lee **Reglas que no se negocian**.
 
 ## Reglas que no se negocian
