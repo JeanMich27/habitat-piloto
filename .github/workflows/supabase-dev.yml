@@ -56,7 +56,7 @@ jobs:
         run: scripts/supabase-dev.sh migrate
         env: *supabase_cli_dev
 
-      - name: Deploy P4.1 functions to DEV
+      - name: Deploy Edge Functions to DEV
         if: inputs.operation == 'deploy'
         run: scripts/supabase-dev.sh deploy-functions
         env: *supabase_cli_dev

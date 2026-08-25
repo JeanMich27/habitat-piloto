@@ -33,3 +33,10 @@ verify_jwt = false
 # Endpoint público por token opaco; resuelve solo hash y transmite el PDF.
 [functions.share-document]
 verify_jwt = false
+
+# Meta llama al webhook de WhatsApp sin sesión de Supabase, igual que
+# agenda-ics. La autenticación la hace la propia función: verify_token en
+# el handshake GET, firma X-Hub-Signature-256 (HMAC con el App Secret) en
+# cada POST.
+[functions.whatsapp-webhook]
+verify_jwt = false

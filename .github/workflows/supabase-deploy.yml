@@ -1,0 +1,65 @@
+name: Desplegar base de datos y Edge Functions
+
+# Un solo proyecto Supabase. No hay entorno DEV: ver AGENTS.md.
+#
+# Se ejecuta a mano para que publicar la base sea siempre una decisión
+# consciente, pero EXISTE — que es justo lo que faltaba cuando el frontend
+# se publicaba solo y la base se quedaba atrás.
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Qué desplegar
+        required: true
+        type: choice
+        options:
+          - verify
+          - migrate
+          - functions
+          - all
+      confirmation:
+        description: Escribe DESPLEGAR para confirmar
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: habitat-supabase
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    name: ${{ inputs.operation }}
+    if: inputs.confirmation == 'DESPLEGAR'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+
+      - run: npm ci
+
+      # Red de seguridad: las migraciones se reconstruyen desde cero y pasan
+      # pgTAP antes de tocar el proyecto real.
+      - name: Validar migraciones en una base efímera
+        if: inputs.operation != 'verify'
+        run: |
+          npm run supabase:start
+          npm run supabase:reset
+          npm run supabase:test
+          npx --no-install supabase stop --no-backup || true
+
+      - name: Ejecutar
+        run: scripts/supabase-deploy.sh ${{ inputs.operation }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
