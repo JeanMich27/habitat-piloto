@@ -48,7 +48,7 @@ case "$operation" in
     ;;
   deploy-functions)
     link_and_verify_dev
-    for function_name in generate-document download-document share-document; do
+    for function_name in generate-document download-document share-document whatsapp-webhook; do
       npx --no-install supabase functions deploy "$function_name" --project-ref "$dev_ref"
     done
     ;;
