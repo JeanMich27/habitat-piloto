@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Tema público multi-tenant: cálido y neutral, sin colores de una oficina. */
+.micrositio-publico {
+  --micrositio-fondo: #f8f5ef;
+  --micrositio-superficie: #fffdf9;
+  --micrositio-hero: #30271f;
+  --micrositio-texto: #29231e;
+  --micrositio-texto-suave: #756b61;
+  --micrositio-acento: #8a5a2b;
+  --micrositio-acento-suave: #f3e8d8;
+  --micrositio-dorado: #e1b66f;
+  --micrositio-borde: #e7ded1;
+}
+
 /* ============================================================
    Sistema de diseño — Fase 1 del rediseño (glass + neumórfico)
    Base pastel suave con acento violeta. Las vistas consumen las
