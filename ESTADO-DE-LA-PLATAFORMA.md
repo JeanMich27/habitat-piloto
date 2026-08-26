@@ -116,9 +116,13 @@ abrir el enlace compartido desde otro navegador sin sesión.
 - **Micrositio público del asesor (`/m/:slug`).** Está construido en el repo:
   perfil público, propiedades publicadas, experiencia, oficina, WhatsApp y
   estados vacíos honestos. La Fase 1 corrige su despliegue, aísla inventario por
-  agencia y elimina protocolos peligrosos en enlaces. Sigue pendiente publicar
-  base y función antes del frontend. Fase 2 agregará QR, cinco CTAs de servicio,
-  barra móvil, Web Share y descarga `.vcf`; no declarar esas piezas como listas.
+  agencia y elimina protocolos peligrosos en enlaces. La Fase 2 está implementada
+  en la rama local `codex/micrositio-fase2`: agrega navegación, QR, filtro real
+  Venta/Renta, cinco CTAs de servicio, barra móvil, Web Share y descarga `.vcf`.
+  **Decisión de Jean, 25/08/2026:** se aprobaron los cinco accesos directos a
+  WhatsApp porque pre-califican la intención de compra, venta, renta, valuación o
+  inversión sin agregar datos ficticios al perfil. Sigue pendiente publicar base
+  y función antes del frontend; nada de Fase 2 está desplegado todavía.
 - **Micrositio público por propiedad individual.** Sigue sin existir en la base
   y en el repo. El PDF con enlace temporal es otra cosa. Requiere decidir si será
   una página SEO por inmueble; no confundirlo con el perfil público del asesor.
@@ -129,6 +133,10 @@ abrir el enlace compartido desde otro navegador sin sesión.
 
 - `comisionCompartidaPct`: sin interpretación contable aprobada. Se muestra pero
   no afecta ningún total. Detalle en `P1-DECISIONES-Y-PENDIENTES.md`.
+- Micrositio del asesor: la referencia visual propone cuatro pilares fijos
+  (Transparencia, Acompañamiento, Negociación y Resultados). Falta decidir si
+  serán copy global de HomeID para todas las oficinas. No existe marcado vacío ni
+  contenido simulado mientras esa decisión siga abierta.
 
 ### Deuda técnica conocida
 
