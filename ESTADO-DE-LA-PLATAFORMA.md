@@ -40,8 +40,9 @@ Storage) → Vercel para el frontend. Sincronización con EasyBroker por cron.
 **Datos en producción:** 1,330 leads · 96 propiedades · 14 usuarios · 1 agencia ·
 2 integraciones activas (WhatsApp, Gemini). Todo real, sin registros de demo.
 
-**Migraciones:** 34, selladas y coincidentes archivo por archivo con
-`supabase/migrations`. `supabase db push` es predecible.
+**Migraciones:** 38 en el repositorio. Las 34 anteriores quedaron selladas y
+coincidían con producción al cierre del 25/08; las 4 del micrositio todavía deben
+verificarse y publicarse en el orden base → funciones → frontend.
 
 **Edge Functions — repositorio vs producción:**
 
@@ -51,6 +52,7 @@ Storage) → Vercel para el frontend. Sincronización con EasyBroker por cron.
 | `agenda-ics` | sí | sí | feed de calendario, público por token |
 | `generate-document`, `download-document` | sí | sí | fichas técnicas |
 | `share-document` | sí | **NO** | falta desplegar: sin esto el enlace compartido no abre |
+| `micrositio-publico` | sí | **NO** | el flujo oficial ya la incluye; Jean debe desplegarla después de migrar la base |
 | `whatsapp-webhook` | sí | **NO** | falta desplegar + secretos + repuntar Meta |
 | `integration-inbound`, `dispatch-webhooks`, `ingest-lead` | sí | **NO** | infraestructura P3.1, aún no en uso |
 | `eb-probe` | **NO** | sí | **deriva**: vive sólo en producción |
@@ -76,8 +78,9 @@ existían. Los síntomas que reportó Jean:
 - al guardar o consultar salía "no se pudo cargar la información",
 - el micrositio / tarjeta digital no aparecía.
 
-Los dos primeros eran esta desincronización. **El tercero no: el micrositio nunca
-se construyó** (ver pendientes).
+Los dos primeros eran esta desincronización. **El tercero no: en ese momento el
+micrositio del asesor todavía no se había construido.** Ya existe en el repo;
+su estado actual y la distinción frente al micrositio por propiedad están abajo.
 
 Al comparar ambos esquemas objeto por objeto apareció un segundo problema:
 producción tenía 12 objetos que ninguna migración creaba — 4 vistas de monitoreo,
@@ -108,12 +111,17 @@ abrir el enlace compartido desde otro navegador sin sesión.
 | ~76 leads sin rutear | apuntan a 4 propiedades fuera del catálogo (`EB-WE8523`, `EB-UX3045`, `EB-UY1232`, `EB-VK1452`), probablemente vendidas o retiradas en EasyBroker. Son prospectos reales sin dueño. Ver `v_leads_para_revision` |
 | 8 leads sin teléfono | no se pueden contactar; decidir si se descartan o se enriquecen |
 
-### Producto — no construido
+### Producto — micrositios distintos
 
-- **Micrositio / tarjeta digital de propiedad.** No existe en ninguna base ni en
-  el repo. Lo que existe es "PDF con enlace temporal", que es otra cosa. Requiere
-  decidir alcance: ¿página pública por propiedad con SEO, o tarjeta de asesor
-  compartible por WhatsApp? No darlo por hecho.
+- **Micrositio público del asesor (`/m/:slug`).** Está construido en el repo:
+  perfil público, propiedades publicadas, experiencia, oficina, WhatsApp y
+  estados vacíos honestos. La Fase 1 corrige su despliegue, aísla inventario por
+  agencia y elimina protocolos peligrosos en enlaces. Sigue pendiente publicar
+  base y función antes del frontend. Fase 2 agregará QR, cinco CTAs de servicio,
+  barra móvil, Web Share y descarga `.vcf`; no declarar esas piezas como listas.
+- **Micrositio público por propiedad individual.** Sigue sin existir en la base
+  y en el repo. El PDF con enlace temporal es otra cosa. Requiere decidir si será
+  una página SEO por inmueble; no confundirlo con el perfil público del asesor.
 - **Portal cliente:** cargar documentos y reagendar siguen deshabilitados a
   propósito (`P1-DECISIONES-Y-PENDIENTES.md`). No simular.
 
@@ -131,6 +139,7 @@ abrir el enlace compartido desde otro navegador sin sesión.
 | Cliente y propietario se relacionan por correo, no por UUID | requiere backfill; frágil si alguien cambia su correo |
 | Credenciales EasyBroker vía `EASYBROKER_CREDENTIALS_JSON` | falta rotación por tenant |
 | `respaldo_ledger_20260825` en `supabase_migrations` | respaldo del historial anterior; borrable cuando el CI pase verde |
+| Foto pública revela `auth.uid()` en la ruta de Storage | Migración futura: agregar `usuarios.foto_publico_id uuid not null default gen_random_uuid()` y reemplazar `auth.uid()` como primer segmento. Deben sustituirse las políticas `avatares_publicos_lectura_publica`, `avatares_publicos_escritura_propia`, `avatares_publicos_actualizacion_propia` y `avatares_publicos_borrado_propio`. El 26/08 no pudo obtenerse un conteo local porque el equipo no tenía Docker/Podman; producción no fue consultada. Antes de migrar objetos, contar allí las filas con `foto_url is not null` y decidir entre copia controlada o pedir una nueva carga a esos asesores. |
 
 ## 6. Cómo trabajar con Codex sin volver a chocar
 
