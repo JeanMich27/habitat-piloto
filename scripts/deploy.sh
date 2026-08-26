@@ -121,12 +121,16 @@ fi
 # 6/6  VERIFICAR QUE DE VERDAD SE PUBLICÓ
 #
 # Hasta el 26/08/2026 este script terminaba diciendo "LISTO, Vercel está
-# redeployando" pase lo que pase. Ese día resultó que Vercel llevaba dos
-# versiones sin publicar: el repo iba en v32 y el sitio servía v30. El
-# script decía que sí las tres veces.
+# redeployando" pase lo que pase — sin mirar el sitio ni una vez. Ya había
+# costado 12 commits en agosto (ver el comentario de RAMA_PRODUCCION).
 #
 # Un push a GitHub no es una publicación. La única prueba es preguntarle
-# al sitio en vivo qué versión está sirviendo.
+# al sitio en vivo qué versión está sirviendo. Barato de comprobar,
+# carísimo de suponer.
+#
+# Ojo con el caché al verificar a mano: una petición sin romper caché
+# puede devolver una versión vieja y hacerte creer que el deploy falló
+# cuando no falló. Por eso aquí va el parámetro ?t= y el no-cache.
 # ------------------------------------------------------------------
 SITIO="https://real-estate-plataforma.vercel.app"
 

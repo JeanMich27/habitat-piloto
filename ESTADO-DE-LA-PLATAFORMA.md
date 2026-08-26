@@ -61,26 +61,35 @@ Las que este documento daba por pendientes ya están activas.
 **Crons activos:** `sync-leads-30min` (cada 30 min), `sync-contactos-diario`
 (cada 3 h), `sync-propiedades-diario` (12:00 UTC).
 
-**El frontend es el único desincronizado — y es el problema de hoy.**
+**Frontend: el sitio oficial está al día. El problema son dos sitios zombis.**
 
-| | CACHE_VERSION |
-|---|---|
-| Repo local | v32 |
-| GitHub `master` | v32 |
-| **Sitio en vivo** | **v30** |
+`real-estate-plataforma.vercel.app` publica correctamente desde `master`.
+Verificado el 26/08: sirve v32, y los tres commits del día aparecen
+`Ready / Production` en Vercel. Este camino funciona.
 
-Vercel dejó de publicar desde `master`. Los dos últimos commits — el rewrite SPA
-de `vercel.json` y el bump del service worker — están en GitHub y **no** en el
-sitio. No es caché de los teléfonos: el servidor entrega el bundle viejo.
-Mientras esto no se arregle, ningún cambio de frontend llega a los asesores por
-más que cierren y abran la app.
+El problema es que en la cuenta de Vercel **`jeanmich27`** (ojo: no
+`niper987@gmail.com`, que es otra cuenta y no tiene proyectos) conviven **tres**
+proyectos apuntando al mismo repositorio:
 
-Señales recogidas el 26/08: no existe `.vercel/` en local (proyecto sin vincular
-por CLI) y la cuenta de Vercel `niper987@gmail.com` (plan hobby) no lista ningún
-proyecto. `real-estate-plataforma.vercel.app` vive en otra cuenta o el proyecto
-se desconectó del repositorio de GitHub. **Confirmar cuál de las dos antes de
-tocar nada** — reconectar a ciegas puede crear un proyecto duplicado y dejar dos
-sitios sirviendo versiones distintas.
+| Proyecto | URL pública | Qué sirve | Rama de producción |
+|---|---|---|---|
+| `real-estate-plataforma` | `real-estate-plataforma.vercel.app` | **el sitio real, al día** | `master` ✅ |
+| `habitat-piloto` | `habitat-piloto.vercel.app` | build del **25 de julio** (`7000483`) | sin conectar — `master` sólo genera *Preview* |
+| `habitat-piloto-ah3l` | `habitat-piloto-ah3l.vercel.app` | build del **25 de julio** (`7000483`) | sin conectar — `master` sólo genera *Preview* |
+
+Los dos últimos están **vivos y accesibles**, congelados hace un mes. Reciben los
+push a `master` como *Preview*, así que sus URLs públicas nunca avanzan. Quien
+tenga la app instalada desde una de esas direcciones no verá jamás un cambio,
+por más veces que se publique.
+
+**Cómo distinguirlo en 2 segundos:** los sitios zombis se titulan
+`HABITAT México RS · Plataforma Inmobiliaria`. El sitio bueno se titula
+`HomeID · Plataforma Inmobiliaria`. Si un asesor ve "HABITAT México RS" en la
+pestaña o en el nombre de la app instalada, está en un sitio muerto.
+
+Acción pendiente: confirmar desde qué URL instaló la app cada uno de los 14
+usuarios, y sólo entonces borrar los dos proyectos duplicados. Borrarlos antes
+deja a esos asesores con una app que da error en vez de una que los reencamine.
 
 ## 4. Qué se rompió el 25/08/2026 y por qué
 
@@ -117,16 +126,21 @@ perdido en silencio. Quedaron versionados en
 
 | # | Qué | Listo cuando |
 |---|---|---|
-| 1 | **Restablecer la publicación en Vercel.** Averiguar en vercel.com con qué cuenta vive `real-estate-plataforma` y si sigue conectado al repo | `curl -s https://real-estate-plataforma.vercel.app/sw.js \| grep CACHE_VERSION` devuelve la misma versión que `public/sw.js` |
-| 2 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
-| 3 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
-| 4 | Apagar `HABITAT DEV` — **sólo después del 3** | queda un único proyecto en la cuenta |
+| 1 | **Preguntar a los 14 usuarios desde qué dirección abren la app.** El que vea "HABITAT México RS" está en un sitio zombi | los 14 confirmados en `real-estate-plataforma.vercel.app` |
+| 2 | Reinstalar la app a los que estén en una URL vieja: desinstalar y volver a agregar desde la dirección buena | ese asesor ve "HomeID" y el micrositio nuevo |
+| 3 | Borrar los proyectos `habitat-piloto` y `habitat-piloto-ah3l` en Vercel — **sólo después del 2** | queda un único proyecto sirviendo la plataforma |
+| 4 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
+| 5 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
+| 6 | Apagar `HABITAT DEV` — **sólo después del 5** | queda un único proyecto Supabase en la cuenta |
 
-El punto 1 bloquea a los otros de hecho: sin publicación de frontend no se puede
-verificar de extremo a extremo ninguna funcionalidad nueva desde la app.
+Ya resuelto (26/08): los secrets de GitHub, el despliegue de base y funciones, y
+la publicación del frontend. Las 39 migraciones, las 13 Edge Functions y el
+sitio oficial están al día.
 
-Ya resuelto (26/08): los secrets de GitHub y el despliegue de base y funciones.
-Las 39 migraciones y las 13 Edge Functions están en producción.
+**Regla que sale de esto:** un proyecto de Vercel por plataforma. Si aparece un
+duplicado (Vercel los crea solo cuando se importa el mismo repo dos veces),
+bórralo el mismo día. Dos sitios sirviendo versiones distintas de la misma app
+es indistinguible de un bug para quien lo usa — y para quien lo depura.
 
 Verificación de cierre: generar una ficha técnica desde la app, descargarla y
 abrir el enlace compartido desde otro navegador sin sesión.
@@ -149,11 +163,12 @@ abrir el enlace compartido desde otro navegador sin sesión.
   **Decisión de Jean, 25/08/2026:** se aprobaron los cinco accesos directos a
   WhatsApp porque pre-califican la intención de compra, venta, renta, valuación o
   inversión sin agregar datos ficticios al perfil.
-  **Estado al 26/08:** Fase 1 y Fase 2 están fusionadas en `master` — las ramas
-  `codex/micrositio-fase1` y `codex/micrositio-fase2` ya no aportan nada, su diff
-  contra `master` está vacío. La base y `micrositio-publico` están desplegadas.
-  Falta **sólo** el frontend, que está atorado en el problema de Vercel de la
-  sección 3. Nadie ve el micrositio hasta que se restablezca la publicación.
+  **Estado al 26/08: publicado y funcionando.** Fase 1 y Fase 2 están fusionadas
+  en `master` — las ramas `codex/micrositio-fase1` y `codex/micrositio-fase2` ya
+  no aportan nada, su diff contra `master` está vacío. La base, la función
+  `micrositio-publico` y el frontend están desplegados en el sitio oficial.
+  Si un asesor no lo ve, es porque abre la app desde un sitio zombi (sección 3),
+  no porque falte publicar.
 - **Micrositio público por propiedad individual.** Sigue sin existir en la base
   y en el repo. El PDF con enlace temporal es otra cosa. Requiere decidir si será
   una página SEO por inmueble; no confundirlo con el perfil público del asesor.
