@@ -13,7 +13,9 @@
 #      instalada a bajar la versión nueva en vez de servir caché vieja.
 #   3. Compila la app de producción.
 #   4. Regenera el paquete descargable (.zip) para escritorio.
-#   5. Hace commit y push -> Vercel redeploya solo.
+#   5. Hace commit y push a master.
+#   6. VERIFICA que el sitio en vivo sirva la versión nueva. Si no,
+#      lo dice claro y sale con error en vez de mentir.
 #
 # Al terminar: la web, las apps instaladas en teléfono y el zip
 # de descarga quedan todos en la misma versión.
@@ -58,20 +60,20 @@ if [ "$RAMA" != "$RAMA_PRODUCCION" ]; then
 fi
 
 echo ""
-echo "==> 1/5  Limpiando candados de git…"
+echo "==> 1/6  Limpiando candados de git…"
 rm -f .git/index.lock .git/HEAD.lock .git/objects/maintenance.lock
 
-echo "==> 2/5  Subiendo la versión del service worker…"
+echo "==> 2/6  Subiendo la versión del service worker…"
 ACTUAL=$(grep -o 'CACHE_VERSION = "v[0-9]*"' public/sw.js | grep -o '[0-9]*')
 NUEVA=$((ACTUAL + 1))
 # -i '' es la sintaxis de macOS; en Linux sería solo -i.
 sed -i '' "s/CACHE_VERSION = \"v$ACTUAL\"/CACHE_VERSION = \"v$NUEVA\"/" public/sw.js
 echo "    v$ACTUAL -> v$NUEVA"
 
-echo "==> 3/5  Compilando…"
+echo "==> 3/6  Compilando…"
 npm run build
 
-echo "==> 4/5  Regenerando el paquete descargable…"
+echo "==> 4/6  Regenerando el paquete descargable…"
 rm -rf dist-standalone
 mkdir -p dist-standalone/habitat-piloto
 cp -r dist/* dist-standalone/habitat-piloto/
@@ -85,7 +87,7 @@ chmod +x dist-standalone/habitat-piloto/start.command
 mkdir -p public/descargas
 cp dist-standalone/habitat-piloto.zip public/descargas/habitat-piloto.zip
 
-echo "==> 5/5  Publicando (commit + push a '$RAMA')…"
+echo "==> 5/6  Publicando (commit + push a '$RAMA')…"
 git add -A
 if git diff --cached --quiet; then
   echo "    No hay cambios que publicar."
@@ -115,15 +117,73 @@ if [ "${FUSIONAR:-0}" = "1" ]; then
   echo "    Producción actualizada."
 fi
 
+# ------------------------------------------------------------------
+# 6/6  VERIFICAR QUE DE VERDAD SE PUBLICÓ
+#
+# Hasta el 26/08/2026 este script terminaba diciendo "LISTO, Vercel está
+# redeployando" pase lo que pase. Ese día resultó que Vercel llevaba dos
+# versiones sin publicar: el repo iba en v32 y el sitio servía v30. El
+# script decía que sí las tres veces.
+#
+# Un push a GitHub no es una publicación. La única prueba es preguntarle
+# al sitio en vivo qué versión está sirviendo.
+# ------------------------------------------------------------------
+SITIO="https://real-estate-plataforma.vercel.app"
+
+echo ""
+echo "==> 6/6  Verificando que el sitio sirva la versión nueva…"
+echo "    (hasta 3 minutos; Vercel tarda en compilar)"
+
+version_en_vivo() {
+  curl -fsSL -H 'Cache-Control: no-cache' "$SITIO/sw.js?t=$(date +%s)" 2>/dev/null \
+    | grep -o 'CACHE_VERSION = "v[0-9]*"' | grep -o '[0-9]*'
+}
+
+PUBLICADO=0
+for _ in $(seq 1 18); do
+  sleep 10
+  EN_VIVO=$(version_en_vivo || true)
+  if [ -n "$EN_VIVO" ]; then
+    printf '    sitio en v%s (esperando v%s)\n' "$EN_VIVO" "$NUEVA"
+    if [ "$EN_VIVO" = "$NUEVA" ]; then
+      PUBLICADO=1
+      break
+    fi
+  else
+    echo "    no se pudo leer el sitio todavía…"
+  fi
+done
+
 echo ""
 echo "============================================================"
-echo " LISTO — service worker en v$NUEVA"
-echo ""
-echo " Publicado en: $RAMA${FUSIONAR:+ y $RAMA_PRODUCCION}"
-echo " Web:      Vercel está redeployando (1-2 min)."
-echo "           https://real-estate-plataforma.vercel.app"
-echo " Teléfono: cierra la app POR COMPLETO y vuelve a abrirla"
-echo "           con internet. Se actualiza sola."
-echo " Escritorio: descarga de nuevo el .zip desde el sitio."
+if [ "$PUBLICADO" = "1" ]; then
+  echo " PUBLICADO DE VERDAD — el sitio está sirviendo v$NUEVA"
+  echo ""
+  echo " Web:        $SITIO"
+  echo " Teléfono:   cierra la app POR COMPLETO y vuelve a abrirla"
+  echo "             con internet. Se actualiza sola."
+  echo " Escritorio: descarga de nuevo el .zip desde el sitio."
+else
+  echo " SE SUBIÓ A GITHUB, PERO EL SITIO NO SE ACTUALIZÓ"
+  echo ""
+  echo " Tu código está a salvo en GitHub, rama '$RAMA_PRODUCCION',"
+  echo " en v$NUEVA. Lo que falló es la publicación en Vercel:"
+  echo " el sitio sigue sirviendo v${EN_VIVO:-desconocida}."
+  echo ""
+  echo " NO se lo anuncies a los asesores: van a seguir viendo lo"
+  echo " viejo por más que cierren la app. El problema no es de"
+  echo " ellos ni de su teléfono."
+  echo ""
+  echo " Qué revisar, en este orden:"
+  echo "   1. vercel.com -> ¿aparece el proyecto en tu cuenta?"
+  echo "   2. Settings -> Git: ¿sigue conectado a JeanMich27/habitat-piloto"
+  echo "      y con 'master' como Production Branch?"
+  echo "   3. Deployments: ¿hay uno fallido o ninguno reciente?"
+  echo ""
+  echo " Puede ser que Vercel siga compilando y tarde más de 3 minutos."
+  echo " Vuelve a comprobarlo tú mismo con:"
+  echo "   curl -s $SITIO/sw.js | grep CACHE_VERSION"
+  exit 1
+fi
 echo "============================================================"
 echo ""

@@ -126,6 +126,8 @@ supabase test db
 
 ## Artefactos
 
-- `dist`, `dist-standalone`, `_to_delete`, reportes Playwright y futuros `_respaldo-*` no se versionan.
-- `_respaldo-20260813-2341` es un respaldo histórico ya versionado; no lo uses como fuente activa.
+- `dist`, `dist-standalone`, reportes Playwright y cualquier `_respaldo-*` no se versionan.
+- El 26/08/2026 se borraron `_to_delete/`, `_respaldo-20260813-2341/`, los `.patch`
+  sueltos y los scripts muertos. El detalle está en `docs/LEGACY-INVENTORY.md`.
+  No los recrees: si necesitas un scratch temporal, usa `/tmp`, no la raíz del repo.
 - `public/descargas/habitat-piloto.zip` es un artefacto distribuible versionado deliberadamente.

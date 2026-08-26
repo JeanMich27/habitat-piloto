@@ -1,4 +1,4 @@
-# Estado de la plataforma — 25/08/2026
+# Estado de la plataforma — 26/08/2026
 
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
@@ -40,25 +40,47 @@ Storage) → Vercel para el frontend. Sincronización con EasyBroker por cron.
 **Datos en producción:** 1,330 leads · 96 propiedades · 14 usuarios · 1 agencia ·
 2 integraciones activas (WhatsApp, Gemini). Todo real, sin registros de demo.
 
-**Migraciones:** 38 en el repositorio. Las 34 anteriores quedaron selladas y
-coincidían con producción al cierre del 25/08; las 4 del micrositio todavía deben
-verificarse y publicarse en el orden base → funciones → frontend.
+**Migraciones: sincronizadas.** 39 en el repositorio, 39 aplicadas en producción,
+misma lista y mismo orden. Verificado contra el proyecto `zhtwvxarovfohhmrgqoy`
+el 26/08. Incluye las 5 del micrositio. No hay deriva de base.
 
-**Edge Functions — repositorio vs producción:**
+**Edge Functions: todas desplegadas.** Verificado el 26/08 contra producción.
+Las que este documento daba por pendientes ya están activas.
 
 | Función | En el repo | Desplegada | Nota |
 |---|---|---|---|
 | `sync-leads`, `sync-propiedades`, `sync-contactos` | sí | sí | crons activos |
 | `agenda-ics` | sí | sí | feed de calendario, público por token |
 | `generate-document`, `download-document` | sí | sí | fichas técnicas |
-| `share-document` | sí | **NO** | falta desplegar: sin esto el enlace compartido no abre |
-| `micrositio-publico` | sí | **NO** | el flujo oficial ya la incluye; Jean debe desplegarla después de migrar la base |
-| `whatsapp-webhook` | sí | **NO** | falta desplegar + secretos + repuntar Meta |
-| `integration-inbound`, `dispatch-webhooks`, `ingest-lead` | sí | **NO** | infraestructura P3.1, aún no en uso |
+| `share-document` | sí | sí | desplegada el 26/08 |
+| `micrositio-publico` | sí | sí | desplegada el 26/08 |
+| `whatsapp-webhook` | sí | sí | desplegada; **faltan los secretos y repuntar Meta** |
+| `integration-inbound`, `dispatch-webhooks`, `ingest-lead` | sí | sí | infraestructura P3.1, aún no en uso |
 | `eb-probe` | **NO** | sí | **deriva**: vive sólo en producción |
 
 **Crons activos:** `sync-leads-30min` (cada 30 min), `sync-contactos-diario`
 (cada 3 h), `sync-propiedades-diario` (12:00 UTC).
+
+**El frontend es el único desincronizado — y es el problema de hoy.**
+
+| | CACHE_VERSION |
+|---|---|
+| Repo local | v32 |
+| GitHub `master` | v32 |
+| **Sitio en vivo** | **v30** |
+
+Vercel dejó de publicar desde `master`. Los dos últimos commits — el rewrite SPA
+de `vercel.json` y el bump del service worker — están en GitHub y **no** en el
+sitio. No es caché de los teléfonos: el servidor entrega el bundle viejo.
+Mientras esto no se arregle, ningún cambio de frontend llega a los asesores por
+más que cierren y abran la app.
+
+Señales recogidas el 26/08: no existe `.vercel/` en local (proyecto sin vincular
+por CLI) y la cuenta de Vercel `niper987@gmail.com` (plan hobby) no lista ningún
+proyecto. `real-estate-plataforma.vercel.app` vive en otra cuenta o el proyecto
+se desconectó del repositorio de GitHub. **Confirmar cuál de las dos antes de
+tocar nada** — reconectar a ciegas puede crear un proyecto duplicado y dejar dos
+sitios sirviendo versiones distintas.
 
 ## 4. Qué se rompió el 25/08/2026 y por qué
 
@@ -95,11 +117,16 @@ perdido en silencio. Quedaron versionados en
 
 | # | Qué | Listo cuando |
 |---|---|---|
-| 1 | Secrets en GitHub: `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `SUPABASE_ACCESS_TOKEN` | el workflow corre sin error de variables |
-| 2 | Correr *Desplegar base de datos y Edge Functions* → `functions` | `share-document` y `whatsapp-webhook` aparecen desplegadas |
-| 3 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
-| 4 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
-| 5 | Apagar `HABITAT DEV` — **sólo después del 4** | queda un único proyecto en la cuenta |
+| 1 | **Restablecer la publicación en Vercel.** Averiguar en vercel.com con qué cuenta vive `real-estate-plataforma` y si sigue conectado al repo | `curl -s https://real-estate-plataforma.vercel.app/sw.js \| grep CACHE_VERSION` devuelve la misma versión que `public/sw.js` |
+| 2 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
+| 3 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
+| 4 | Apagar `HABITAT DEV` — **sólo después del 3** | queda un único proyecto en la cuenta |
+
+El punto 1 bloquea a los otros de hecho: sin publicación de frontend no se puede
+verificar de extremo a extremo ninguna funcionalidad nueva desde la app.
+
+Ya resuelto (26/08): los secrets de GitHub y el despliegue de base y funciones.
+Las 39 migraciones y las 13 Edge Functions están en producción.
 
 Verificación de cierre: generar una ficha técnica desde la app, descargarla y
 abrir el enlace compartido desde otro navegador sin sesión.
@@ -116,13 +143,17 @@ abrir el enlace compartido desde otro navegador sin sesión.
 - **Micrositio público del asesor (`/m/:slug`).** Está construido en el repo:
   perfil público, propiedades publicadas, experiencia, oficina, WhatsApp y
   estados vacíos honestos. La Fase 1 corrige su despliegue, aísla inventario por
-  agencia y elimina protocolos peligrosos en enlaces. La Fase 2 está implementada
-  en la rama local `codex/micrositio-fase2`: agrega navegación, QR, filtro real
-  Venta/Renta, cinco CTAs de servicio, barra móvil, Web Share y descarga `.vcf`.
+  agencia y elimina protocolos peligrosos en enlaces. La Fase 2 agrega navegación,
+  QR, filtro real Venta/Renta, cinco CTAs de servicio, barra móvil, Web Share y
+  descarga `.vcf`.
   **Decisión de Jean, 25/08/2026:** se aprobaron los cinco accesos directos a
   WhatsApp porque pre-califican la intención de compra, venta, renta, valuación o
-  inversión sin agregar datos ficticios al perfil. Sigue pendiente publicar base
-  y función antes del frontend; nada de Fase 2 está desplegado todavía.
+  inversión sin agregar datos ficticios al perfil.
+  **Estado al 26/08:** Fase 1 y Fase 2 están fusionadas en `master` — las ramas
+  `codex/micrositio-fase1` y `codex/micrositio-fase2` ya no aportan nada, su diff
+  contra `master` está vacío. La base y `micrositio-publico` están desplegadas.
+  Falta **sólo** el frontend, que está atorado en el problema de Vercel de la
+  sección 3. Nadie ve el micrositio hasta que se restablezca la publicación.
 - **Micrositio público por propiedad individual.** Sigue sin existir en la base
   y en el repo. El PDF con enlace temporal es otra cosa. Requiere decidir si será
   una página SEO por inmueble; no confundirlo con el perfil público del asesor.
@@ -143,7 +174,7 @@ abrir el enlace compartido desde otro navegador sin sesión.
 | Qué | Riesgo |
 |---|---|
 | `eb-probe` en producción, no en el repo | viola la regla 5. Decidir: versionarla o retirarla |
-| `scripts/cloud-dev-smoke.mjs` y `npm run cloud-dev:smoke` | apuntan a variables de HABITAT DEV; quedan muertos al apagarlo |
+| Sin verificación automatizada de extremo a extremo de documentos | `cloud-dev-smoke.mjs` se borró el 26/08 (apuntaba a HABITAT DEV) y con él la prueba que lo leía. Storage privado, eventos de auditoría e inmutabilidad del enlace hoy se comprueban a mano con el checklist de cierre |
 | Cliente y propietario se relacionan por correo, no por UUID | requiere backfill; frágil si alguien cambia su correo |
 | Credenciales EasyBroker vía `EASYBROKER_CREDENTIALS_JSON` | falta rotación por tenant |
 | `respaldo_ledger_20260825` en `supabase_migrations` | respaldo del historial anterior; borrable cuando el CI pase verde |

@@ -32,15 +32,19 @@ describe("arquitectura P4.2", () => {
     expect(pdf).not.toMatch(/Hábitat Bienes Raíces|HABITAT BIENES RAICES/);
   });
 
-  it("exige evidencia cloud de fotografías, RBAC, Storage, auditoría e inmutabilidad", () => {
-    const smoke = read("scripts/cloud-dev-smoke.mjs");
-    expect(smoke).toContain("imageUrls.length >= 4");
-    expect(smoke).toContain('["broker", "asesor_independiente", "asesor_equipo"]');
-    expect(smoke).toContain('["propietario", "cliente"]');
-    expect(smoke).toContain("Private generated document was readable through a public Storage URL");
-    expect(smoke).toContain("Link A changed silently after PDF B was generated");
-    for (const eventType of ["document_created", "document_downloaded", "share_link_created", "share_link_accessed", "share_link_revoked"]) {
-      expect(smoke).toContain(eventType);
-    }
-  });
+  // Aquí vivía "exige evidencia cloud de fotografías, RBAC, Storage, auditoría e
+  // inmutabilidad". No comprobaba comportamiento: hacía grep de cadenas dentro de
+  // `scripts/cloud-dev-smoke.mjs`, un script que apuntaba al proyecto HABITAT DEV.
+  // Al retirar ese proyecto el script quedó muerto y la prueba se volvió una
+  // afirmación sobre un archivo que ya no existe.
+  //
+  // Las tres pruebas de arriba sí leen el código que se despliega
+  // (`generate-document`, `propertySheetPdf`) y conservan la cobertura de RBAC,
+  // SSRF y fuga de datos de contacto.
+  //
+  // Pendiente real: la verificación de extremo a extremo contra producción
+  // (Storage privado, eventos de auditoría, inmutabilidad del enlace) ya no tiene
+  // automatización. Hoy se cubre a mano con el checklist de cierre de
+  // ESTADO-DE-LA-PLATAFORMA.md. Si se reconstruye, debe correr contra el único
+  // proyecto Supabase, no contra un DEV nuevo.
 });
