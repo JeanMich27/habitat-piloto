@@ -1,5 +1,10 @@
 import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, UserRole, Usuario } from "../../types";
-import { desactivarAsesorAtomico, upsertUsuario, upsertUsuarioConError } from "../../repositories/usersRepository";
+import {
+  desactivarAsesorAtomico,
+  subirFotoPerfilPublico,
+  upsertUsuario,
+  upsertUsuarioConError,
+} from "../../repositories/usersRepository";
 import { upsertAgencia, upsertConfiguracion } from "../../repositories/settingsRepository";
 import type { ConfirmPersistence, StateSetter } from "./persistence";
 
@@ -53,6 +58,12 @@ export function createTeamSettingsActions(input: TeamSettingsActionsInput) {
       () => upsertConfiguracion(teamCanSeeAll, value), () => setNotifications(value),
     ),
     guardarPerfilPersonal: saveUser,
+    subirFotoPerfil: async (archivo: File): Promise<{ url: string | null; error: string | null }> => {
+      const resultado = await subirFotoPerfilPublico(archivo);
+      return resultado.ok
+        ? { url: resultado.data, error: null }
+        : { url: null, error: resultado.error.message };
+    },
     resolverSolicitud: saveUser,
     desactivarAsesor: (advisorId: string, reassignToId: string) => {
       const nextUsers = users.map((user) => user.id === advisorId ? { ...user, estadoCuenta: "Inactivo" as const } : user);

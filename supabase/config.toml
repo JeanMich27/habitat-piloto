@@ -34,6 +34,12 @@ verify_jwt = false
 [functions.share-document]
 verify_jwt = false
 
+# Igual que agenda-ics: quien visita el micrositio de un asesor no tiene
+# sesión en la plataforma. La RPC de perfil tiene EXECUTE revocado a los
+# roles del navegador y solo esta función la invoca con service_role.
+[functions.micrositio-publico]
+verify_jwt = false
+
 # Meta llama al webhook de WhatsApp sin sesión de Supabase, igual que
 # agenda-ics. La autenticación la hace la propia función: verify_token en
 # el handshake GET, firma X-Hub-Signature-256 (HMAC con el App Secret) en

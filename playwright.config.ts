@@ -17,7 +17,13 @@ export default defineConfig({
     command: "npm run dev -- --host 127.0.0.1 --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
-    env: { VITE_APP_MODE: "demo" },
+    // El micrositio público necesita estas variables para construir la URL,
+    // pero sus E2E interceptan la petición: nunca se usa una red real.
+    env: {
+      VITE_APP_MODE: "demo",
+      VITE_SUPABASE_URL: "https://supabase-e2e.invalid",
+      VITE_SUPABASE_ANON_KEY: "anon-e2e-no-real",
+    },
   },
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /mobile\.spec\.ts/ },

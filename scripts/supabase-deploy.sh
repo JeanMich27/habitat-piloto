@@ -59,6 +59,7 @@ FUNCIONES=(
   generate-document
   download-document
   share-document
+  micrositio-publico
   whatsapp-webhook
 )
 
