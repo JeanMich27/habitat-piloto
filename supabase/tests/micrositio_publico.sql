@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(10);
 
 insert into public.agencias (id, nombre, direccion, slug, estado, plan, codigo_invitacion)
 values
@@ -64,6 +64,22 @@ select is(
   public.perfil_publico_por_slug('asesor-micro-b') -> 'propiedades' -> 0 ->> 'id',
   'micro-prop-b',
   'el perfil B no mezcla inventario de la agencia A'
+);
+select has_function(
+  'public',
+  'perfil_publico_por_slug',
+  array['text'],
+  'la RPC pública conserva su firma canónica'
+);
+select is(
+  public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ->> 'tipo_operacion',
+  'Venta',
+  'la RPC expone el tipo de operación real de la propiedad'
+);
+select is(
+  public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ->> 'tipo_inmueble',
+  'Casa',
+  'la RPC expone el tipo de inmueble real de la propiedad'
 );
 
 select * from finish();
