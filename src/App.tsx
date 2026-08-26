@@ -1,8 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import {
-  BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Download, Home,
-  LayoutDashboard, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
-} from "lucide-react";
+// Los iconos del menú viven en `app/navigation/navigation.tsx`, junto a los
+// elementos que los usan. Aquí sólo quedan los que usa el cuerpo de la app.
+import { Download, Home } from "lucide-react";
 import type {
   CitaAgenda,
   LeadStage,
@@ -66,6 +65,8 @@ import { createDocumentActions } from "./app/application/documentActions";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
+  allowedViews,
+  buildNavItems,
   type Vista,
 } from "./app/navigation/navigation";
 
@@ -243,81 +244,16 @@ function AplicacionConfigurada() {
     return citasDeHoy(citas, soloDe).length;
   }, [citas, usuarioActual]);
 
-  // Menú según rol: nadie ve destinos ajenos.
-  const navItems: NavItem[] = useMemo(() => {
-    switch (rol) {
-      case "broker":
-        return [
-          { id: "broker", etiqueta: "Dashboard", Icono: ShieldCheck },
-          { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
-          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
-          { id: "intake", etiqueta: "Validación", Icono: ClipboardCheck },
-          { id: "asesores", etiqueta: "Asesores", Icono: Users },
-          {
-            id: "solicitudes",
-            etiqueta: "Equipo",
-            Icono: ShieldQuestion,
-            badge: solicitudesPendientes || undefined,
-          },
-          { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
-          { id: "importar", etiqueta: "Importar", Icono: Upload },
-          { id: "configuracion", etiqueta: "Configuración", Icono: Settings },
-          { id: "mi-perfil", etiqueta: "Mi Perfil", Icono: UserIcon },
-        ];
-      case "asesor_independiente":
-        return [
-          { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
-          // La agenda va en la barra inferior a propósito: es lo que un asesor
-          // en campo abre varias veces al día.
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
-          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
-          { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
-          { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
-          { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
-          { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
-          { id: "importar", etiqueta: "Importar", Icono: Upload },
-        ];
-      case "asesor_equipo":
-        return [
-          { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard },
-          { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: citasHoy || undefined },
-          { id: "clientes", etiqueta: "Clientes", Icono: Contact },
-          { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
-          { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
-          { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
-        ];
-      case "propietario":
-        return [
-          { id: "propietario", etiqueta: "Mi Propiedad", Icono: Home },
-          { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
-        ];
-      case "cliente":
-        return [
-          { id: "cliente", etiqueta: "Mi Proceso", Icono: Home },
-          { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
-        ];
-      default:
-        return [];
-    }
-  }, [rol, solicitudesPendientes, citasHoy]);
+  // El menú y las vistas permitidas viven en `app/navigation/navigation.tsx`.
+  // Aquí había una segunda copia mantenida a mano; era la que se pintaba, y por
+  // eso "Mi Micrositio" —agregado sólo en la otra— nunca apareció aunque estaba
+  // construido y desplegado. No vuelvas a declarar `navItems` en este archivo.
+  const navItems: NavItem[] = useMemo(
+    () => buildNavItems(rol, solicitudesPendientes, citasHoy),
+    [rol, solicitudesPendientes, citasHoy],
+  );
 
-  // Guardia: si la vista actual no pertenece al rol, regresa a su inicio.
-  const vistasPermitidas = useMemo(() => {
-    const base = new Set(navItems.map((i) => i.id as Vista));
-    // Vistas internas alcanzables desde el menú:
-    if (base.has("propiedades")) {
-      base.add("detalle");
-      // Dar de alta inventario es del broker y del independiente: el asesor
-      // de equipo no puede llegar a esta pantalla ni por navegación interna.
-      if (rol && puedeCargarPropiedades(rol)) base.add("nueva");
-    }
-    if (base.has("asesores")) base.add("perfil");
-    // Salud inmobiliaria: se abre desde la tarjeta del dashboard del asesor,
-    // sin icono propio en el menú (decisión de diseño).
-    if (base.has("comisiones")) base.add("salud");
-    return base;
-  }, [navItems, rol]);
+  const vistasPermitidas = useMemo(() => allowedViews(navItems, rol), [navItems, rol]);
 
   useEffect(() => {
     if (usuarioActual && vista && !vistasPermitidas.has(vista)) {

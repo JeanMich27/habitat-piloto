@@ -29,7 +29,21 @@ export const INITIAL_VIEW: Record<UserRole, Vista> = {
   cliente: "cliente",
 };
 
+/**
+ * Menú según rol: nadie ve destinos ajenos.
+ *
+ * ESTA ES LA ÚNICA DEFINICIÓN DEL MENÚ. No la dupliques en `App.tsx`.
+ *
+ * Hasta el 26/08/2026 hubo dos: `App.tsx` mantenía su propia copia a mano y era
+ * la que se pintaba, mientras esta —ya extraída y con "Mi Micrositio" agregado—
+ * quedaba muerta, ejercitada sólo por `tests/navigation.test.ts`. Resultado: la
+ * suite pasaba en verde probando un menú que nadie veía, y el micrositio estuvo
+ * construido, migrado, desplegado e inalcanzable durante días. Si vuelves a ver
+ * un `navItems` dentro de `App.tsx`, es este bug otra vez.
+ */
 export function buildNavItems(role: UserRole | undefined, pendingUsers: number, todayAppointments: number): NavItem[] {
+  // La agenda va en la barra inferior a propósito: es lo que un asesor en campo
+  // abre varias veces al día.
   const agenda = { id: "agenda", etiqueta: "Agenda", Icono: CalendarDays, badge: todayAppointments || undefined };
   switch (role) {
     case "broker": return [
@@ -75,13 +89,19 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
   }
 }
 
+/** Guardia: si la vista actual no pertenece al rol, se regresa a su inicio. */
 export function allowedViews(items: NavItem[], role: UserRole | undefined): Set<Vista> {
   const views = new Set(items.map((item) => item.id as Vista));
+  // Vistas internas alcanzables desde el menú:
   if (views.has("propiedades")) {
     views.add("detalle");
+    // Dar de alta inventario es del broker y del independiente: el asesor de
+    // equipo no puede llegar a esta pantalla ni por navegación interna.
     if (role && puedeCargarPropiedades(role)) views.add("nueva");
   }
   if (views.has("asesores")) views.add("perfil");
+  // Salud inmobiliaria: se abre desde la tarjeta del dashboard del asesor, sin
+  // icono propio en el menú (decisión de diseño).
   if (views.has("comisiones")) views.add("salud");
   return views;
 }
