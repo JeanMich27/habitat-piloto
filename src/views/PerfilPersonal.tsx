@@ -2,7 +2,7 @@ import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Camera, ExternalLink, KeyRound, LoaderCircle, Mail, Phone, User, X } from "lucide-react";
 import type { Usuario } from "../types";
 import { canGenerateDocuments } from "../domain/documents/documentPolicy";
-import { supabase } from "../lib/supabaseClient";
+import { urlPublicaSegura } from "../lib/urlPublica";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const telefonoValido = (v: string) => /^\d{10}$/.test(v.replace(/\D/g, ""));
@@ -17,6 +17,7 @@ const textoALista = (valor: string): string[] =>
 interface Props {
   usuario: Usuario;
   onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
+  onSubirFoto?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
   onCambiarContrasena: (actual: string, nueva: string) => Promise<string | null>;
   onCambiarCorreo?: (
     nuevo: string,
@@ -27,6 +28,7 @@ interface Props {
 export default function PerfilPersonal({
   usuario,
   onGuardar,
+  onSubirFoto,
   onCambiarContrasena,
   onCambiarCorreo,
   onIrAMicrositio,
@@ -132,7 +134,12 @@ export default function PerfilPersonal({
       </div>
 
       {mostrarInformacionPublica && (
-        <InformacionPublica usuario={usuario} onGuardar={onGuardar} onIrAMicrositio={onIrAMicrositio} />
+        <InformacionPublica
+          usuario={usuario}
+          onGuardar={onGuardar}
+          onSubirFoto={onSubirFoto}
+          onIrAMicrositio={onIrAMicrositio}
+        />
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -165,10 +172,12 @@ export default function PerfilPersonal({
 function InformacionPublica({
   usuario,
   onGuardar,
+  onSubirFoto,
   onIrAMicrositio,
 }: {
   usuario: Usuario;
   onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
+  onSubirFoto?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
   onIrAMicrositio?: () => void;
 }) {
   const redSocial = (red: string) => usuario.redesSociales?.find((r) => r.red === red)?.url ?? "";
@@ -201,26 +210,23 @@ function InformacionPublica({
     linkedin !== redSocial("linkedin");
 
   const anosValido = anosExperiencia.trim() === "" || /^\d+$/.test(anosExperiencia.trim());
-  const valido = bioCorta.length <= 280 && anosValido;
+  const instagramSeguro = urlPublicaSegura(instagram);
+  const linkedinSeguro = urlPublicaSegura(linkedin);
+  const instagramInvalido = instagram.trim() !== "" && !instagramSeguro;
+  const linkedinInvalido = linkedin.trim() !== "" && !linkedinSeguro;
+  const valido = bioCorta.length <= 280 && anosValido && !instagramInvalido && !linkedinInvalido;
 
   const subirFoto = async (archivo: File) => {
-    if (!supabase) {
+    if (!onSubirFoto) {
       setErrorFoto("La foto no se puede subir en modo demostración.");
       return;
     }
     setErrorFoto(null);
     setSubiendoFoto(true);
     try {
-      const { data: sesion, error: errorSesion } = await supabase.auth.getUser();
-      if (errorSesion || !sesion.user) throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
-      const extension = archivo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const ruta = `${sesion.user.id}/foto.${extension}`;
-      const { error: errorSubida } = await supabase.storage
-        .from("avatares-publicos")
-        .upload(ruta, archivo, { upsert: true, cacheControl: "3600" });
-      if (errorSubida) throw errorSubida;
-      const { data: publico } = supabase.storage.from("avatares-publicos").getPublicUrl(ruta);
-      setFotoUrl(`${publico.publicUrl}?v=${Date.now()}`);
+      const resultado = await onSubirFoto(archivo);
+      if (resultado.error || !resultado.url) throw new Error(resultado.error ?? "No se pudo subir la foto.");
+      setFotoUrl(resultado.url);
     } catch (e) {
       setErrorFoto(e instanceof Error ? e.message : "No se pudo subir la foto.");
     } finally {
@@ -247,8 +253,8 @@ function InformacionPublica({
     setGuardando(true);
     setError(null);
     const redesSociales = [
-      ...(instagram.trim() ? [{ red: "instagram", url: instagram.trim() }] : []),
-      ...(linkedin.trim() ? [{ red: "linkedin", url: linkedin.trim() }] : []),
+      ...(instagramSeguro ? [{ red: "instagram", url: instagramSeguro }] : []),
+      ...(linkedinSeguro ? [{ red: "linkedin", url: linkedinSeguro }] : []),
     ];
     const ok = await onGuardar(usuario.id, {
       fotoUrl: fotoUrl.trim() || undefined,
@@ -394,6 +400,11 @@ function InformacionPublica({
               placeholder="https://instagram.com/tu-usuario"
               className="input"
             />
+            {instagramInvalido && (
+              <p role="alert" className="mt-1 text-[11px] text-rose-600">
+                El enlace de Instagram debe ser una URL válida con https://.
+              </p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -405,6 +416,11 @@ function InformacionPublica({
               placeholder="https://linkedin.com/in/tu-usuario"
               className="input"
             />
+            {linkedinInvalido && (
+              <p role="alert" className="mt-1 text-[11px] text-rose-600">
+                El enlace de LinkedIn debe ser una URL válida con https://.
+              </p>
+            )}
           </div>
         </div>
       </div>

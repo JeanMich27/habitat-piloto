@@ -482,7 +482,7 @@ function AplicacionConfigurada() {
 
   const {
     altaDeUsuario, invitarAsesor, guardarAgencia, guardarPermisoEquipo,
-    guardarNotificaciones, guardarPerfilPersonal, resolverSolicitud,
+    guardarNotificaciones, guardarPerfilPersonal, subirFotoPerfil, resolverSolicitud,
     desactivarAsesor, reactivarAsesor, editarPermisosAsesor,
   } = createTeamSettingsActions({
     users: usuarios, setUsers: setUsuarios,
@@ -815,6 +815,7 @@ function AplicacionConfigurada() {
             <PerfilPersonal
               usuario={yo}
               onGuardar={guardarPerfilPersonal}
+              onSubirFoto={subirFotoPerfil}
               onCambiarCorreo={async (nuevo) => {
                 if (!isCloudEnabled)
                   return { error: "Función todavía no disponible en modo demostración." };
