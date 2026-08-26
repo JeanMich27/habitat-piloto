@@ -31,14 +31,41 @@ Storage) → Vercel para el frontend. Sincronización con EasyBroker por cron.
 | Repositorio | `github.com/JeanMich27/habitat-piloto` | rama única: `master` |
 | Local | `~/Downloads/Carpetas_Proyectos/Plataforma multinivel/UXUI/app descargable` | |
 | Base de datos | Supabase, proyecto **`zhtwvxarovfohhmrgqoy`** | el ÚNICO. No hay DEV |
+| Cuentas de acceso | Supabase → Authentication → Users | fuente de verdad de quién puede entrar |
+| Altas y solicitudes | vista **"Equipo"** en la app | **sólo rol `broker`**. Con una cuenta de asesor no aparece en el menú |
 | Frontend | Vercel, publica desde `master` | `npm run deploy` |
 | CI | GitHub Actions: `ci.yml`, `supabase-ci.yml` | reconstruye la base y corre pgTAP |
 | Despliegue de base | `supabase-deploy.yml` / `scripts/supabase-deploy.sh` | manual y consciente |
 
 ## 3. Estado real hoy
 
-**Datos en producción:** 1,330 leads · 96 propiedades · 14 usuarios · 1 agencia ·
-2 integraciones activas (WhatsApp, Gemini). Todo real, sin registros de demo.
+**Datos en producción:** 1,330 leads · 96 propiedades · 14 fichas de usuario ·
+1 agencia · 2 integraciones activas (WhatsApp, Gemini). Todo real, sin demo.
+
+**Pero sólo 3 personas pueden entrar.** Corregido el 26/08: este documento decía
+"14 usuarios trabajando en ella" y era falso. En `auth.users` hay 3 cuentas —
+el broker, Lulú Zanabria y Jean. Las otras 11 fichas están en estado `Invitado`
+con `auth_id` nulo: existen en la tabla `usuarios`, tienen propiedades y leads
+asignados, y **nadie puede iniciar sesión con ellas.**
+
+No es un error del sistema. El alta de asesores dice, en su propia pantalla:
+*"Crea la ficha en estado 'Invitado'. No se enviará correo: comparte manualmente
+las instrucciones de registro."* Nunca se compartieron. El trigger
+`manejar_nuevo_registro` enlaza `auth_id` y pasa la ficha a `Activo` en cuanto
+la persona se registra con el mismo correo — el mecanismo funciona, sólo hay que
+disparar el registro.
+
+Trabajo bloqueado por esto: **883 leads** (dos tercios de la base) y 55
+propiedades asignados a gente que no puede abrir la app. Ver la lista con:
+
+```sql
+select nombre, correo from usuarios where auth_id is null order by nombre;
+```
+
+Riesgo al ejecutarlo: si alguien se registra con un correo distinto al de su
+ficha, el trigger no encuentra coincidencia y **crea un perfil nuevo y vacío**.
+Ese asesor pierde de vista su cartera y queda un duplicado que hay que fusionar
+a mano. Los correos se copian y pegan, no se dictan.
 
 **Migraciones: sincronizadas.** 39 en el repositorio, 39 aplicadas en producción,
 misma lista y mismo orden. Verificado contra el proyecto `zhtwvxarovfohhmrgqoy`
@@ -126,12 +153,13 @@ perdido en silencio. Quedaron versionados en
 
 | # | Qué | Listo cuando |
 |---|---|---|
-| 1 | **Preguntar a los 14 usuarios desde qué dirección abren la app.** El que vea "HABITAT México RS" está en un sitio zombi | los 14 confirmados en `real-estate-plataforma.vercel.app` |
-| 2 | Reinstalar la app a los que estén en una URL vieja: desinstalar y volver a agregar desde la dirección buena | ese asesor ve "HomeID" y el micrositio nuevo |
-| 3 | Borrar los proyectos `habitat-piloto` y `habitat-piloto-ah3l` en Vercel — **sólo después del 2** | queda un único proyecto sirviendo la plataforma |
-| 4 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
-| 5 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
-| 6 | Apagar `HABITAT DEV` — **sólo después del 5** | queda un único proyecto Supabase en la cuenta |
+| 1 | **Dar de alta a los 11 asesores "Invitado".** Nunca se les avisó que debían registrarse: el alta no manda correo, por diseño | los 11 aparecen en Authentication → Users y su ficha pasa a "Activo" sola |
+| 2 | En Supabase: secretos de función `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_APP_SECRET` | el handshake GET de Meta responde 200 |
+| 3 | Repuntar el webhook de Meta a producción | llega un mensaje real y crea el lead en producción |
+| 4 | Apagar `HABITAT DEV` — **sólo después del 3** | queda un único proyecto Supabase en la cuenta |
+
+Ya resuelto (26/08): los sitios zombis de Vercel se borraron y queda un solo
+proyecto, `real-estate-plataforma`, publicando desde `master`.
 
 Ya resuelto (26/08): los secrets de GitHub, el despliegue de base y funciones, y
 la publicación del frontend. Las 39 migraciones, las 13 Edge Functions y el
@@ -189,6 +217,8 @@ abrir el enlace compartido desde otro navegador sin sesión.
 | Qué | Riesgo |
 |---|---|
 | `eb-probe` en producción, no en el repo | viola la regla 5. Decidir: versionarla o retirarla |
+| El alta de asesores no manda correo | Es una decisión consciente para el piloto, pero es exactamente donde se cayó el proceso: 11 asesores quedaron sin acceso durante un mes y nadie lo notó, porque la ficha se ve creada en la app. Se va a repetir con cada oficina que se venda. Mínimo: un botón "copiar instrucciones de registro" junto a cada ficha en `Invitado` |
+| El registro del service worker no recarga al actualizar | `registrarServiceWorker.ts` sólo llama a `register()`. El SW nuevo hace `skipWaiting` + `clients.claim`, pero **`claim()` no recarga la pestaña**: el JS viejo sigue corriendo. En iOS deslizar la app hacia arriba normalmente no mata el proceso, así que "ciérrala por completo" no es instrucción confiable. Falta escuchar `updatefound`/`controllerchange` y recargar |
 | Sin verificación automatizada de extremo a extremo de documentos | `cloud-dev-smoke.mjs` se borró el 26/08 (apuntaba a HABITAT DEV) y con él la prueba que lo leía. Storage privado, eventos de auditoría e inmutabilidad del enlace hoy se comprueban a mano con el checklist de cierre |
 | Cliente y propietario se relacionan por correo, no por UUID | requiere backfill; frágil si alguien cambia su correo |
 | Credenciales EasyBroker vía `EASYBROKER_CREDENTIALS_JSON` | falta rotación por tenant |

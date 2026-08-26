@@ -124,6 +124,27 @@ supabase test db
 - La relación histórica cliente/propietario por correo aún requiere backfill a UUID.
 - El reagendado sigue deshabilitado: requiere alcance de MVP, modelo y permisos. No simular.
 
+## Configuración de autenticación en Supabase
+
+Vive en el panel, no en el repositorio, y por eso es fácil que se pudra sin que
+nadie lo note. Estado correcto (fijado el 26/08/2026):
+
+- **Site URL:** `https://real-estate-plataforma.vercel.app`
+- **Redirect URLs:** `https://real-estate-plataforma.vercel.app/**` y
+  `http://localhost:5173/**`
+
+Estuvo un mes en `http://localhost:3000` con la lista de redirects vacía — el
+valor por omisión que trae todo proyecto nuevo. Consecuencia: `resetPasswordForEmail`
+pasa `redirectTo: window.location.origin`, Supabase lo rechaza por no estar en la
+lista, cae al Site URL y manda a la gente a su propia computadora. El correo
+llega, el enlace consume el token y el usuario acaba en una pantalla de error sin
+haber podido cambiar nada. Le pasó a Jean el 26/08 y habría bloqueado el alta de
+los 11 asesores.
+
+**Si cambia el dominio de la app, estos dos campos se cambian el mismo día.**
+La prueba de que está bien no es leer el panel: es pedir una recuperación de
+contraseña y llegar a la pantalla donde se escribe la nueva.
+
 ## Artefactos
 
 - `dist`, `dist-standalone`, reportes Playwright y cualquier `_respaldo-*` no se versionan.
