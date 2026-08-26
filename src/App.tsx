@@ -28,9 +28,11 @@ const NuevaPropiedad = lazy(() => import("./views/NuevaPropiedad"));
 import PendienteAprobacion from "./views/PendienteAprobacion";
 const PerfilDesempeno = lazy(() => import("./views/PerfilDesempeno"));
 const PerfilPersonal = lazy(() => import("./views/PerfilPersonal"));
+const MiMicrositio = lazy(() => import("./views/MiMicrositio"));
 const ClientePortal = lazy(() => import("./views/ClientePortal"));
 const PropietarioPortal = lazy(() => import("./views/PropietarioPortal"));
 const PublicSharedDocument = lazy(() => import("./views/PublicSharedDocument"));
+const MicrositioPublico = lazy(() => import("./views/MicrositioPublico"));
 const Reportes = lazy(() => import("./views/Reportes"));
 const SolicitudesAcceso = lazy(() => import("./views/SolicitudesAcceso"));
 import AppShell, { type NavItem } from "./components/AppShell";
@@ -71,6 +73,12 @@ export default function App() {
   const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/i);
   if (shareMatch) {
     return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-300">Abriendo documento…</div>}><PublicSharedDocument token={shareMatch[1].toLowerCase()} /></Suspense>;
+  }
+  // Micrositio público del asesor: sin sesión, por slug opaco (mismo patrón
+  // que /share). Ver decision-perfil-asesor-micrositio.md.
+  const micrositioMatch = window.location.pathname.match(/^\/m\/([^/]+)\/?$/i);
+  if (micrositioMatch) {
+    return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-300">Abriendo micrositio…</div>}><MicrositioPublico slug={micrositioMatch[1].toLowerCase()} /></Suspense>;
   }
   if (configurationError) {
     return (
@@ -817,8 +825,13 @@ function AplicacionConfigurada() {
                 const resultado = await cambiarContrasenaActual(actual, nueva);
                 return resultado.error ?? null;
               }}
+              onIrAMicrositio={() => setVista("mi-micrositio")}
             />
           )}
+          {vista === "mi-micrositio" &&
+            (yo.rol === "broker" || yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
+              <MiMicrositio usuario={yo} agencia={agencia} onIrAPerfil={() => setVista("mi-perfil")} />
+            )}
           {vista === "propietario" && yo.rol === "propietario" && (
             <PropietarioPortal
               propiedadesPropietario={propiedadesDelPropietario}

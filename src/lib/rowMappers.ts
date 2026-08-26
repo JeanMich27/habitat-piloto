@@ -234,6 +234,16 @@ export function usuarioToRow(u: Usuario) {
     iniciales: u.iniciales,
     estado_cuenta: u.estadoCuenta,
     puede_ver_otras_propiedades: u.puedeVerOtrasPropiedades ?? false,
+    // Perfil público del micrositio. slug_publico NO se envía: lo genera un
+    // trigger en la base a partir del nombre (usuarios_generar_slug), la app
+    // nunca lo escribe.
+    foto_url: u.fotoUrl ?? null,
+    bio_corta: u.bioCorta ?? null,
+    especialidades: u.especialidades ?? [],
+    anos_experiencia: u.anosExperiencia ?? null,
+    idiomas: u.idiomas ?? [],
+    certificaciones: u.certificaciones ?? [],
+    redes_sociales: u.redesSociales ?? [],
   };
 }
 
@@ -249,6 +259,14 @@ export function rowToUsuario(r: UserRow): Usuario {
     estadoCuenta: r.estado_cuenta,
     puedeVerOtrasPropiedades: r.puede_ver_otras_propiedades ?? false,
     agenciaId: r.agencia_id,
+    fotoUrl: r.foto_url ?? undefined,
+    bioCorta: r.bio_corta ?? undefined,
+    especialidades: r.especialidades ?? [],
+    anosExperiencia: r.anos_experiencia ?? undefined,
+    idiomas: r.idiomas ?? [],
+    certificaciones: r.certificaciones ?? [],
+    redesSociales: r.redes_sociales ?? [],
+    slugPublico: r.slug_publico ?? undefined,
   };
 }
 

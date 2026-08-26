@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Home,
+  BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Globe, Home,
   LayoutDashboard, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
 } from "lucide-react";
 import type { NavItem } from "../../components/AppShell";
@@ -9,7 +9,7 @@ import { puedeCargarPropiedades } from "../../types";
 
 export type Vista =
   | "broker" | "propiedades" | "detalle" | "nueva" | "asesores" | "solicitudes"
-  | "perfil" | "asesor" | "mi-perfil" | "propietario" | "cliente" | "intake"
+  | "perfil" | "asesor" | "mi-perfil" | "mi-micrositio" | "propietario" | "cliente" | "intake"
   | "reportes" | "importar" | "comisiones" | "salud" | "clientes" | "agenda"
   | "configuracion";
 
@@ -43,6 +43,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "importar", etiqueta: "Importar", Icono: Upload },
       { id: "configuracion", etiqueta: "Configuración", Icono: Settings },
       { id: "mi-perfil", etiqueta: "Mi Perfil", Icono: UserIcon },
+      { id: "mi-micrositio", etiqueta: "Mi Micrositio", Icono: Globe },
     ];
     case "asesor_independiente": return [
       { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard }, agenda,
@@ -51,6 +52,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
       { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
       { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
+      { id: "mi-micrositio", etiqueta: "Mi Micrositio", etiquetaCorta: "Micrositio", Icono: Globe },
       { id: "importar", etiqueta: "Importar", Icono: Upload },
     ];
     case "asesor_equipo": return [
@@ -59,6 +61,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
       { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
       { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
+      { id: "mi-micrositio", etiqueta: "Mi Micrositio", etiquetaCorta: "Micrositio", Icono: Globe },
     ];
     case "propietario": return [
       { id: "propietario", etiqueta: "Mi Propiedad", Icono: Home },

@@ -209,6 +209,24 @@ export interface Usuario {
   estadoCuenta: EstadoCuenta;
   // Ejemplo de permiso especial editable desde Asesores > Editar permisos.
   puedeVerOtrasPropiedades?: boolean;
+
+  // ------------------------------------------------------------------
+  // Perfil público del micrositio (decision-perfil-asesor-micrositio.md).
+  // Ninguno bloquea nada: el micrositio siempre está activo, es
+  // responsabilidad del asesor llenarlo (decisión de Jean, 26 ago 2026).
+  // ------------------------------------------------------------------
+  /** Foto pública del micrositio. Distinta del avatar de iniciales. */
+  fotoUrl?: string;
+  /** Bio pública, máx. 280 caracteres (usuarios_bio_corta_longitud en la base). */
+  bioCorta?: string;
+  /** Zonas/tipos de propiedad en los que se especializa. */
+  especialidades?: string[];
+  anosExperiencia?: number;
+  idiomas?: string[];
+  certificaciones?: string[];
+  redesSociales?: { red: string; url: string }[];
+  /** Slug único para la URL pública (/m/:slug). Se autogenera en la base, solo lectura. */
+  slugPublico?: string;
 }
 
 // ============================================================

@@ -78,6 +78,10 @@ export interface LeadRow {
 export interface UserRow {
   id: string; agencia_id: string; nombre: string; correo: string; telefono: string; rol: UserRole;
   puesto: string; iniciales: string; estado_cuenta: EstadoCuenta; puede_ver_otras_propiedades: boolean | null;
+  // Perfil público del micrositio (decision-perfil-asesor-micrositio.md).
+  foto_url: string | null; bio_corta: string | null; especialidades: string[] | null;
+  anos_experiencia: number | null; idiomas: string[] | null; certificaciones: string[] | null;
+  redes_sociales: { red: string; url: string }[] | null; slug_publico: string | null;
 }
 export interface AgencyRow {
   id: string; nombre: string; direccion: string; logo_url: string | null; slug: string | null;
