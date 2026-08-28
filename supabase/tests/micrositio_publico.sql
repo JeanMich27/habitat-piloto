@@ -18,18 +18,18 @@ values
   ('micro-asesor-b', 'micro-b', '82000000-0000-4000-8000-000000000001', 'Asesor Micrositio B', 'b@micro.test', '5522222222', 'asesor_equipo', 'Asesor', 'AB', 'Activo', 'asesor-micro-b');
 
 insert into public.propiedades
-  (id, agencia_id, titulo, tipo_inmueble, tipo_operacion, asesor_id, propietario, estatus, publicada_el)
+  (id, agencia_id, titulo, tipo_inmueble, tipo_operacion, asesor_id, propietario, estatus, publicada_el, slug_publico)
 values
-  ('micro-prop-a', 'micro-a', 'Propiedad pública A', 'Casa', 'Venta', 'micro-asesor-a', '{}', 'Publicada', now()),
-  ('micro-prop-b', 'micro-b', 'Propiedad pública B', 'Casa', 'Venta', 'micro-asesor-b', '{}', 'Publicada', now());
+  ('micro-prop-a', 'micro-a', 'Propiedad pública A', 'Casa', 'Venta', 'micro-asesor-a', '{}', 'Publicada', now(), 'propiedad-publica-a-1234567890'),
+  ('micro-prop-b', 'micro-b', 'Propiedad pública B', 'Casa', 'Venta', 'micro-asesor-b', '{}', 'Publicada', now(), 'propiedad-publica-b-1234567890');
 
 -- Fuerza dentro de esta transacción el caso que el trigger normalmente impide:
 -- una propiedad de B asignada al asesor A. La RPC debe excluirla por agencia.
 alter table public.propiedades disable trigger propiedades_coherencia_agencia;
 insert into public.propiedades
-  (id, agencia_id, titulo, tipo_inmueble, tipo_operacion, asesor_id, propietario, estatus, publicada_el)
+  (id, agencia_id, titulo, tipo_inmueble, tipo_operacion, asesor_id, propietario, estatus, publicada_el, slug_publico)
 values
-  ('micro-prop-cruzada', 'micro-b', 'No debe salir', 'Casa', 'Venta', 'micro-asesor-a', '{}', 'Publicada', now() + interval '1 minute');
+  ('micro-prop-cruzada', 'micro-b', 'No debe salir', 'Casa', 'Venta', 'micro-asesor-a', '{}', 'Publicada', now() + interval '1 minute', 'propiedad-cruzada-1234567890');
 alter table public.propiedades enable trigger propiedades_coherencia_agencia;
 
 select ok(
@@ -46,14 +46,16 @@ select is(
   'el perfil A contiene una sola propiedad de su agencia'
 );
 select is(
-  public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ->> 'id',
-  'micro-prop-a',
+  public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ->> 'slug',
+  'propiedad-publica-a-1234567890',
   'la propiedad cruzada queda excluida aunque el trigger se haya omitido'
 );
 select ok(
   not (public.perfil_publico_por_slug('asesor-micro-a') ? 'correo')
-  and not (public.perfil_publico_por_slug('asesor-micro-a') ? 'id'),
-  'el perfil no expone correo ni id interno del usuario'
+  and not (public.perfil_publico_por_slug('asesor-micro-a') ? 'id')
+  and not (public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ? 'id')
+  and not (public.perfil_publico_por_slug('asesor-micro-a') -> 'propiedades' -> 0 ? 'eb_public_url'),
+  'el perfil no expone correo, ids internos ni enlaces de EasyBroker'
 );
 select is(
   public.perfil_publico_por_slug('slug-inexistente'),
@@ -61,8 +63,8 @@ select is(
   'un slug inexistente devuelve null'
 );
 select is(
-  public.perfil_publico_por_slug('asesor-micro-b') -> 'propiedades' -> 0 ->> 'id',
-  'micro-prop-b',
+  public.perfil_publico_por_slug('asesor-micro-b') -> 'propiedades' -> 0 ->> 'slug',
+  'propiedad-publica-b-1234567890',
   'el perfil B no mezcla inventario de la agencia A'
 );
 select has_function(

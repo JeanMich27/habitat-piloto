@@ -3,6 +3,24 @@
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
+> **28/08/2026 — Ajuste morado y ficha pública por inmueble.**
+> Elimina "Mi Micrositio" del menú, concentra su edición en "Mi perfil",
+> mueve el logo a "Información de la inmobiliaria" para broker, elimina CTAs
+> duplicados y crea `/inmueble/:slug` con un contrato público que excluye
+> propietario, comisión, dirección exacta e ids internos. También corrige el
+> fallo de foto de Jean: el perfil propio hacía `upsert`, que exige INSERT y
+> RLS se lo niega a un asesor; ahora usa UPDATE por id y los errores de
+> guardado permanecen dentro del formulario en vez de tumbar la app.
+>
+> **Estado del despliegue:** migración `20260828045255_propiedades_publicas_plataforma`
+> aplicada y verificada. Edge Function `propiedad-publica` desplegada (nueva,
+> sin tráfico previo). **Pendiente:** `micrositio-publico` sigue sirviendo su
+> versión anterior (caché de 60s en vez de `no-store`) — el redeploy lo
+> bloqueó el clasificador de modo automático de Claude Code por tratarse de
+> una función ya viva en producción; no es un error técnico, es una decisión
+> que le tocaba a Jean. No rompe nada: el micrositio del asesor sigue
+> funcionando, solo con hasta 60s de caché en vez de reflejo inmediato.
+
 > **28/08/2026 — Rediseño del micrositio publicado (ver historial de commits para el hash).**
 > Nuevo estilo blanco/naranja, edición directa de perfil/foto/bio/redes desde
 > "Mi Micrositio", foto de perfil con guardado automático, y logo de agencia
@@ -219,9 +237,10 @@ abrir el enlace compartido desde otro navegador sin sesión.
   `micrositio-publico` y el frontend están desplegados en el sitio oficial.
   Si un asesor no lo ve, es porque abre la app desde un sitio zombi (sección 3),
   no porque falte publicar.
-- **Micrositio público por propiedad individual.** Sigue sin existir en la base
-  y en el repo. El PDF con enlace temporal es otra cosa. Requiere decidir si será
-  una página SEO por inmueble; no confundirlo con el perfil público del asesor.
+- **Micrositio público por propiedad individual.** Implementado localmente en
+  `/inmueble/:slug`, todavía no publicado. Es una ficha comercial propia y no el
+  PDF con enlace temporal. El contrato evita propietario, comisión, dirección
+  exacta e ids internos y sólo muestra inventario con estado `Publicada`.
 - **Portal cliente:** cargar documentos y reagendar siguen deshabilitados a
   propósito (`P1-DECISIONES-Y-PENDIENTES.md`). No simular.
 

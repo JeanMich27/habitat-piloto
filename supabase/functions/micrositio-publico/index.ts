@@ -82,9 +82,9 @@ Deno.serve(async (req) => {
     headers: {
       ...CORS_HEADERS,
       "Content-Type": "application/json; charset=utf-8",
-      // El propio asesor edita esto seguido al principio; caché corto para
-      // que un cambio en Perfil se refleje rápido en el micrositio.
-      "Cache-Control": "public, max-age=60",
+      // El perfil es editable y el usuario espera ver el resultado al volver
+      // al micrositio; no retenemos una respuesta anterior en navegador/CDN.
+      "Cache-Control": "no-store",
     },
   });
 });

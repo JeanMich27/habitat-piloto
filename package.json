@@ -15,7 +15,7 @@
     "lint": "eslint . --max-warnings 20",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
-    "edge:check": "deno check --node-modules-dir=auto supabase/functions/generate-document/index.ts supabase/functions/download-document/index.ts supabase/functions/share-document/index.ts supabase/functions/micrositio-publico/index.ts",
+    "edge:check": "deno check --node-modules-dir=auto supabase/functions/generate-document/index.ts supabase/functions/download-document/index.ts supabase/functions/share-document/index.ts supabase/functions/micrositio-publico/index.ts supabase/functions/propiedad-publica/index.ts",
     "edge:test": "deno test --node-modules-dir=auto supabase/functions/_shared/documentToken.test.ts supabase/functions/_shared/propertySheetPdf.test.ts",
     "supabase:start": "supabase start",
     "supabase:reset": "supabase db reset",

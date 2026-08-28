@@ -19,7 +19,7 @@ const PERFIL_FIXTURE = {
   },
   propiedades: [
     {
-      id: "prop-venta",
+      slug: "casa-venta-a1b2c3d4e5",
       titulo: "Casa Venta",
       precio: 4_500_000,
       ubicacion: "Colonia Centro",
@@ -28,12 +28,11 @@ const PERFIL_FIXTURE = {
       banos: 2,
       m2: 220,
       imagen: null,
-      eb_public_url: "https://propiedades.example.com/venta",
       tipo_operacion: "Venta",
       tipo_inmueble: "Casa",
     },
     {
-      id: "prop-renta",
+      slug: "depto-renta-f6g7h8i9j0",
       titulo: "Depto Renta",
       precio: 28_000,
       ubicacion: "Zona Valle",
@@ -42,7 +41,6 @@ const PERFIL_FIXTURE = {
       banos: 2,
       m2: 120,
       imagen: null,
-      eb_public_url: "https://propiedades.example.com/renta",
       tipo_operacion: "Renta",
       tipo_inmueble: "Depto",
     },
@@ -67,8 +65,8 @@ test("micrositio público carga el contrato real sin desborde móvil", async ({ 
   await expect(page.getByRole("heading", { level: 1, name: "Daniela Ríos" })).toBeVisible();
   await expect(page.getByText("Asesora inmobiliaria", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Oficina Demo, Norte" })).toBeVisible();
-  // Un QR en el mismo teléfono no es accionable: se reserva para escritorio.
-  await expect(page.getByRole("img", { name: "Código QR de WhatsApp" })).toBeHidden();
+  // El QR se conserva también en móvil para poder mostrarlo a otra persona.
+  await expect(page.getByRole("img", { name: "Código QR de WhatsApp" })).toBeVisible();
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(desborde).toBe(false);
 
@@ -109,7 +107,7 @@ test("sin teléfono válido oculta QR, servicios y acciones de contacto", async 
   await expect(page.getByRole("heading", { name: "¿En qué puedo ayudarte?" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Servicios", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Guardar contacto" })).toHaveCount(0);
-  await expect(page.getByText("Contacto no disponible por el momento").first()).toBeVisible();
+  await expect(page.getByText("Contacto no disponible", { exact: true })).toBeVisible();
 });
 
 test("Compartir copia el enlace cuando Web Share no está disponible", async ({ page }) => {

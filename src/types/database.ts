@@ -48,7 +48,7 @@ export interface Database {
 }
 
 export interface PropertyRow {
-  id: string; version: number; agencia_id: string; titulo: string; ubicacion: string;
+  id: string; slug_publico: string | null; version: number; agencia_id: string; titulo: string; ubicacion: string;
   municipio: string; estado: string; precio: number | string; recamaras: number;
   banos: number; m2: number | string; descripcion: string; estatus: PropertyStatus | "Activa" | "Intake" | "Validacion" | "Pausada" | "Cerrada";
   tipo_inmueble: TipoInmueble; tipo_operacion: TipoOperacion; asesor_id: string;

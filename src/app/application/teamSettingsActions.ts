@@ -1,5 +1,6 @@
 import type { AgenciaInfo, CitaAgenda, Lead, Propiedad, UserRole, Usuario } from "../../types";
 import {
+  actualizarUsuario,
   desactivarAsesorAtomico,
   subirFotoPerfilPublico,
   upsertUsuario,
@@ -30,7 +31,7 @@ export function createTeamSettingsActions(input: TeamSettingsActionsInput) {
   const saveUser = (id: string, changes: Partial<Usuario>): Promise<boolean> => {
     const next = users.map((user) => user.id === id ? { ...user, ...changes } : user);
     const changed = next.find((user) => user.id === id);
-    return changed ? confirmPersistence(() => upsertUsuario(changed), () => setUsers(next)) : Promise.resolve(false);
+    return changed ? confirmPersistence(() => actualizarUsuario(changed), () => setUsers(next)) : Promise.resolve(false);
   };
 
   const createUser = (data: { nombre: string; correo: string; telefono: string; rol: UserRole }): Usuario => ({

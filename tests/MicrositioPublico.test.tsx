@@ -28,7 +28,7 @@ const perfil = {
   },
   propiedades: [
     {
-      id: "venta-1",
+      slug: "casa-bosque-real-a1b2c3d4e5",
       titulo: "Casa Bosque Real",
       precio: 12_500_000,
       ubicacion: "Bosque Real",
@@ -37,12 +37,11 @@ const perfil = {
       banos: 4,
       m2: 450,
       imagen: "https://images.example.com/casa.jpg",
-      eb_public_url: "https://propiedades.example.com/casa",
       tipo_operacion: "Venta",
       tipo_inmueble: "Casa",
     },
     {
-      id: "renta-1",
+      slug: "departamento-centro-f6g7h8i9j0",
       titulo: "Departamento Centro",
       precio: 28_000,
       ubicacion: "Centro",
@@ -51,7 +50,6 @@ const perfil = {
       banos: 2,
       m2: 120,
       imagen: null,
-      eb_public_url: null,
       tipo_operacion: "Renta",
       tipo_inmueble: "Depto",
     },
@@ -75,7 +73,15 @@ describe("MicrositioPublico", () => {
     expect(screen.queryByText("Opiniones")).not.toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       "https://example.supabase.co/functions/v1/micrositio-publico?slug=daniela-rios",
-      { headers: { apikey: "anon-test" } },
+      { headers: { apikey: "anon-test" }, cache: "no-store" },
+    );
+  });
+
+  it("enlaza cada tarjeta con la ficha pública propia de la plataforma", async () => {
+    render(<MicrositioPublico slug="daniela-rios" />);
+    expect(await screen.findByRole("link", { name: /Casa Bosque Real/i })).toHaveAttribute(
+      "href",
+      "/inmueble/casa-bosque-real-a1b2c3d4e5",
     );
   });
 

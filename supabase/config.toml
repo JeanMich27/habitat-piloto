@@ -40,6 +40,11 @@ verify_jwt = false
 [functions.micrositio-publico]
 verify_jwt = false
 
+# Ficha de inmueble sin sesión. La RPC subyacente sólo permite service_role y
+# devuelve un contrato comercial reducido, sin datos privados de la operación.
+[functions.propiedad-publica]
+verify_jwt = false
+
 # Meta llama al webhook de WhatsApp sin sesión de Supabase, igual que
 # agenda-ics. La autenticación la hace la propia función: verify_token en
 # el handshake GET, firma X-Hub-Signature-256 (HMAC con el App Secret) en

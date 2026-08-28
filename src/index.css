@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-/* Tema público multi-tenant inspirado en la referencia aprobada: blanco,
-   naranja de acción y texto azul petróleo. No depende de una sola oficina. */
+/* El micrositio comparte el lenguaje violeta, pastel y de superficies suaves
+   de la plataforma; la marca de cada oficina se conserva en su propio logo. */
 .micrositio-publico {
-  --micrositio-fondo: #f7f8f8;
+  --micrositio-fondo: #f6f3ff;
   --micrositio-superficie: #ffffff;
-  --micrositio-texto: #102f3a;
-  --micrositio-texto-suave: #67777d;
-  --micrositio-acento: #f55331;
-  --micrositio-acento-fuerte: #dc3f20;
-  --micrositio-acento-suave: #fff0ec;
-  --micrositio-borde: #e8edef;
-  --micrositio-sombra: 0 18px 55px rgba(21, 52, 62, 0.07);
+  --micrositio-texto: #1e1b2e;
+  --micrositio-texto-suave: #6b6880;
+  --micrositio-acento: #7c3aed;
+  --micrositio-acento-fuerte: #6d28d9;
+  --micrositio-acento-suave: #f1eafe;
+  --micrositio-borde: #e6def7;
+  --micrositio-sombra: 0 18px 55px rgba(91, 57, 160, 0.12);
 }
 
 /* ============================================================

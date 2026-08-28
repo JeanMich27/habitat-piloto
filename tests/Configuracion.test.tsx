@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import Configuracion from "../src/views/Configuracion";
+import { InformacionInmobiliaria } from "../src/views/PerfilPersonal";
 
 describe("Configuración de marca pública", () => {
   it("sube y asocia el logo en una sola acción", async () => {
@@ -11,14 +12,10 @@ describe("Configuración de marca pública", () => {
       error: null,
     });
     render(
-      <Configuracion
+      <InformacionInmobiliaria
         agencia={{ id: "default", nombre: "Hábitat", direccion: "Monterrey" }}
-        onGuardarAgencia={guardar}
-        onSubirLogoAgencia={subir}
-        permisoEquipoVerTodas={false}
-        onGuardarPermisoEquipo={vi.fn()}
-        notificaciones={{}}
-        onGuardarNotificaciones={vi.fn()}
+        onGuardar={guardar}
+        onSubirLogo={subir}
       />,
     );
 
@@ -32,19 +29,15 @@ describe("Configuración de marca pública", () => {
       id: "default",
       logoUrl: "https://example.supabase.co/storage/logo.png?v=1",
     }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Logo actualizado");
+    expect(await screen.findByRole("status")).toHaveTextContent("Logo publicado");
   });
 
   it("rechaza archivos que no son imágenes públicas compatibles", async () => {
     render(
-      <Configuracion
+      <InformacionInmobiliaria
         agencia={{ id: "default", nombre: "Hábitat", direccion: "Monterrey" }}
-        onGuardarAgencia={vi.fn().mockResolvedValue(true)}
-        onSubirLogoAgencia={vi.fn()}
-        permisoEquipoVerTodas={false}
-        onGuardarPermisoEquipo={vi.fn()}
-        notificaciones={{}}
-        onGuardarNotificaciones={vi.fn()}
+        onGuardar={vi.fn().mockResolvedValue(true)}
+        onSubirLogo={vi.fn()}
       />,
     );
 

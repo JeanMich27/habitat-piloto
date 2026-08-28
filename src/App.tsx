@@ -27,11 +27,11 @@ const NuevaPropiedad = lazy(() => import("./views/NuevaPropiedad"));
 import PendienteAprobacion from "./views/PendienteAprobacion";
 const PerfilDesempeno = lazy(() => import("./views/PerfilDesempeno"));
 const PerfilPersonal = lazy(() => import("./views/PerfilPersonal"));
-const MiMicrositio = lazy(() => import("./views/MiMicrositio"));
 const ClientePortal = lazy(() => import("./views/ClientePortal"));
 const PropietarioPortal = lazy(() => import("./views/PropietarioPortal"));
 const PublicSharedDocument = lazy(() => import("./views/PublicSharedDocument"));
 const MicrositioPublico = lazy(() => import("./views/MicrositioPublico"));
+const PropiedadPublica = lazy(() => import("./views/PropiedadPublica"));
 const Reportes = lazy(() => import("./views/Reportes"));
 const SolicitudesAcceso = lazy(() => import("./views/SolicitudesAcceso"));
 import AppShell, { type NavItem } from "./components/AppShell";
@@ -80,6 +80,10 @@ export default function App() {
   const micrositioMatch = window.location.pathname.match(/^\/m\/([^/]+)\/?$/i);
   if (micrositioMatch) {
     return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-300">Abriendo micrositio…</div>}><MicrositioPublico slug={micrositioMatch[1].toLowerCase()} /></Suspense>;
+  }
+  const propiedadPublicaMatch = window.location.pathname.match(/^\/inmueble\/([^/]+)\/?$/i);
+  if (propiedadPublicaMatch) {
+    return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-violet-50 text-sm text-violet-700">Abriendo propiedad…</div>}><PropiedadPublica slug={propiedadPublicaMatch[1].toLowerCase()} /></Suspense>;
   }
   if (configurationError) {
     return (
@@ -750,7 +754,11 @@ function AplicacionConfigurada() {
           {vista === "mi-perfil" && (
             <PerfilPersonal
               usuario={yo}
+              agencia={agencia}
               onGuardar={guardarPerfilPersonal}
+              onSubirFoto={subirFotoPerfil}
+              onGuardarAgencia={guardarAgencia}
+              onSubirLogoAgencia={subirLogoAgencia}
               onCambiarCorreo={async (nuevo) => {
                 if (!isCloudEnabled)
                   return { error: "Función todavía no disponible en modo demostración." };
@@ -763,15 +771,6 @@ function AplicacionConfigurada() {
               }}
             />
           )}
-          {vista === "mi-micrositio" &&
-            (yo.rol === "broker" || yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
-              <MiMicrositio
-                usuario={yo}
-                agencia={agencia}
-                onGuardar={guardarPerfilPersonal}
-                onSubirFoto={subirFotoPerfil}
-              />
-            )}
           {vista === "propietario" && yo.rol === "propietario" && (
             <PropietarioPortal
               propiedadesPropietario={propiedadesDelPropietario}
@@ -824,7 +823,6 @@ function AplicacionConfigurada() {
             <Configuracion
               agencia={agencia}
               onGuardarAgencia={guardarAgencia}
-              onSubirLogoAgencia={subirLogoAgencia}
               permisoEquipoVerTodas={permisoEquipoVerTodas}
               onGuardarPermisoEquipo={guardarPermisoEquipo}
               notificaciones={notificaciones}

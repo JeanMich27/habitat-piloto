@@ -137,6 +137,8 @@ export interface Comparable {
 
 export interface Propiedad {
   id: string;
+  /** Slug estable de la ficha pública propia (/inmueble/:slug), sólo lectura. */
+  slugPublico?: string;
   /** Versión de concurrencia; cambia en cada escritura confirmada por la base. */
   version?: number;
   titulo: string;

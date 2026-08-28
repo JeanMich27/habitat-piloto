@@ -18,25 +18,29 @@ export async function subirLogoAgenciaPublico(
   if (!/^[a-zA-Z0-9_-]+$/.test(agenciaId)) {
     return fail("subirLogoAgenciaPublico", "La oficina asociada a esta sesión no es válida.");
   }
+  try {
 
-  const extensionPorMime: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
-  const extension = extensionPorMime[archivo.type];
-  if (!extension) return fail("subirLogoAgenciaPublico", "El formato del logo no es válido.");
+    const extensionPorMime: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+    const extension = extensionPorMime[archivo.type];
+    if (!extension) return fail("subirLogoAgenciaPublico", "El formato del logo no es válido.");
 
-  const ruta = `${agenciaId}/logo.${extension}`;
-  const bucket = supabase.storage.from("logos-publicos");
-  const { error: errorSubida } = await bucket.upload(ruta, archivo, {
-    upsert: true,
-    cacheControl: "3600",
-  });
-  if (errorSubida) return fail("subirLogoAgenciaPublico", "No se pudo subir el logo.", errorSubida);
+    const ruta = `${agenciaId}/logo.${extension}`;
+    const bucket = supabase.storage.from("logos-publicos");
+    const { error: errorSubida } = await bucket.upload(ruta, archivo, {
+      upsert: true,
+      cacheControl: "3600",
+    });
+    if (errorSubida) return fail("subirLogoAgenciaPublico", "No se pudo subir el logo.", errorSubida);
 
-  const { data } = bucket.getPublicUrl(ruta);
-  return ok(`${data.publicUrl}?v=${Date.now()}`);
+    const { data } = bucket.getPublicUrl(ruta);
+    return ok(`${data.publicUrl}?v=${Date.now()}`);
+  } catch (error) {
+    return fail("subirLogoAgenciaPublico", "No se pudo subir el logo. Revisa tu conexión e inténtalo de nuevo.", error);
+  }
 }
 
 export async function upsertConfiguracion(teamCanSeeAll: boolean, notifications: Record<string, boolean>): Promise<OperationResult> {

@@ -27,14 +27,10 @@ describe("el menú del que se prueba es el que se pinta", () => {
     expect(src).not.toMatch(/etiqueta:\s*"Dashboard"/);
   });
 
-  it("cada rol con menú propio llega a su micrositio", () => {
-    for (const rol of ["broker", "asesor_independiente", "asesor_equipo"] as const) {
-      const views = allowedViews(buildNavItems(rol, 0, 0), rol);
-      expect(views, `${rol} debería alcanzar mi-micrositio`).toContain("mi-micrositio");
-    }
-    // Propietario y cliente no tienen micrositio: no son asesores.
-    for (const rol of ["propietario", "cliente"] as const) {
-      expect(allowedViews(buildNavItems(rol, 0, 0), rol)).not.toContain("mi-micrositio");
+  it("el micrositio no se duplica como destino del menú", () => {
+    for (const rol of ["broker", "asesor_independiente", "asesor_equipo", "propietario", "cliente"] as const) {
+      expect(buildNavItems(rol, 0, 0).map((item) => item.id)).not.toContain("mi-micrositio");
+      expect(buildNavItems(rol, 0, 0).map((item) => item.id)).toContain("mi-perfil");
     }
   });
 });

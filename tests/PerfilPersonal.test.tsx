@@ -4,12 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import PerfilPersonal, { InformacionPublica } from "../src/views/PerfilPersonal";
 import { asesor } from "./fixtures";
 
+const agencia = { id: "default", nombre: "Hábitat", direccion: "Monterrey" };
+
 describe("PerfilPersonal: éxito respaldado por backend", () => {
   it("no muestra Guardado cuando el backend rechaza el perfil", async () => {
     const guardar = vi.fn().mockResolvedValue(false);
     render(
       <PerfilPersonal
         usuario={asesor}
+        agencia={agencia}
         onGuardar={guardar}
         onCambiarContrasena={vi.fn().mockResolvedValue(null)}
       />,
@@ -28,6 +31,7 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
     render(
       <PerfilPersonal
         usuario={asesor}
+        agencia={agencia}
         onGuardar={vi.fn().mockResolvedValue(true)}
         onCambiarContrasena={vi.fn().mockResolvedValue(null)}
       />,
@@ -44,7 +48,7 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
   it("no afirma que cambió la contraseña cuando la reautenticación falla", async () => {
     const cambiar = vi.fn().mockResolvedValue("La contraseña actual no es correcta.");
     const { container } = render(
-      <PerfilPersonal usuario={asesor} onGuardar={vi.fn()} onCambiarContrasena={cambiar} />,
+      <PerfilPersonal usuario={asesor} agencia={agencia} onGuardar={vi.fn()} onCambiarContrasena={cambiar} />,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
@@ -64,6 +68,7 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
     render(
       <PerfilPersonal
         usuario={asesor}
+        agencia={agencia}
         onGuardar={guardar}
         onCambiarContrasena={vi.fn()}
         onCambiarCorreo={cambiarCorreo}
@@ -84,6 +89,7 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
     render(
       <PerfilPersonal
         usuario={asesor}
+        agencia={agencia}
         onGuardar={vi.fn()}
         onCambiarContrasena={vi.fn()}
         onCambiarCorreo={vi.fn().mockResolvedValue({ error: "Ya existe una cuenta con ese correo." })}
@@ -102,6 +108,7 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
     const { container } = render(
       <PerfilPersonal
         usuario={asesor}
+        agencia={agencia}
         onGuardar={vi.fn()}
         onCambiarContrasena={vi.fn().mockResolvedValue(null)}
       />,

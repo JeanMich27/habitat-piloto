@@ -38,7 +38,7 @@ import { formatoMXN, type TipoInmueble, type TipoOperacion } from "../types";
 
 interface RedSocial { red: string; url: string; }
 interface PropiedadPublica {
-  id: string;
+  slug: string;
   titulo: string;
   precio: number;
   ubicacion: string;
@@ -47,7 +47,6 @@ interface PropiedadPublica {
   banos: number;
   m2: number;
   imagen: string | null;
-  eb_public_url: string | null;
   tipo_operacion: TipoOperacion;
   tipo_inmueble: TipoInmueble;
 }
@@ -119,7 +118,7 @@ function TarjetaDato({ icono, titulo, detalle }: { icono: ReactNode; titulo: str
 }
 
 function TarjetaPropiedad({ propiedad }: { propiedad: PropiedadPublica }) {
-  const enlace = urlPublicaSegura(propiedad.eb_public_url ?? "");
+  const enlace = `/inmueble/${encodeURIComponent(propiedad.slug)}`;
   const imagen = urlPublicaSegura(propiedad.imagen ?? "");
   const contenido = (
     <>
@@ -141,7 +140,7 @@ function TarjetaPropiedad({ propiedad }: { propiedad: PropiedadPublica }) {
     </>
   );
   const clase = "group block overflow-hidden rounded-2xl border border-[var(--micrositio-borde)] bg-white shadow-[var(--micrositio-sombra)] transition hover:-translate-y-0.5 hover:shadow-lg";
-  return enlace ? <a href={enlace} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a> : <article className={clase}>{contenido}</article>;
+  return <a href={enlace} className={clase}>{contenido}</a>;
 }
 
 export default function MicrositioPublico({ slug }: Props) {
@@ -159,7 +158,7 @@ export default function MicrositioPublico({ slug }: Props) {
         return;
       }
       try {
-        const respuesta = await fetch(`${SUPABASE_URL}/functions/v1/micrositio-publico?slug=${encodeURIComponent(slug)}`, { headers: { apikey: SUPABASE_ANON_KEY } });
+        const respuesta = await fetch(`${SUPABASE_URL}/functions/v1/micrositio-publico?slug=${encodeURIComponent(slug)}`, { headers: { apikey: SUPABASE_ANON_KEY }, cache: "no-store" });
         if (!respuesta.ok) {
           if (!cancelado) setError(respuesta.status === 404 ? "No encontramos este micrositio." : "El micrositio no está disponible por el momento.");
           return;
@@ -244,17 +243,17 @@ export default function MicrositioPublico({ slug }: Props) {
             <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{perfil.nombre}</h1>
             <p className="mt-2 text-base text-[var(--micrositio-texto-suave)]">{perfil.puesto}</p>
             <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[var(--micrositio-acento)]">{perfil.oficina.nombre}</p>
-            <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap sm:justify-center lg:justify-start">
+            <div className="mt-6 hidden flex-wrap justify-center gap-2 md:flex lg:justify-start">
               {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--micrositio-acento)] px-5 text-sm font-bold text-white hover:bg-[var(--micrositio-acento-fuerte)]"><MessageCircle className="size-4" aria-hidden="true" /> WhatsApp</a>}
               {llamar && <BotonSecundario href={llamar} icono={<Phone className="size-4" aria-hidden="true" />}>Llamar</BotonSecundario>}
-              {telefono && <button type="button" onClick={guardarContacto} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--micrositio-borde)] bg-white px-4 text-sm font-semibold hover:border-[var(--micrositio-acento)] hover:text-[var(--micrositio-acento)]"><Download className="size-4" aria-hidden="true" /> Guardar contacto</button>}
             </div>
             {redesSeguras.length > 0 && <div className="mt-5 flex items-center justify-center gap-2 lg:justify-start">{redesSeguras.map((red) => { const Icono = ICONO_RED[red.red.toLowerCase()] ?? Globe2; return <a key={`${red.red}-${red.url}`} href={red.url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${red.red} de ${perfil.nombre}`} className="flex size-9 items-center justify-center rounded-full text-[var(--micrositio-texto-suave)] hover:bg-[var(--micrositio-acento-suave)] hover:text-[var(--micrositio-acento)]"><Icono className="size-4" aria-hidden="true" /></a>; })}</div>}
           </div>
-          <aside className="hidden rounded-2xl border border-[var(--micrositio-borde)] bg-[var(--micrositio-fondo)] p-4 text-center lg:block">
+          <aside className="mt-6 rounded-2xl border border-[var(--micrositio-borde)] bg-[var(--micrositio-fondo)] p-4 text-center lg:mt-0">
             <p className="text-xs font-bold leading-5">Escanea y contáctame<br />por WhatsApp</p>
             {whatsapp ? <div className="mx-auto mt-3 w-fit rounded-xl bg-white p-2"><QRCodeSVG value={whatsapp} size={150} level="M" role="img" aria-label="Código QR de WhatsApp" /></div> : <div className="mt-3 rounded-xl border border-dashed border-[var(--micrositio-borde)] px-3 py-8 text-xs text-[var(--micrositio-texto-suave)]">Contacto no disponible</div>}
             <p className="mt-3 text-[10px] text-[var(--micrositio-texto-suave)]">Abre directamente mi chat</p>
+            {telefono && <button type="button" onClick={guardarContacto} className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--micrositio-borde)] bg-white px-3 text-xs font-semibold hover:border-[var(--micrositio-acento)] hover:text-[var(--micrositio-acento)]"><Download className="size-4" aria-hidden="true" /> Guardar contacto</button>}
           </aside>
         </div>
       </section>
@@ -266,12 +265,12 @@ export default function MicrositioPublico({ slug }: Props) {
 
         <section id="propiedades" aria-labelledby="propiedades-titulo" className="scroll-mt-6 border-t border-[var(--micrositio-borde)] pt-10">
           <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--micrositio-acento)]">Inventario publicado</p><h2 id="propiedades-titulo" className="mt-2 text-2xl font-bold">Mis propiedades</h2></div>{perfil.propiedades.length > 0 && <div className="flex gap-2" aria-label="Filtrar propiedades">{FILTROS.map((opcion) => <button key={opcion} type="button" aria-pressed={filtro === opcion} onClick={() => setFiltro(opcion)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold ${filtro === opcion ? "bg-[var(--micrositio-acento)] text-white" : "border border-[var(--micrositio-borde)] bg-white text-[var(--micrositio-texto-suave)]"}`}>{opcion}</button>)}</div>}</div>
-          {propiedadesFiltradas.length > 0 ? <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{propiedadesFiltradas.map((propiedad) => <TarjetaPropiedad key={propiedad.id} propiedad={propiedad} />)}</div> : <div className="mt-6 rounded-2xl border border-dashed border-[var(--micrositio-borde)] bg-white p-8 text-center"><Building2 className="mx-auto size-8 text-[var(--micrositio-acento)]" aria-hidden="true" /><p className="mt-3 text-sm font-semibold">{perfil.propiedades.length > 0 ? `No hay propiedades en ${filtro.toLowerCase()}` : "Aún no hay propiedades publicadas"}</p><p className="mt-1 text-xs text-[var(--micrositio-texto-suave)]">{perfil.propiedades.length > 0 ? "Prueba con otro filtro." : "Cuando haya inventario disponible aparecerá aquí."}</p></div>}
+          {propiedadesFiltradas.length > 0 ? <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{propiedadesFiltradas.map((propiedad) => <TarjetaPropiedad key={propiedad.slug} propiedad={propiedad} />)}</div> : <div className="mt-6 rounded-2xl border border-dashed border-[var(--micrositio-borde)] bg-white p-8 text-center"><Building2 className="mx-auto size-8 text-[var(--micrositio-acento)]" aria-hidden="true" /><p className="mt-3 text-sm font-semibold">{perfil.propiedades.length > 0 ? `No hay propiedades en ${filtro.toLowerCase()}` : "Aún no hay propiedades publicadas"}</p><p className="mt-1 text-xs text-[var(--micrositio-texto-suave)]">{perfil.propiedades.length > 0 ? "Prueba con otro filtro." : "Cuando haya inventario disponible aparecerá aquí."}</p></div>}
         </section>
 
         {whatsapp && <section id="servicios" aria-labelledby="servicios-titulo" className="scroll-mt-6 border-t border-[var(--micrositio-borde)] pt-10"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--micrositio-acento)]">Contacto por intención</p><h2 id="servicios-titulo" className="mt-2 text-2xl font-bold">¿En qué puedo ayudarte?</h2><div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{SERVICIOS.map((servicio) => { const Icono = servicio.icono; const enlace = enlaceWhatsApp(perfil.telefono, servicio.mensaje(nombre)); if (!enlace) return null; return <a key={servicio.titulo} href={enlace} target="_blank" rel="noopener noreferrer" className="flex min-h-32 flex-col items-center justify-center rounded-2xl border border-[var(--micrositio-borde)] bg-white px-3 py-5 text-center transition hover:-translate-y-0.5 hover:border-[var(--micrositio-acento)] hover:shadow-md"><Icono className="size-6 text-[var(--micrositio-acento)]" aria-hidden="true" /><span className="mt-3 text-sm font-bold">{servicio.titulo}</span><span className="mt-0.5 text-[11px] text-[var(--micrositio-texto-suave)]">{servicio.detalle}</span></a>; })}</div></section>}
 
-        <section id="contacto" aria-labelledby="contacto-titulo" className="scroll-mt-6 grid overflow-hidden rounded-3xl bg-[linear-gradient(110deg,var(--micrositio-acento-fuerte),var(--micrositio-acento))] text-white md:grid-cols-[minmax(0,1fr)_19rem]"><div className="px-6 py-10 sm:px-10"><h2 id="contacto-titulo" className="text-2xl font-bold sm:text-3xl">¿Buscas comprar, vender o invertir?</h2><p className="mt-3 max-w-xl text-sm leading-6 text-white/85">Cuéntame qué necesitas y definamos el siguiente paso de tu operación inmobiliaria.</p>{whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="mt-6 flex min-h-11 w-fit items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[var(--micrositio-acento-fuerte)]"><MessageCircle className="size-4" aria-hidden="true" /> Iniciar conversación</a> : <p className="mt-5 text-sm font-semibold text-white/80">Contacto no disponible por el momento.</p>}</div><div id="oficina" className="border-t border-white/20 bg-white/10 p-6 md:border-l md:border-t-0"><div className="flex items-center gap-3">{logoOficina ? <img src={logoOficina} alt={`Logo de ${perfil.oficina.nombre}`} className="size-14 rounded-xl bg-white object-contain p-2" /> : <span className="flex size-14 items-center justify-center rounded-xl bg-white/15 text-base font-bold">{iniciales(perfil.oficina.nombre)}</span>}<div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Mi oficina</p><h2 className="mt-1 text-base font-bold">{perfil.oficina.nombre}</h2></div></div>{sitioOficina && <a href={sitioOficina} target="_blank" rel="noopener noreferrer" className="mt-5 flex w-fit items-center gap-2 text-xs font-semibold text-white underline decoration-white/40 underline-offset-4">Visitar sitio <ExternalLink className="size-3.5" aria-hidden="true" /></a>}</div></section>
+        <section id="contacto" aria-labelledby="contacto-titulo" className="scroll-mt-6 grid overflow-hidden rounded-3xl bg-[linear-gradient(110deg,var(--micrositio-acento-fuerte),var(--micrositio-acento))] text-white md:grid-cols-[minmax(0,1fr)_19rem]"><div className="px-6 py-10 sm:px-10"><h2 id="contacto-titulo" className="text-2xl font-bold sm:text-3xl">¿Buscas comprar, vender o invertir?</h2><p className="mt-3 max-w-xl text-sm leading-6 text-white/85">Elige arriba el servicio que necesitas o usa las acciones de contacto disponibles en esta pantalla.</p></div><div id="oficina" className="border-t border-white/20 bg-white/10 p-6 md:border-l md:border-t-0"><div className="flex items-center gap-3">{logoOficina ? <img src={logoOficina} alt={`Logo de ${perfil.oficina.nombre}`} className="size-14 rounded-xl bg-white object-contain p-2" /> : <span className="flex size-14 items-center justify-center rounded-xl bg-white/15 text-base font-bold">{iniciales(perfil.oficina.nombre)}</span>}<div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Mi oficina</p><h2 className="mt-1 text-base font-bold">{perfil.oficina.nombre}</h2></div></div>{sitioOficina && <a href={sitioOficina} target="_blank" rel="noopener noreferrer" className="mt-5 flex w-fit items-center gap-2 text-xs font-semibold text-white underline decoration-white/40 underline-offset-4">Visitar sitio <ExternalLink className="size-3.5" aria-hidden="true" /></a>}</div></section>
       </div>
 
       <footer className="border-t border-[var(--micrositio-borde)] bg-white px-4 pb-28 pt-7 text-center md:py-7"><div className="mx-auto flex w-fit items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-[var(--micrositio-texto-suave)]"><MarcaHomeID className="size-5" /> Tecnología HomeID · {perfil.oficina.nombre}</div></footer>

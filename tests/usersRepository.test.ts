@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMock = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -11,10 +11,15 @@ vi.mock("../src/lib/supabaseClient", () => ({
   supabase: {
     auth: { getUser: supabaseMock.getUser },
     storage: { from: supabaseMock.from },
+    from: supabaseMock.from,
   },
 }));
 
-import { subirFotoPerfilPublico } from "../src/repositories/usersRepository";
+import { actualizarUsuario, subirFotoPerfilPublico } from "../src/repositories/usersRepository";
+import { setAgenciaActual } from "../src/lib/agenciaActual";
+import { asesor } from "./fixtures";
+
+afterEach(() => setAgenciaActual(null));
 
 describe("usersRepository.subirFotoPerfilPublico", () => {
   beforeEach(() => {
@@ -57,5 +62,21 @@ describe("usersRepository.subirFotoPerfilPublico", () => {
       error: { code: "SERVER_ERROR", message: "Tu sesión expiró. Vuelve a iniciar sesión." },
     });
     expect(supabaseMock.upload).not.toHaveBeenCalled();
+  });
+});
+
+describe("usersRepository.actualizarUsuario", () => {
+  it("usa UPDATE para el perfil existente y no exige permiso RLS de inserción", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    supabaseMock.from.mockReturnValue({ update });
+    setAgenciaActual("default");
+
+    const resultado = await actualizarUsuario({ ...asesor, agenciaId: "default", fotoUrl: "https://images.example.com/ana.jpg" });
+
+    expect(resultado.ok).toBe(true);
+    expect(supabaseMock.from).toHaveBeenCalledWith("usuarios");
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ foto_url: "https://images.example.com/ana.jpg" }));
+    expect(eq).toHaveBeenCalledWith("id", asesor.id);
   });
 });

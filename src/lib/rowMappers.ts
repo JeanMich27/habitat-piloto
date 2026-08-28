@@ -85,6 +85,7 @@ export function propiedadToRow(p: Propiedad) {
 export function rowToPropiedad(r: PropertyRow): Propiedad {
   return {
     id: r.id,
+    slugPublico: r.slug_publico ?? undefined,
     version: r.version != null ? Number(r.version) : undefined,
     titulo: r.titulo,
     ubicacion: r.ubicacion,

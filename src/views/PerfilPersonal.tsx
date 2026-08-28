@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent, type ReactNode } from "react";
-import { Camera, KeyRound, LoaderCircle, Mail, Phone, User, X } from "lucide-react";
-import type { Usuario } from "../types";
+import { Building2, Camera, KeyRound, LoaderCircle, Mail, Phone, Upload, User, X } from "lucide-react";
+import type { AgenciaInfo, Usuario } from "../types";
 import { urlPublicaSegura } from "../lib/urlPublica";
+import MiMicrositio from "./MiMicrositio";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const telefonoValido = (v: string) => /^\d{10}$/.test(v.replace(/\D/g, ""));
@@ -15,7 +16,11 @@ const textoALista = (valor: string): string[] =>
 
 interface Props {
   usuario: Usuario;
+  agencia: AgenciaInfo;
   onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
+  onSubirFoto?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
+  onGuardarAgencia?: (agencia: AgenciaInfo) => Promise<boolean>;
+  onSubirLogoAgencia?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
   onCambiarContrasena: (actual: string, nueva: string) => Promise<string | null>;
   onCambiarCorreo?: (
     nuevo: string,
@@ -24,22 +29,28 @@ interface Props {
 
 export default function PerfilPersonal({
   usuario,
+  agencia,
   onGuardar,
+  onSubirFoto,
+  onGuardarAgencia,
+  onSubirLogoAgencia,
   onCambiarContrasena,
   onCambiarCorreo,
 }: Props) {
   const [nombre, setNombre] = useState(usuario.nombre);
   const [correo, setCorreo] = useState(usuario.correo);
   const [telefono, setTelefono] = useState(usuario.telefono);
+  const [puesto, setPuesto] = useState(usuario.puesto);
   const [guardado, setGuardado] = useState(false);
   const [modalPassword, setModalPassword] = useState(false);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
   const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
   const [correoPendiente, setCorreoPendiente] = useState(false);
+  const tieneMicrositio = usuario.rol === "broker" || usuario.rol === "asesor_independiente" || usuario.rol === "asesor_equipo";
 
   const hayCambios =
-    nombre !== usuario.nombre || correo !== usuario.correo || telefono !== usuario.telefono;
-  const valido = nombre.trim() !== "" && emailValido(correo) && telefonoValido(telefono);
+    nombre !== usuario.nombre || correo !== usuario.correo || telefono !== usuario.telefono || (tieneMicrositio && puesto !== usuario.puesto);
+  const valido = nombre.trim() !== "" && (!tieneMicrositio || puesto.trim() !== "") && emailValido(correo) && telefonoValido(telefono);
 
   const guardar = async () => {
     setGuardandoPerfil(true);
@@ -61,9 +72,9 @@ export default function PerfilPersonal({
       setCorreoPendiente(resultadoCorreo.requiereConfirmacion === true);
     }
 
-    const cambioPerfil = nombre !== usuario.nombre || telefono !== usuario.telefono;
+    const cambioPerfil = nombre !== usuario.nombre || telefono !== usuario.telefono || (tieneMicrositio && puesto !== usuario.puesto);
     const ok = cambioPerfil
-      ? await onGuardar(usuario.id, { nombre: nombre.trim(), telefono })
+      ? await onGuardar(usuario.id, { nombre: nombre.trim(), telefono, ...(tieneMicrositio ? { puesto: puesto.trim() } : {}) })
       : true;
     setGuardandoPerfil(false);
     if (!ok) {
@@ -83,9 +94,7 @@ export default function PerfilPersonal({
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center gap-4">
-          <span className="flex size-16 items-center justify-center rounded-full bg-slate-800 text-xl font-bold text-white">
-            {usuario.iniciales}
-          </span>
+          {usuario.fotoUrl ? <img src={usuario.fotoUrl} alt={usuario.nombre} className="size-16 rounded-full object-cover" /> : <span className="flex size-16 items-center justify-center rounded-full bg-violet-600 text-xl font-bold text-white">{usuario.iniciales}</span>}
         </div>
 
         <div className="mt-6 space-y-4">
@@ -99,6 +108,9 @@ export default function PerfilPersonal({
           >
             <input value={correo} onChange={(e) => setCorreo(e.target.value)} className="input" />
           </Campo>
+          {tieneMicrositio && <Campo label="Puesto" icon={Building2}>
+            <input value={puesto} onChange={(e) => setPuesto(e.target.value)} className="input" />
+          </Campo>}
           <Campo
             label="Teléfono"
             icon={Phone}
@@ -125,6 +137,15 @@ export default function PerfilPersonal({
         )}
         {errorPerfil && <p role="alert" className="mt-3 text-xs text-rose-600">{errorPerfil}</p>}
       </div>
+
+      {tieneMicrositio && <>
+        <InformacionPublica usuario={usuario} onGuardar={onGuardar} onSubirFoto={onSubirFoto} />
+        <MiMicrositio usuario={usuario} agencia={agencia} />
+      </>}
+
+      {usuario.rol === "broker" && onGuardarAgencia && (
+        <InformacionInmobiliaria agencia={agencia} onGuardar={onGuardarAgencia} onSubirLogo={onSubirLogoAgencia} />
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-sm font-semibold text-slate-700">Seguridad</h2>
@@ -164,9 +185,6 @@ export function InformacionPublica({
 }) {
   const redSocial = (red: string) => usuario.redesSociales?.find((r) => r.red === red)?.url ?? "";
 
-  const [nombrePublico, setNombrePublico] = useState(usuario.nombre);
-  const [puestoPublico, setPuestoPublico] = useState(usuario.puesto);
-  const [telefonoPublico, setTelefonoPublico] = useState(usuario.telefono);
   const [fotoUrl, setFotoUrl] = useState(usuario.fotoUrl ?? "");
   const [bioCorta, setBioCorta] = useState(usuario.bioCorta ?? "");
   const [especialidadesTexto, setEspecialidadesTexto] = useState(listaATexto(usuario.especialidades));
@@ -186,9 +204,6 @@ export function InformacionPublica({
   const [error, setError] = useState<string | null>(null);
 
   const hayCambios =
-    nombrePublico !== usuario.nombre ||
-    puestoPublico !== usuario.puesto ||
-    telefonoPublico !== usuario.telefono ||
     fotoUrl !== (usuario.fotoUrl ?? "") ||
     bioCorta !== (usuario.bioCorta ?? "") ||
     especialidadesTexto !== listaATexto(usuario.especialidades) ||
@@ -203,9 +218,7 @@ export function InformacionPublica({
   const linkedinSeguro = urlPublicaSegura(linkedin);
   const instagramInvalido = instagram.trim() !== "" && !instagramSeguro;
   const linkedinInvalido = linkedin.trim() !== "" && !linkedinSeguro;
-  const telefonoPublicoValido = telefonoValido(telefonoPublico);
-  const valido = nombrePublico.trim() !== "" && puestoPublico.trim() !== "" && telefonoPublicoValido
-    && bioCorta.length <= 280 && anosValido && !instagramInvalido && !linkedinInvalido;
+  const valido = bioCorta.length <= 280 && anosValido && !instagramInvalido && !linkedinInvalido;
 
   const subirFoto = async (archivo: File) => {
     if (!onSubirFoto) {
@@ -252,25 +265,24 @@ export function InformacionPublica({
       ...(instagramSeguro ? [{ red: "instagram", url: instagramSeguro }] : []),
       ...(linkedinSeguro ? [{ red: "linkedin", url: linkedinSeguro }] : []),
     ];
-    const ok = await onGuardar(usuario.id, {
-      nombre: nombrePublico.trim(),
-      puesto: puestoPublico.trim(),
-      telefono: telefonoPublico,
-      fotoUrl: fotoUrl.trim() || undefined,
-      bioCorta: bioCorta.trim() || undefined,
-      especialidades: textoALista(especialidadesTexto),
-      anosExperiencia: anosExperiencia.trim() === "" ? undefined : Number(anosExperiencia.trim()),
-      idiomas: textoALista(idiomasTexto),
-      certificaciones: textoALista(certificacionesTexto),
-      redesSociales,
-    });
-    setGuardando(false);
-    if (!ok) {
-      setError("No se pudo guardar tu información pública.");
-      return;
+    try {
+      const ok = await onGuardar(usuario.id, {
+        fotoUrl: fotoUrl.trim() || undefined,
+        bioCorta: bioCorta.trim() || undefined,
+        especialidades: textoALista(especialidadesTexto),
+        anosExperiencia: anosExperiencia.trim() === "" ? undefined : Number(anosExperiencia.trim()),
+        idiomas: textoALista(idiomasTexto),
+        certificaciones: textoALista(certificacionesTexto),
+        redesSociales,
+      });
+      if (!ok) throw new Error("No se pudo guardar tu información pública.");
+      setGuardadoOk(true);
+      setTimeout(() => setGuardadoOk(false), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar tu información pública.");
+    } finally {
+      setGuardando(false);
     }
-    setGuardadoOk(true);
-    setTimeout(() => setGuardadoOk(false), 2500);
   };
 
   return (
@@ -280,28 +292,6 @@ export function InformacionPublica({
         <p className="mt-1 text-xs text-slate-500">
           Esto es lo que ven tus clientes. El micrositio sigue activo aunque algún campo esté vacío.
         </p>
-      </div>
-
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="micrositio-nombre" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Nombre visible
-          </label>
-          <input id="micrositio-nombre" value={nombrePublico} onChange={(e) => setNombrePublico(e.target.value)} className="input" />
-        </div>
-        <div>
-          <label htmlFor="micrositio-puesto" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Puesto visible
-          </label>
-          <input id="micrositio-puesto" value={puestoPublico} onChange={(e) => setPuestoPublico(e.target.value)} className="input" />
-        </div>
-        <div className="sm:col-span-2">
-          <label htmlFor="micrositio-telefono" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Teléfono de contacto y WhatsApp
-          </label>
-          <input id="micrositio-telefono" value={telefonoPublico} onChange={(e) => setTelefonoPublico(e.target.value)} inputMode="tel" className="input" />
-          {!telefonoPublicoValido && <p role="alert" className="mt-1 text-[11px] text-rose-600">Ingresa un teléfono de 10 dígitos.</p>}
-        </div>
       </div>
 
       <div className="mt-5 flex items-center gap-4">
@@ -451,6 +441,53 @@ export function InformacionPublica({
       )}
       {error && <p role="alert" className="mt-2 text-xs text-rose-600">{error}</p>}
     </div>
+  );
+}
+
+export function InformacionInmobiliaria({
+  agencia,
+  onGuardar,
+  onSubirLogo,
+}: {
+  agencia: AgenciaInfo;
+  onGuardar: (agencia: AgenciaInfo) => Promise<boolean>;
+  onSubirLogo?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
+}) {
+  const [subiendo, setSubiendo] = useState(false);
+  const [mensaje, setMensaje] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+
+  const seleccionar = async (evento: ChangeEvent<HTMLInputElement>) => {
+    const archivo = evento.target.files?.[0];
+    evento.target.value = "";
+    if (!archivo) return;
+    if (!TIPOS_FOTO_PERMITIDOS.includes(archivo.type)) return setMensaje({ tipo: "error", texto: "Usa un logo JPG, PNG o WEBP." });
+    if (archivo.size > TAMANO_MAXIMO_FOTO) return setMensaje({ tipo: "error", texto: "El logo no debe superar 5 MB." });
+    if (!onSubirLogo) return setMensaje({ tipo: "error", texto: "El logo no se puede subir sin conexión a la nube." });
+    setSubiendo(true);
+    setMensaje(null);
+    try {
+      const resultado = await onSubirLogo(archivo);
+      if (resultado.error || !resultado.url) throw new Error(resultado.error ?? "No se pudo subir el logo.");
+      const guardado = await onGuardar({ ...agencia, logoUrl: resultado.url });
+      if (!guardado) throw new Error("El archivo subió, pero no se pudo asociar a la inmobiliaria.");
+      setMensaje({ tipo: "ok", texto: "Logo publicado en el micrositio." });
+    } catch (e) {
+      setMensaje({ tipo: "error", texto: e instanceof Error ? e.message : "No se pudo subir el logo." });
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6" aria-labelledby="inmobiliaria-titulo">
+      <h2 id="inmobiliaria-titulo" className="text-sm font-semibold text-slate-700">Información de la inmobiliaria</h2>
+      <p className="mt-1 text-xs text-slate-500">El broker administra aquí la marca que aparece en los micrositios de su equipo.</p>
+      <div className="mt-5 flex items-center gap-4">
+        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-50 ring-1 ring-violet-100">{agencia.logoUrl ? <img src={agencia.logoUrl} alt={`Logo de ${agencia.nombre}`} className="size-full object-contain p-2" /> : <Building2 className="size-8 text-violet-300" />}</div>
+        <div><label className={`flex w-fit items-center gap-1.5 rounded-lg border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-700 ${subiendo ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-violet-50"}`}>{subiendo ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}{subiendo ? "Publicando…" : "Cambiar logo"}<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={subiendo} onChange={(e) => void seleccionar(e)} /></label><p className="mt-1 text-[11px] text-slate-500">JPG, PNG o WEBP · máximo 5 MB</p></div>
+      </div>
+      {mensaje && <p role={mensaje.tipo === "error" ? "alert" : "status"} className={`mt-3 text-xs ${mensaje.tipo === "error" ? "text-rose-600" : "text-emerald-600"}`}>{mensaje.texto}</p>}
+    </section>
   );
 }
 
