@@ -23,3 +23,6 @@ dist-vmt2
 
 # Parches temporales generados por agentes; el historial de git ya los contiene.
 *.patch
+
+# Estado local de "supabase link" (cache del CLI, especifico de la maquina).
+supabase/.temp

@@ -1,21 +1,14 @@
-// Pantalla "Mi Micrositio": vista de compartir, no de edición.
-//
-// Decisión de Jean (26 ago 2026): el micrositio siempre está activo, sin
-// aprobación del broker y sin gate de campos obligatorios — es
-// responsabilidad del asesor llenarlo bien. Por eso el botón de compartir
-// nunca se bloquea aquí; si falta información solo se muestra un aviso con
-// atajo a "Mi Perfil", que es donde de verdad se edita.
-//
-// Ver decision-perfil-asesor-micrositio.md para el resto del diseño
-// (por qué es una pantalla separada de Perfil, qué campos existen, etc.).
+// Pantalla para editar, revisar y compartir el micrositio desde un solo lugar.
 import { useState } from "react";
-import { Check, Copy, ExternalLink, Globe, Sparkles } from "lucide-react";
+import { Check, Copy, ExternalLink, Globe } from "lucide-react";
 import type { AgenciaInfo, Usuario } from "../types";
+import { InformacionPublica } from "./PerfilPersonal";
 
 interface Props {
   usuario: Usuario;
   agencia: AgenciaInfo;
-  onIrAPerfil: () => void;
+  onGuardar: (id: string, cambios: Partial<Usuario>) => Promise<boolean>;
+  onSubirFoto?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
 }
 
 const CAMPOS_CLAVE: { clave: keyof Usuario; etiqueta: string }[] = [
@@ -32,7 +25,7 @@ function faltantes(usuario: Usuario): string[] {
   }).map(({ etiqueta }) => etiqueta);
 }
 
-export default function MiMicrositio({ usuario, agencia, onIrAPerfil }: Props) {
+export default function MiMicrositio({ usuario, agencia, onGuardar, onSubirFoto }: Props) {
   const [copiado, setCopiado] = useState(false);
   const slug = usuario.slugPublico;
   const url = slug ? `${window.location.origin}/m/${slug}` : null;
@@ -58,13 +51,15 @@ export default function MiMicrositio({ usuario, agencia, onIrAPerfil }: Props) {
     : null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-xl font-bold text-slate-900">Mi Micrositio</h1>
         <p className="text-sm text-slate-500">
-          Tu página pública para compartir con clientes potenciales.
+          Edita tu información pública, revisa el resultado y comparte el enlace.
         </p>
       </header>
+
+      <InformacionPublica usuario={usuario} onGuardar={onGuardar} onSubirFoto={onSubirFoto} />
 
       {/* Tarjeta de vista previa */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -111,12 +106,7 @@ export default function MiMicrositio({ usuario, agencia, onIrAPerfil }: Props) {
               Falta: {pendientes.join(", ")}. Sigue visible y activo — pero se ve más completo con
               esta información.
             </p>
-            <button
-              onClick={onIrAPerfil}
-              className="mt-2 flex items-center gap-1.5 font-semibold text-amber-900 underline underline-offset-2"
-            >
-              <Sparkles className="size-3.5" /> Completar en mi Perfil
-            </button>
+            <p className="mt-2 font-semibold">Completa los campos de edición que aparecen arriba.</p>
           </div>
         )}
 

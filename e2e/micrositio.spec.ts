@@ -67,9 +67,13 @@ test("micrositio público carga el contrato real sin desborde móvil", async ({ 
   await expect(page.getByRole("heading", { level: 1, name: "Daniela Ríos" })).toBeVisible();
   await expect(page.getByText("Asesora inmobiliaria", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Oficina Demo, Norte" })).toBeVisible();
-  await expect(page.getByRole("img", { name: "Código QR de WhatsApp" })).toBeVisible();
+  // Un QR en el mismo teléfono no es accionable: se reserva para escritorio.
+  await expect(page.getByRole("img", { name: "Código QR de WhatsApp" })).toBeHidden();
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(desborde).toBe(false);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.getByRole("img", { name: "Código QR de WhatsApp" })).toBeVisible();
 });
 
 test("micrositio omite una red social con protocolo peligroso", async ({ page }) => {

@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
-/* Tema público multi-tenant: cálido y neutral, sin colores de una oficina. */
+/* Tema público multi-tenant inspirado en la referencia aprobada: blanco,
+   naranja de acción y texto azul petróleo. No depende de una sola oficina. */
 .micrositio-publico {
-  --micrositio-fondo: #f8f5ef;
-  --micrositio-superficie: #fffdf9;
-  --micrositio-hero: #30271f;
-  --micrositio-texto: #29231e;
-  --micrositio-texto-suave: #756b61;
-  --micrositio-acento: #8a5a2b;
-  --micrositio-acento-suave: #f3e8d8;
-  --micrositio-dorado: #e1b66f;
-  --micrositio-borde: #e7ded1;
+  --micrositio-fondo: #f7f8f8;
+  --micrositio-superficie: #ffffff;
+  --micrositio-texto: #102f3a;
+  --micrositio-texto-suave: #67777d;
+  --micrositio-acento: #f55331;
+  --micrositio-acento-fuerte: #dc3f20;
+  --micrositio-acento-suave: #fff0ec;
+  --micrositio-borde: #e8edef;
+  --micrositio-sombra: 0 18px 55px rgba(21, 52, 62, 0.07);
 }
 
 /* ============================================================

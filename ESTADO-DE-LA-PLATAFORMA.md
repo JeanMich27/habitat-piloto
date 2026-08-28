@@ -3,6 +3,28 @@
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
+> **28/08/2026 — Rediseño del micrositio publicado (ver historial de commits para el hash).**
+> Nuevo estilo blanco/naranja, edición directa de perfil/foto/bio/redes desde
+> "Mi Micrositio", foto de perfil con guardado automático, y logo de agencia
+> subido a Storage (bucket `logos-publicos`, migración
+> `20260828034050_micrositio_bucket_logos` ya aplicada en producción).
+>
+> **Separado a propósito de este release — sigue local, sin publicar: el
+> Corte 1 de WhatsApp Coexistence.** Mezclaba en el mismo árbol de trabajo con
+> el micrositio; se separó por la regla "tareas cerradas, no fases" de
+> `AGENTS.md`. Queda así, intacto, para retomarlo aparte:
+> - Migración `supabase/migrations/20260827090000_whatsapp_handoff_mvp.sql.wip`
+>   — renombrada con `.wip` a propósito para que `supabase db push` no la
+>   aplique por accidente. Quitar el sufijo cuando se retome.
+> - `supabase/functions/whatsapp-webhook/index.ts` tiene cambios sin commitear
+>   (553 líneas) que tampoco se desplegaron.
+> - Archivos nuevos sin commitear: `src/repositories/whatsappRepository.ts`,
+>   `src/views/WhatsAppHandoffs.tsx`,
+>   `supabase/functions/_shared/whatsapp-automation.ts`, sus pruebas y
+>   `docs/integrations/WHATSAPP-*.md`.
+> - Nada de esto se probó en Postgres local (esta máquina no tiene
+> Docker/Podman); existe pgTAP en `supabase/tests/whatsapp_handoff_mvp.sql`.
+
 - Reglas de trabajo → `AGENTS.md`
 - Arquitectura del código → `ARCHITECTURE.md`
 - Publicación → `DEPLOY.md`

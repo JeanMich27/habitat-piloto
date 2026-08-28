@@ -417,7 +417,7 @@ function AplicacionConfigurada() {
   };
 
   const {
-    altaDeUsuario, invitarAsesor, guardarAgencia, guardarPermisoEquipo,
+    altaDeUsuario, invitarAsesor, guardarAgencia, subirLogoAgencia, guardarPermisoEquipo,
     guardarNotificaciones, guardarPerfilPersonal, subirFotoPerfil, resolverSolicitud,
     desactivarAsesor, reactivarAsesor, editarPermisosAsesor,
   } = createTeamSettingsActions({
@@ -751,7 +751,6 @@ function AplicacionConfigurada() {
             <PerfilPersonal
               usuario={yo}
               onGuardar={guardarPerfilPersonal}
-              onSubirFoto={subirFotoPerfil}
               onCambiarCorreo={async (nuevo) => {
                 if (!isCloudEnabled)
                   return { error: "Función todavía no disponible en modo demostración." };
@@ -762,12 +761,16 @@ function AplicacionConfigurada() {
                 const resultado = await cambiarContrasenaActual(actual, nueva);
                 return resultado.error ?? null;
               }}
-              onIrAMicrositio={() => setVista("mi-micrositio")}
             />
           )}
           {vista === "mi-micrositio" &&
             (yo.rol === "broker" || yo.rol === "asesor_independiente" || yo.rol === "asesor_equipo") && (
-              <MiMicrositio usuario={yo} agencia={agencia} onIrAPerfil={() => setVista("mi-perfil")} />
+              <MiMicrositio
+                usuario={yo}
+                agencia={agencia}
+                onGuardar={guardarPerfilPersonal}
+                onSubirFoto={subirFotoPerfil}
+              />
             )}
           {vista === "propietario" && yo.rol === "propietario" && (
             <PropietarioPortal
@@ -821,6 +824,7 @@ function AplicacionConfigurada() {
             <Configuracion
               agencia={agencia}
               onGuardarAgencia={guardarAgencia}
+              onSubirLogoAgencia={subirLogoAgencia}
               permisoEquipoVerTodas={permisoEquipoVerTodas}
               onGuardarPermisoEquipo={guardarPermisoEquipo}
               notificaciones={notificaciones}

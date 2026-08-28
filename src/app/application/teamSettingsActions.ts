@@ -5,7 +5,11 @@ import {
   upsertUsuario,
   upsertUsuarioConError,
 } from "../../repositories/usersRepository";
-import { upsertAgencia, upsertConfiguracion } from "../../repositories/settingsRepository";
+import {
+  subirLogoAgenciaPublico,
+  upsertAgencia,
+  upsertConfiguracion,
+} from "../../repositories/settingsRepository";
 import type { ConfirmPersistence, StateSetter } from "./persistence";
 
 interface TeamSettingsActionsInput {
@@ -51,6 +55,13 @@ export function createTeamSettingsActions(input: TeamSettingsActionsInput) {
       return confirmPersistence(() => upsertUsuario(user), () => setUsers((current) => [...current, user]));
     },
     guardarAgencia: (next: AgenciaInfo) => confirmPersistence(() => upsertAgencia(next), () => setAgency(next)),
+    subirLogoAgencia: async (archivo: File): Promise<{ url: string | null; error: string | null }> => {
+      if (!agency.id) return { url: null, error: "Esta sesión no tiene oficina asociada." };
+      const resultado = await subirLogoAgenciaPublico(agency.id, archivo);
+      return resultado.ok
+        ? { url: resultado.data, error: null }
+        : { url: null, error: resultado.error.message };
+    },
     guardarPermisoEquipo: (value: boolean) => confirmPersistence(
       () => upsertConfiguracion(value, notifications), () => setTeamCanSeeAll(value),
     ),

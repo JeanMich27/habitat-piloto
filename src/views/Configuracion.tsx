@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { Bell, Building2, Check, ShieldQuestion, Upload, X } from "lucide-react";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { Bell, Building2, Check, LoaderCircle, ShieldQuestion, Upload, X } from "lucide-react";
 import {
   EVENTOS_NOTIFICACION,
   PERMISOS_REFERENCIA,
 } from "../data/configuracionOpciones";
 import type { AgenciaInfo } from "../types";
+import { urlPublicaSegura } from "../lib/urlPublica";
 
 type Tab = "agencia" | "permisos" | "notificaciones";
 
@@ -16,7 +17,8 @@ const TABS: { key: Tab; label: string }[] = [
 
 interface Props {
   agencia: AgenciaInfo;
-  onGuardarAgencia: (agencia: AgenciaInfo) => void;
+  onGuardarAgencia: (agencia: AgenciaInfo) => Promise<boolean>;
+  onSubirLogoAgencia?: (archivo: File) => Promise<{ url: string | null; error: string | null }>;
   permisoEquipoVerTodas: boolean;
   onGuardarPermisoEquipo: (valor: boolean) => void;
   notificaciones: Record<string, boolean>;
@@ -34,6 +36,7 @@ function Celda({ activo }: { activo: boolean }) {
 export default function Configuracion({
   agencia,
   onGuardarAgencia,
+  onSubirLogoAgencia,
   permisoEquipoVerTodas,
   onGuardarPermisoEquipo,
   notificaciones,
@@ -43,16 +46,48 @@ export default function Configuracion({
 
   // --- Datos de agencia ---
   const [draftAgencia, setDraftAgencia] = useState(agencia);
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
+  const [estadoLogo, setEstadoLogo] = useState<{ tipo: "ok" | "error"; mensaje: string } | null>(null);
   useEffect(() => setDraftAgencia(agencia), [agencia]);
   const dirtyAgencia = JSON.stringify(draftAgencia) !== JSON.stringify(agencia);
+  const sitioWebSeguro = urlPublicaSegura(draftAgencia.sitioWeb ?? "");
+  const sitioWebInvalido = Boolean(draftAgencia.sitioWeb?.trim()) && !sitioWebSeguro;
 
-  const onLogoSeleccionado = (file: File | undefined) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDraftAgencia((prev) => ({ ...prev, logoUrl: String(reader.result) }));
-    };
-    reader.readAsDataURL(file);
+  const onLogoSeleccionado = async (evento: ChangeEvent<HTMLInputElement>) => {
+    const archivo = evento.target.files?.[0];
+    evento.target.value = "";
+    if (!archivo) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(archivo.type)) {
+      setEstadoLogo({ tipo: "error", mensaje: "Usa un archivo JPG, PNG o WEBP." });
+      return;
+    }
+    if (archivo.size > 5 * 1024 * 1024) {
+      setEstadoLogo({ tipo: "error", mensaje: "El logo no debe superar 5 MB." });
+      return;
+    }
+    if (!onSubirLogoAgencia) {
+      setEstadoLogo({ tipo: "error", mensaje: "El logo no se puede subir sin conexión a la nube." });
+      return;
+    }
+
+    setSubiendoLogo(true);
+    setEstadoLogo(null);
+    const resultado = await onSubirLogoAgencia(archivo);
+    if (!resultado.url || resultado.error) {
+      setEstadoLogo({ tipo: "error", mensaje: resultado.error ?? "No se pudo subir el logo." });
+      setSubiendoLogo(false);
+      return;
+    }
+
+    const siguiente = { ...agencia, logoUrl: resultado.url };
+    const guardado = await onGuardarAgencia(siguiente);
+    setSubiendoLogo(false);
+    if (!guardado) {
+      setEstadoLogo({ tipo: "error", mensaje: "El archivo subió, pero no se pudo asociar a la oficina." });
+      return;
+    }
+    setDraftAgencia(siguiente);
+    setEstadoLogo({ tipo: "ok", mensaje: "Logo actualizado en el micrositio." });
   };
 
   // --- Roles y permisos ---
@@ -97,22 +132,29 @@ export default function Configuracion({
           <div className="flex items-center gap-4">
             <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200">
               {draftAgencia.logoUrl ? (
-                <img src={draftAgencia.logoUrl} alt="Logo de la agencia" className="size-full object-cover" />
+                <img src={draftAgencia.logoUrl} alt="Logo de la agencia" className="size-full object-contain p-1" />
               ) : (
                 <Building2 className="size-7 text-slate-300" />
               )}
             </div>
             <div>
-              <label className="flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                <Upload className="size-3.5" /> Cargar logo
+              <label className={`flex w-fit items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition ${subiendoLogo ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-slate-50"}`}>
+                {subiendoLogo ? <LoaderCircle className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                {subiendoLogo ? "Publicando…" : "Cambiar logo"}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   className="hidden"
-                  onChange={(e) => onLogoSeleccionado(e.target.files?.[0])}
+                  disabled={subiendoLogo}
+                  onChange={(e) => void onLogoSeleccionado(e)}
                 />
               </label>
-              <p className="mt-1 text-xs text-slate-500">PNG o JPG, se muestra en la barra superior</p>
+              <p className="mt-1 text-xs text-slate-500">JPG, PNG o WEBP · máximo 5 MB</p>
+              {estadoLogo && (
+                <p role={estadoLogo.tipo === "error" ? "alert" : "status"} className={`mt-1 text-xs ${estadoLogo.tipo === "error" ? "text-rose-600" : "text-emerald-600"}`}>
+                  {estadoLogo.mensaje}
+                </p>
+              )}
             </div>
           </div>
 
@@ -139,10 +181,25 @@ export default function Configuracion({
             />
           </div>
 
+          <div>
+            <label htmlFor="agencia-sitio-web" className="mb-1 block text-xs font-semibold text-slate-500">
+              Sitio web público
+            </label>
+            <input
+              id="agencia-sitio-web"
+              type="url"
+              value={draftAgencia.sitioWeb ?? ""}
+              onChange={(e) => setDraftAgencia((prev) => ({ ...prev, sitioWeb: e.target.value }))}
+              placeholder="https://inmobiliaria.mx"
+              className="input"
+            />
+            {sitioWebInvalido && <p role="alert" className="mt-1 text-xs text-rose-600">Usa una dirección completa que comience con https://.</p>}
+          </div>
+
           <div className="flex justify-end">
             <button
-              disabled={!dirtyAgencia}
-              onClick={() => onGuardarAgencia(draftAgencia)}
+              disabled={!dirtyAgencia || sitioWebInvalido}
+              onClick={() => void onGuardarAgencia({ ...draftAgencia, sitioWeb: sitioWebSeguro ?? undefined })}
               className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               Guardar cambios

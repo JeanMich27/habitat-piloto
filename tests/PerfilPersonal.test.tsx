@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import PerfilPersonal from "../src/views/PerfilPersonal";
+import PerfilPersonal, { InformacionPublica } from "../src/views/PerfilPersonal";
 import { asesor } from "./fixtures";
 
 describe("PerfilPersonal: éxito respaldado por backend", () => {
@@ -117,10 +117,9 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
 
   it("rechaza enlaces sociales sin https antes de guardar", async () => {
     render(
-      <PerfilPersonal
+      <InformacionPublica
         usuario={asesor}
         onGuardar={vi.fn().mockResolvedValue(true)}
-        onCambiarContrasena={vi.fn()}
       />,
     );
 
@@ -133,10 +132,9 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
   it("guarda únicamente la URL social normalizada", async () => {
     const guardar = vi.fn().mockResolvedValue(true);
     render(
-      <PerfilPersonal
+      <InformacionPublica
         usuario={asesor}
         onGuardar={guardar}
-        onCambiarContrasena={vi.fn()}
       />,
     );
 
@@ -146,5 +144,26 @@ describe("PerfilPersonal: éxito respaldado por backend", () => {
     expect(guardar).toHaveBeenCalledWith("u-asesor", expect.objectContaining({
       redesSociales: [{ red: "instagram", url: "https://instagram.com/ana" }],
     }));
+  });
+
+  it("persiste la foto al terminar la carga, sin exigir un segundo guardado", async () => {
+    const guardar = vi.fn().mockResolvedValue(true);
+    const subir = vi.fn().mockResolvedValue({
+      url: "https://example.supabase.co/storage/foto.jpg?v=1",
+      error: null,
+    });
+    const { container } = render(
+      <InformacionPublica usuario={asesor} onGuardar={guardar} onSubirFoto={subir} />,
+    );
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    await userEvent.upload(input!, new File(["foto"], "foto.jpg", { type: "image/jpeg" }));
+
+    expect(subir).toHaveBeenCalledOnce();
+    expect(guardar).toHaveBeenCalledWith("u-asesor", {
+      fotoUrl: "https://example.supabase.co/storage/foto.jpg?v=1",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Foto publicada");
   });
 });
