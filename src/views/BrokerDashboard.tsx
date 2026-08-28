@@ -1,151 +1,242 @@
-// Dashboard del broker — glass + neumórfico.
+// Centro de control del broker.
 //
-// Criterio: la pantalla muestra SOLO lo esencial y cada dato aparece UNA vez.
-// De la auditoría de duplicados (ago 2026) salieron tres cosas:
-//   · "Leads del periodo" era la suma de las barras del pipeline.
-//   · "Cierres del periodo" era la barra de Cierre del mismo pipeline.
-//   · "Alertas" estaba dos veces: el botón guía del panel y una tarjeta.
-// Se quedaron las cifras que NO se pueden leer en el pipeline (razones y
-// promedios) y el pipeline pasó a ser navegable: cada barra abre Clientes
-// filtrado por esa etapa, que es más útil que el modal que sustituye.
-//
-// Los desgloses que quedan (alertas, ranking, comisiones) NO son pantallas
-// nuevas: emergen como tarjetas translúcidas (GlassModal) sobre la pantalla.
+// Esta pantalla observa la operación; no administra campañas ni automatizaciones
+// comerciales. Cada cifra tiene una definición auditable y abre los registros
+// que la componen. "Cierre" es una etapa; una operación sólo cuenta como ganada
+// cuando estado = Ganado y existe cerradoEn.
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  BadgeCheck,
   Building2,
+  CalendarDays,
   CheckCircle2,
   Clock,
-  DollarSign,
+  HandCoins,
   Percent,
-  Trophy,
+  SearchCheck,
+  Users,
 } from "lucide-react";
 import GlassModal from "../components/GlassModal";
 import KpiCard from "../components/KpiCard";
 import { ETAPAS_LEAD } from "../data/etapasLead";
-import { diasDesde, formatMin, minutosRespuesta } from "../lib/metrics";
+import {
+  citasProximas,
+  demandaDePropiedades,
+  documentacionCompleta,
+  mediana,
+  operacionesGanadasEnPeriodo,
+  ocurrioEnUltimosDias,
+  tasaConversionDeCohorte,
+} from "../lib/brokerMetrics";
 import { finanzasDeLead } from "../lib/comisiones";
-import type { Lead, LeadStage, Propiedad, Usuario } from "../types";
-import { formatoMXN } from "../types";
+import { diasDesde, formatFecha, formatMin, minutosRespuesta } from "../lib/metrics";
+import type {
+  CitaAgenda,
+  Lead,
+  LeadStage,
+  Propiedad,
+  PropertyStatus,
+  Usuario,
+} from "../types";
+import { ESTADOS_PROPIEDAD, formatoMXN } from "../types";
 
 type Periodo = "hoy" | "semana" | "mes";
-type Detalle = "alertas" | "ranking" | "comisiones" | null;
+type Detalle =
+  | "alertas"
+  | "inventario"
+  | "demanda"
+  | "equipo"
+  | "citas"
+  | "operaciones"
+  | null;
+type FiltroInventario =
+  | PropertyStatus
+  | "exclusiva"
+  | "sin-exclusiva"
+  | "documentos"
+  | null;
 
-const PERIODOS: { key: Periodo; label: string; dias: number }[] = [
-  { key: "hoy", label: "Hoy", dias: 1 },
-  { key: "semana", label: "Semana", dias: 7 },
-  { key: "mes", label: "Mes", dias: 31 },
+const PERIODOS: { key: Periodo; label: string; dias: number; ventana: string }[] = [
+  { key: "hoy", label: "Hoy", dias: 1, ventana: "24 horas" },
+  { key: "semana", label: "Semana", dias: 7, ventana: "7 días" },
+  { key: "mes", label: "Mes", dias: 31, ventana: "31 días" },
 ];
-
-// Las etapas viven en un solo archivo (src/data/etapasLead.ts) para que el
-// embudo del broker y el Kanban del asesor nunca se desincronicen.
 
 interface Props {
   broker: Usuario;
   usuarios: Usuario[];
   propiedades: Propiedad[];
   leads: Lead[];
+  citas: CitaAgenda[];
   onVerAsesor: (asesorId: string) => void;
+  onVerPropiedad: (propiedadId: string) => void;
+  onVerCliente: (leadId: string) => void;
   /** Abre Clientes filtrado por etapa (al tocar una barra del pipeline). */
   onVerClientes: (etapa?: LeadStage) => void;
 }
+
+const nombreAsesorDe = (usuarios: Usuario[], id: string) =>
+  usuarios.find((usuario) => usuario.id === id)?.nombre ?? "Sin asignar";
+
+const docsAprobados = (propiedad: Propiedad) =>
+  propiedad.documentos.filter((documento) => documento.aprobado).length;
 
 export default function BrokerDashboard({
   broker,
   usuarios,
   propiedades,
   leads,
+  citas,
   onVerAsesor,
+  onVerPropiedad,
+  onVerCliente,
   onVerClientes,
 }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [detalle, setDetalle] = useState<Detalle>(null);
+  const [filtroInventario, setFiltroInventario] = useState<FiltroInventario>(null);
   const ahora = useMemo(() => Date.now(), []);
-  const dias = PERIODOS.find((p) => p.key === periodo)!.dias;
+  const periodoActual = PERIODOS.find((item) => item.key === periodo)!;
+  const dias = periodoActual.dias;
 
+  // Cohorte = leads que ingresaron en la ventana elegida. Incluye descartados:
+  // quitarlos inflaría artificialmente la conversión.
   const leadsPeriodo = useMemo(
-    () => leads.filter((l) => diasDesde(l.creado, ahora) <= dias),
+    () => leads.filter((lead) => ocurrioEnUltimosDias(lead.creado, ahora, dias)),
     [leads, ahora, dias],
   );
+  const ganadasPeriodo = useMemo(
+    () => operacionesGanadasEnPeriodo(leads, ahora, dias),
+    [leads, ahora, dias],
+  );
+  const proximasCitas = useMemo(
+    () => citasProximas(citas, ahora, dias),
+    [citas, ahora, dias],
+  );
 
-  // --- KPIs ---
-  const propiedadesActivas = propiedades.filter((p) => p.estatus === "Publicada");
-  const cierres = leadsPeriodo.filter((l) => l.etapa === "Cierre");
-  const tasaConversion = leadsPeriodo.length
-    ? Math.round((cierres.length / leadsPeriodo.length) * 100)
-    : 0;
+  const propiedadesPublicadas = propiedades.filter(
+    (propiedad) => propiedad.estatus === "Publicada",
+  );
+  const propiedadesConExclusiva = propiedades.filter(
+    (propiedad) => propiedad.exclusiva === true,
+  );
+  const propiedadesSinExclusiva = propiedades.filter(
+    (propiedad) => propiedad.exclusiva !== true,
+  );
+  const propiedadesConDocumentosPendientes = propiedades.filter(
+    (propiedad) =>
+      propiedad.estatus !== "Vendida o Rentada" && !documentacionCompleta(propiedad),
+  );
 
+  const tasaConversion = tasaConversionDeCohorte(leadsPeriodo);
   const tiemposRespuesta = leadsPeriodo
     .map(minutosRespuesta)
-    .filter((m): m is number => m !== null);
-  const tiempoRespuestaProm = tiemposRespuesta.length
-    ? tiemposRespuesta.reduce((a, b) => a + b, 0) / tiemposRespuesta.length
-    : null;
+    .filter((minutos): minutos is number => minutos !== null && minutos >= 0);
+  const tiempoRespuestaMediano = mediana(tiemposRespuesta);
+  const ingresoConfirmado = ganadasPeriodo.reduce((total, lead) => {
+    const propiedad = propiedades.find((item) => item.id === lead.interesPropiedadId);
+    return total + finanzasDeLead(lead, propiedad).ingresoConfirmado;
+  }, 0);
 
-  const leadsComisionables = leadsPeriodo
-    .filter((l) => l.etapa === "Negociacion" || l.etapa === "Cierre")
-    .map((lead) => {
-      const propiedad = propiedades.find((p) => p.id === lead.interesPropiedadId);
-      return { lead, propiedad, finanzas: finanzasDeLead(lead, propiedad) };
-    })
-    .filter(({ finanzas }) => finanzas.valorOperacion > 0);
-  const comisionesProyectadas = leadsComisionables.reduce(
-    (sum, { finanzas }) => sum + finanzas.ingresoEsperado,
-    0,
-  );
-
-  // --- Pipeline agregado ---
-  const pipeline = ETAPAS_LEAD.map((e) => ({
-    ...e,
-    cantidad: leadsPeriodo.filter((l) => l.etapa === e.etapa).length,
+  // El pipeline describe dónde terminó hoy la cohorte elegida. Ganados y
+  // descartados permanecen: son parte real del embudo y de su denominador.
+  const pipeline = ETAPAS_LEAD.map((etapa) => ({
+    ...etapa,
+    cantidad: leadsPeriodo.filter((lead) => lead.etapa === etapa.etapa).length,
   }));
-  const maxPipeline = Math.max(1, ...pipeline.map((p) => p.cantidad));
+  const maxPipeline = Math.max(1, ...pipeline.map((etapa) => etapa.cantidad));
 
-  // --- Ranking de asesores (excluye al propio broker) ---
   const asesores = usuarios.filter(
-    (u) => u.rol === "asesor_equipo" || u.rol === "asesor_independiente",
+    (usuario) =>
+      usuario.rol === "asesor_equipo" || usuario.rol === "asesor_independiente",
   );
-  const ranking = asesores
-    .map((a) => {
-      const suyos = leadsPeriodo.filter((l) => l.asesorId === a.id);
-      const visitas = suyos.filter((l) =>
-        (["Visitado", "Negociacion", "Cierre"] as LeadStage[]).includes(l.etapa),
-      ).length;
-      const cierresAsesor = suyos.filter((l) => l.etapa === "Cierre").length;
-      const tiempos = suyos.map(minutosRespuesta).filter((m): m is number => m !== null);
-      const tiempoProm = tiempos.length
-        ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length
-        : null;
-      return { asesor: a, leads: suyos.length, visitas, cierres: cierresAsesor, tiempoProm };
+  const desempeno = asesores
+    .map((asesor) => {
+      const suyos = leadsPeriodo.filter((lead) => lead.asesorId === asesor.id);
+      const ganadas = ganadasPeriodo.filter((lead) => lead.asesorId === asesor.id).length;
+      const respuestas = suyos
+        .map(minutosRespuesta)
+        .filter((minutos): minutos is number => minutos !== null && minutos >= 0);
+      return {
+        asesor,
+        leads: suyos.length,
+        conversion: tasaConversionDeCohorte(suyos),
+        ganadas,
+        citas: proximasCitas.filter((cita) => cita.asesorId === asesor.id).length,
+        respuesta: mediana(respuestas),
+      };
     })
-    .sort((a, b) => b.leads - a.leads);
+    .sort(
+      (a, b) =>
+        b.ganadas - a.ganadas || b.conversion - a.conversion || b.leads - a.leads,
+    );
 
-  // --- Alertas ---
+  const demanda = demandaDePropiedades(propiedadesPublicadas, leads, citas).sort(
+    (a, b) => b.senales - a.senales || b.ofertas - a.ofertas,
+  );
+  const propiedadesSinSenales = demanda.filter((item) => item.senales === 0);
+
+  // Alertas operativas y de calidad de datos. Una propiedad sin ultimaActividad
+  // usa publicadaEl como inicio para no desaparecer silenciosamente del control.
   const leadsSinContactar = leads.filter(
-    (l) => l.etapa === "Nuevo" && diasDesde(l.creado, ahora) > 1,
+    (lead) =>
+      lead.estado !== "Ganado" &&
+      lead.estado !== "Descartado" &&
+      !lead.primerContactoEn &&
+      lead.etapa === "Nuevo" &&
+      diasDesde(lead.creado, ahora) > 1,
   );
-  const propiedadesSinActividad = propiedadesActivas.filter(
-    (p) => p.ultimaActividad && diasDesde(p.ultimaActividad, ahora) > 7,
+  const propiedadesSinActividad = propiedadesPublicadas.filter((propiedad) => {
+    const referencia = propiedad.ultimaActividad ?? propiedad.publicadaEl;
+    return referencia ? diasDesde(referencia, ahora) > 7 : true;
+  });
+  const operacionesSinFecha = leads.filter(
+    (lead) => lead.estado === "Ganado" && !lead.cerradoEn,
   );
-  const totalAlertas = leadsSinContactar.length + propiedadesSinActividad.length;
+  const totalAlertas =
+    leadsSinContactar.length +
+    propiedadesSinActividad.length +
+    propiedadesConDocumentosPendientes.length +
+    operacionesSinFecha.length;
+
+  const conteoEstado = (estado: PropertyStatus) =>
+    propiedades.filter((propiedad) => propiedad.estatus === estado).length;
+
+  const abrirInventario = (filtro: FiltroInventario) => {
+    setFiltroInventario(filtro);
+    setDetalle("inventario");
+  };
+
+  const inventarioFiltrado = propiedades.filter((propiedad) => {
+    if (!filtroInventario) return true;
+    if (filtroInventario === "exclusiva") return propiedad.exclusiva === true;
+    if (filtroInventario === "sin-exclusiva") return propiedad.exclusiva !== true;
+    if (filtroInventario === "documentos") return !documentacionCompleta(propiedad);
+    return propiedad.estatus === filtroInventario;
+  });
+
+  const irAPropiedad = (id: string) => {
+    setDetalle(null);
+    onVerPropiedad(id);
+  };
+  const irACliente = (id: string) => {
+    setDetalle(null);
+    onVerCliente(id);
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8">
-      {/* ---------- Panel guía / bienvenida ---------- */}
       <section className="glass relative overflow-hidden p-5 sm:p-6">
-        {/* Gradiente pastel de fondo, sutil */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-100/70 via-violet-100/40 to-amber-100/50" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              Hola, {broker.nombre.split(" ")[0]}
+              Centro de control de {broker.nombre.split(" ")[0]}
             </h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              Así va tu agencia este {periodo === "hoy" ? "día" : periodo === "semana" ? "semana" : "mes"}.
+              Inventario, demanda, equipo y operaciones de tu oficina.
             </p>
-
-            {/* Guía: el siguiente paso más importante, uno solo. */}
             <button
               onClick={() => totalAlertas > 0 && setDetalle("alertas")}
               className={`mt-4 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-sm backdrop-blur transition ${
@@ -157,7 +248,8 @@ export default function BrokerDashboard({
               {totalAlertas > 0 ? (
                 <>
                   <AlertTriangle className="size-4" />
-                  {totalAlertas} pendiente{totalAlertas === 1 ? "" : "s"} que requieren tu atención — ver detalle
+                  {totalAlertas} pendiente{totalAlertas === 1 ? "" : "s"} que requieren tu
+                  atención — ver detalle
                 </>
               ) : (
                 <>
@@ -167,201 +259,557 @@ export default function BrokerDashboard({
             </button>
           </div>
 
-          {/* Selector de periodo */}
           <div className="flex gap-1 rounded-full bg-white/60 p-1 shadow-inner backdrop-blur">
-            {PERIODOS.map((p) => (
+            {PERIODOS.map((item) => (
               <button
-                key={p.key}
-                onClick={() => setPeriodo(p.key)}
+                key={item.key}
+                onClick={() => setPeriodo(item.key)}
+                aria-pressed={periodo === item.key}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  periodo === p.key
+                  periodo === item.key
                     ? "bg-violet-600 text-white shadow-md shadow-violet-300/60"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                {p.label}
+                {item.label}
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ---------- Tarjetas métricas ----------
-          Solo razones y promedios: los conteos por etapa (y su total) se leen
-          en el pipeline de abajo, no hace falta repetirlos aquí. */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-6">
         <KpiCard
-          label="Propiedades activas"
-          value={String(propiedadesActivas.length)}
+          label="Propiedades publicadas"
+          value={String(propiedadesPublicadas.length)}
           icon={Building2}
           accent="text-sky-600"
           circulo="bg-sky-100"
+          onClick={() => abrirInventario("Publicada")}
         />
         <KpiCard
-          label="Tasa de conversión"
+          label="Conversión de la cohorte"
           value={`${tasaConversion}%`}
           icon={Percent}
           accent="text-violet-600"
           circulo="bg-violet-100"
         />
         <KpiCard
-          label="Tiempo de respuesta"
-          value={formatMin(tiempoRespuestaProm)}
+          label="Respuesta mediana"
+          value={formatMin(tiempoRespuestaMediano)}
           icon={Clock}
           accent="text-amber-600"
           circulo="bg-amber-100"
+          onClick={() => setDetalle("equipo")}
         />
         <KpiCard
-          label="Comisiones proyectadas"
-          value={formatoMXN(Math.round(comisionesProyectadas))}
-          icon={DollarSign}
+          label={`Citas próximas · ${periodoActual.ventana}`}
+          value={String(proximasCitas.length)}
+          icon={CalendarDays}
+          accent="text-indigo-600"
+          circulo="bg-indigo-100"
+          onClick={() => setDetalle("citas")}
+        />
+        <KpiCard
+          label="Operaciones ganadas"
+          value={String(ganadasPeriodo.length)}
+          icon={BadgeCheck}
           accent="text-emerald-700"
           circulo="bg-emerald-100"
-          onClick={() => setDetalle("comisiones")}
+          onClick={() => setDetalle("operaciones")}
+        />
+        <KpiCard
+          label="Ingreso confirmado"
+          value={formatoMXN(Math.round(ingresoConfirmado))}
+          icon={HandCoins}
+          accent="text-teal-700"
+          circulo="bg-teal-100"
+          onClick={() => setDetalle("operaciones")}
         />
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-        {/* ---------- Pipeline agregado ---------- */}
-        <section className="glass p-5 lg:col-span-2">
+        <section className="glass p-5 lg:col-span-2" aria-labelledby="pipeline-broker">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-slate-900">Pipeline agregado</h2>
+            <div>
+              <h2 id="pipeline-broker" className="text-sm font-bold text-slate-900">
+                Embudo de leads ingresados
+              </h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Etapa actual de la cohorte de las últimas {periodoActual.ventana}
+              </p>
+            </div>
             <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
               {leadsPeriodo.length} lead{leadsPeriodo.length === 1 ? "" : "s"} · toca una etapa
             </span>
           </div>
-          {/* Cada barra abre Clientes filtrado por esa etapa: la gráfica que no
-              deja llegar al registro es un adorno. */}
           <div className="flex items-end gap-3">
-            {pipeline.map((e) => (
+            {pipeline.map((etapa) => (
               <button
-                key={e.etapa}
-                onClick={() => e.cantidad > 0 && onVerClientes(e.etapa)}
-                disabled={e.cantidad === 0}
-                aria-label={`Ver los ${e.cantidad} leads en etapa ${e.titulo}`}
+                key={etapa.etapa}
+                onClick={() => etapa.cantidad > 0 && onVerClientes(etapa.etapa)}
+                disabled={etapa.cantidad === 0}
+                aria-label={`Ver los ${etapa.cantidad} leads en etapa ${etapa.titulo}`}
                 className={`group flex flex-1 flex-col items-center gap-2 rounded-2xl p-1.5 transition ${
-                  e.cantidad === 0 ? "cursor-default opacity-50" : "hover:bg-white/70"
+                  etapa.cantidad === 0 ? "cursor-default opacity-50" : "hover:bg-white/70"
                 }`}
               >
-                <span className="text-sm font-bold text-slate-800">{e.cantidad}</span>
+                <span className="text-sm font-bold text-slate-800">{etapa.cantidad}</span>
                 <span className="flex h-24 w-full items-end overflow-hidden rounded-xl bg-white/60 shadow-inner">
                   <span
-                    className={`block w-full rounded-xl ${e.acento}`}
-                    style={{ height: `${(e.cantidad / maxPipeline) * 100}%` }}
+                    className={`block w-full rounded-xl ${etapa.acento}`}
+                    style={{ height: `${(etapa.cantidad / maxPipeline) * 100}%` }}
                   />
                 </span>
                 <span className="text-center text-[11px] font-medium text-slate-500">
-                  {e.titulo}
+                  {etapa.titulo}
                 </span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* ---------- Equipo (abre el ranking en glass modal) ----------
-            La tarjeta de Alertas que vivía aquí se quitó: el botón guía del
-            panel de arriba abre exactamente el mismo detalle. */}
-        <section className="flex flex-col gap-3">
-          <button
-            onClick={() => setDetalle("ranking")}
-            className="neu flex flex-1 flex-col justify-between gap-4 p-5 text-left transition-transform hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex size-12 items-center justify-center rounded-full bg-violet-100">
-                <Trophy className="size-6 text-violet-600" />
-              </span>
-              <div className="flex -space-x-2">
-                {ranking.slice(0, 4).map((r) => (
-                  <span
-                    key={r.asesor.id}
-                    className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[10px] font-bold text-white ring-2 ring-white"
-                  >
-                    {r.asesor.iniciales}
-                  </span>
-                ))}
-              </div>
+        <button
+          onClick={() => setDetalle("equipo")}
+          className="neu flex flex-col justify-between gap-4 p-5 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="flex items-center justify-between">
+            <span className="flex size-12 items-center justify-center rounded-full bg-violet-100">
+              <Users className="size-6 text-violet-600" />
+            </span>
+            <div className="flex -space-x-2">
+              {desempeno.slice(0, 4).map((item) => (
+                <span
+                  key={item.asesor.id}
+                  className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[10px] font-bold text-white ring-2 ring-white"
+                >
+                  {item.asesor.iniciales}
+                </span>
+              ))}
             </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-900">Desempeño del equipo</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Conversión, respuesta, próximas citas y operaciones ganadas por asesor
+            </p>
+          </div>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+        <section className="glass p-5" aria-labelledby="inventario-broker">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-slate-900">Ranking de asesores</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {asesores.length} asesor{asesores.length === 1 ? "" : "es"} · toca para ver leads,
-                visitas y cierres de cada uno
+              <h2 id="inventario-broker" className="text-sm font-bold text-slate-900">
+                Inventario actual
+              </h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Estado comercial y condiciones de publicación
               </p>
             </div>
+            <Building2 className="size-5 text-sky-600" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {ESTADOS_PROPIEDAD.map((estado) => (
+              <button
+                key={estado}
+                onClick={() => abrirInventario(estado)}
+                className="rounded-xl bg-white/70 px-3 py-2.5 text-left shadow-sm hover:bg-white"
+              >
+                <span className="block text-lg font-black text-slate-900">
+                  {conteoEstado(estado)}
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500">{estado}</span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              onClick={() => abrirInventario("exclusiva")}
+              className="rounded-xl bg-violet-50 px-3 py-2 text-left text-xs font-semibold text-violet-700"
+            >
+              {propiedadesConExclusiva.length} con exclusiva
+            </button>
+            <button
+              onClick={() => abrirInventario("sin-exclusiva")}
+              className="rounded-xl bg-slate-100 px-3 py-2 text-left text-xs font-semibold text-slate-600"
+            >
+              {propiedadesSinExclusiva.length} sin exclusiva
+            </button>
+            <button
+              onClick={() => abrirInventario("documentos")}
+              className="rounded-xl bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-700"
+            >
+              {propiedadesConDocumentosPendientes.length} con documentos pendientes
+            </button>
+          </div>
+        </section>
+
+        <section className="glass p-5" aria-labelledby="demanda-broker">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="demanda-broker" className="text-sm font-bold text-slate-900">
+                Demanda por propiedad
+              </h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                Leads, visitas realizadas y ofertas registradas
+              </p>
+            </div>
+            <SearchCheck className="size-5 text-emerald-600" />
+          </div>
+          <div className="mt-4 space-y-2">
+            {demanda.slice(0, 5).map((item) => (
+              <button
+                key={item.propiedad.id}
+                onClick={() => onVerPropiedad(item.propiedad.id)}
+                className="grid w-full grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_2.5rem] items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-left hover:bg-white"
+                aria-label={`Abrir ${item.propiedad.titulo}`}
+              >
+                <span className="truncate text-xs font-semibold text-slate-700">
+                  {item.propiedad.titulo}
+                </span>
+                <span className="text-center text-[11px] text-slate-500" title="Leads">
+                  L {item.leads}
+                </span>
+                <span
+                  className="text-center text-[11px] text-slate-500"
+                  title="Visitas realizadas"
+                >
+                  V {item.visitas}
+                </span>
+                <span className="text-center text-[11px] text-slate-500" title="Ofertas">
+                  O {item.ofertas}
+                </span>
+              </button>
+            ))}
+            {demanda.length === 0 && (
+              <p className="py-5 text-center text-xs text-slate-500">
+                No hay propiedades publicadas.
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setDetalle("demanda")}
+            className="mt-3 text-xs font-bold text-violet-600 hover:text-violet-800"
+          >
+            Ver las {demanda.length} propiedades · {propiedadesSinSenales.length} sin señales
           </button>
+          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
+            No incluye vistas ni clics públicos: la plataforma todavía no registra analítica web.
+          </p>
         </section>
       </div>
 
-      {/* ================= Tarjetas de detalle superpuestas ================= */}
-
       {detalle === "alertas" && (
         <GlassModal
-          titulo="Alertas"
-          subtitulo="Lo que requiere tu atención hoy"
+          titulo="Pendientes operativos"
+          subtitulo="Casos verificables que requieren atención"
+          ancho="lg"
           onCerrar={() => setDetalle(null)}
         >
-          <div className="space-y-2">
-            {leadsSinContactar.map((l) => (
-              <div
-                key={l.id}
-                className="rounded-2xl bg-amber-50/90 px-4 py-3 text-xs text-amber-800 ring-1 ring-amber-200"
-              >
-                <span className="font-semibold">{l.nombre}</span> sin contactar hace{" "}
-                {Math.floor(diasDesde(l.creado, ahora) * 24)} h
+          <div className="space-y-4">
+            {leadsSinContactar.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700">
+                  Leads sin primer contacto
+                </h3>
+                <div className="space-y-2">
+                  {leadsSinContactar.map((lead) => (
+                    <button
+                      key={lead.id}
+                      onClick={() => irACliente(lead.id)}
+                      className="block w-full rounded-xl bg-amber-50 px-4 py-3 text-left text-xs text-amber-800 ring-1 ring-amber-200"
+                    >
+                      <span className="font-semibold">{lead.nombre}</span> ·{" "}
+                      {Math.floor(diasDesde(lead.creado, ahora) * 24)} h sin contacto
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))}
-            {propiedadesSinActividad.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-2xl bg-rose-50/90 px-4 py-3 text-xs text-rose-800 ring-1 ring-rose-200"
-              >
-                <span className="font-semibold">{p.titulo}</span> sin actividad hace{" "}
-                {Math.floor(diasDesde(p.ultimaActividad!, ahora))} días
+            )}
+            {propiedadesSinActividad.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-rose-700">
+                  Propiedades sin actividad
+                </h3>
+                <div className="space-y-2">
+                  {propiedadesSinActividad.map((propiedad) => {
+                    const referencia = propiedad.ultimaActividad ?? propiedad.publicadaEl;
+                    return (
+                      <button
+                        key={propiedad.id}
+                        onClick={() => irAPropiedad(propiedad.id)}
+                        className="block w-full rounded-xl bg-rose-50 px-4 py-3 text-left text-xs text-rose-800 ring-1 ring-rose-200"
+                      >
+                        <span className="font-semibold">{propiedad.titulo}</span>
+                        {referencia
+                          ? ` · ${Math.floor(diasDesde(referencia, ahora))} días sin actividad`
+                          : " · sin fecha de actividad"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
+            )}
+            {propiedadesConDocumentosPendientes.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-orange-700">
+                  Documentación pendiente
+                </h3>
+                <div className="space-y-2">
+                  {propiedadesConDocumentosPendientes.map((propiedad) => (
+                    <button
+                      key={propiedad.id}
+                      onClick={() => irAPropiedad(propiedad.id)}
+                      className="block w-full rounded-xl bg-orange-50 px-4 py-3 text-left text-xs text-orange-800 ring-1 ring-orange-200"
+                    >
+                      <span className="font-semibold">{propiedad.titulo}</span> ·{" "}
+                      {docsAprobados(propiedad)} de {propiedad.documentos.length} documentos
+                      aprobados
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {operacionesSinFecha.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-violet-700">
+                  Calidad de datos
+                </h3>
+                <div className="space-y-2">
+                  {operacionesSinFecha.map((lead) => (
+                    <button
+                      key={lead.id}
+                      onClick={() => irACliente(lead.id)}
+                      className="block w-full rounded-xl bg-violet-50 px-4 py-3 text-left text-xs text-violet-800 ring-1 ring-violet-200"
+                    >
+                      <span className="font-semibold">{lead.nombre}</span> está ganado, pero no
+                      tiene fecha de cierre
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {totalAlertas === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-slate-500">Sin alertas activas.</p>
+              <p className="px-2 py-6 text-center text-xs text-slate-500">
+                Sin alertas activas.
+              </p>
             )}
           </div>
         </GlassModal>
       )}
 
-      {detalle === "ranking" && (
+      {detalle === "inventario" && (
         <GlassModal
-          titulo="Ranking de asesores"
-          subtitulo="Toca un asesor para abrir su perfil y desempeño"
+          titulo="Inventario de la agencia"
+          subtitulo={`${inventarioFiltrado.length} propiedades en el filtro seleccionado`}
           ancho="lg"
           onCerrar={() => setDetalle(null)}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] text-left text-sm">
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            <FiltroBoton
+              activo={filtroInventario === null}
+              etiqueta="Todas"
+              onClick={() => setFiltroInventario(null)}
+            />
+            {ESTADOS_PROPIEDAD.map((estado) => (
+              <FiltroBoton
+                key={estado}
+                activo={filtroInventario === estado}
+                etiqueta={estado}
+                onClick={() => setFiltroInventario(estado)}
+              />
+            ))}
+            <FiltroBoton
+              activo={filtroInventario === "exclusiva"}
+              etiqueta="Con exclusiva"
+              onClick={() => setFiltroInventario("exclusiva")}
+            />
+            <FiltroBoton
+              activo={filtroInventario === "sin-exclusiva"}
+              etiqueta="Sin exclusiva"
+              onClick={() => setFiltroInventario("sin-exclusiva")}
+            />
+            <FiltroBoton
+              activo={filtroInventario === "documentos"}
+              etiqueta="Documentos pendientes"
+              onClick={() => setFiltroInventario("documentos")}
+            />
+          </div>
+          <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
+            {inventarioFiltrado.map((propiedad) => (
+              <button
+                key={propiedad.id}
+                onClick={() => irAPropiedad(propiedad.id)}
+                className="grid w-full gap-1 rounded-xl bg-white/70 px-4 py-3 text-left hover:bg-white sm:grid-cols-[minmax(0,1fr)_10rem_8rem_9rem]"
+              >
+                <span className="truncate text-sm font-semibold text-slate-800">
+                  {propiedad.titulo}
+                </span>
+                <span className="text-xs text-slate-500">{propiedad.estatus}</span>
+                <span className="text-xs text-slate-500">
+                  {propiedad.exclusiva ? "Con exclusiva" : "Sin exclusiva"}
+                </span>
+                <span
+                  className={`text-xs font-semibold ${
+                    documentacionCompleta(propiedad) ? "text-emerald-700" : "text-amber-700"
+                  }`}
+                >
+                  {documentacionCompleta(propiedad)
+                    ? "Documentación completa"
+                    : `${docsAprobados(propiedad)}/${propiedad.documentos.length} docs.`}
+                </span>
+              </button>
+            ))}
+            {inventarioFiltrado.length === 0 && (
+              <p className="py-8 text-center text-xs text-slate-500">
+                No hay propiedades en este filtro.
+              </p>
+            )}
+          </div>
+        </GlassModal>
+      )}
+
+      {detalle === "demanda" && (
+        <GlassModal
+          titulo="Demanda por propiedad"
+          subtitulo="Señales acumuladas: leads + visitas realizadas + ofertas"
+          ancho="lg"
+          onCerrar={() => setDetalle(null)}
+        >
+          <div className="max-h-[62vh] space-y-2 overflow-y-auto sm:hidden">
+            {demanda.map((item) => (
+              <button
+                key={item.propiedad.id}
+                onClick={() => irAPropiedad(item.propiedad.id)}
+                className="w-full rounded-2xl bg-white/70 p-4 text-left shadow-sm"
+              >
+                <span className="block text-sm font-semibold text-slate-800">
+                  {item.propiedad.titulo}
+                </span>
+                <span className="mt-3 grid grid-cols-4 gap-2 text-center">
+                  {[
+                    ["Leads", item.leads],
+                    ["Visitas", item.visitas],
+                    ["Ofertas", item.ofertas],
+                    ["Señales", item.senales],
+                  ].map(([etiqueta, valor]) => (
+                    <span key={etiqueta}>
+                      <span className="block text-base font-bold text-slate-900">{valor}</span>
+                      <span className="block text-[10px] text-slate-500">{etiqueta}</span>
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="hidden max-h-[62vh] overflow-y-auto sm:block">
+            <table className="w-full min-w-[38rem] text-left text-sm">
+              <thead className="sticky top-0 bg-white/95 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2.5">Propiedad</th>
+                  <th className="px-3 py-2.5">Leads</th>
+                  <th className="px-3 py-2.5">Visitas</th>
+                  <th className="px-3 py-2.5">Ofertas</th>
+                  <th className="px-3 py-2.5">Señales</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {demanda.map((item) => (
+                  <tr
+                    key={item.propiedad.id}
+                    onClick={() => irAPropiedad(item.propiedad.id)}
+                    className="cursor-pointer hover:bg-white/70"
+                  >
+                    <td className="px-3 py-3 font-semibold text-slate-800">
+                      {item.propiedad.titulo}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">{item.leads}</td>
+                    <td className="px-3 py-3 text-slate-600">{item.visitas}</td>
+                    <td className="px-3 py-3 text-slate-600">{item.ofertas}</td>
+                    <td className="px-3 py-3 font-bold text-slate-800">{item.senales}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-[10px] text-slate-500">
+            Las ofertas son registros actuales; todavía no existe una fecha de captura que permita
+            filtrarlas por periodo.
+          </p>
+        </GlassModal>
+      )}
+
+      {detalle === "equipo" && (
+        <GlassModal
+          titulo="Desempeño del equipo"
+          subtitulo={`Cohorte y cierres reales de las últimas ${periodoActual.ventana}`}
+          ancho="lg"
+          onCerrar={() => setDetalle(null)}
+        >
+          <div className="max-h-[62vh] space-y-2 overflow-y-auto sm:hidden">
+            {desempeno.map((item) => (
+              <button
+                key={item.asesor.id}
+                onClick={() => {
+                  setDetalle(null);
+                  onVerAsesor(item.asesor.id);
+                }}
+                className="w-full rounded-2xl bg-white/70 p-4 text-left shadow-sm"
+              >
+                <span className="block text-sm font-semibold text-slate-900">
+                  {item.asesor.nombre}
+                </span>
+                <span className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+                  {[
+                    ["Leads", item.leads],
+                    ["Conversión", `${item.conversion}%`],
+                    ["Ganadas", item.ganadas],
+                    ["Próximas citas", item.citas],
+                    ["Respuesta mediana", formatMin(item.respuesta)],
+                  ].map(([etiqueta, valor]) => (
+                    <span key={etiqueta}>
+                      <span className="block text-base font-bold text-slate-900">{valor}</span>
+                      <span className="block text-[10px] text-slate-500">{etiqueta}</span>
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full min-w-[46rem] text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-slate-500">
                 <tr className="border-b border-slate-200/70">
                   <th className="px-3 py-2.5">Asesor</th>
                   <th className="px-3 py-2.5">Leads</th>
-                  <th className="px-3 py-2.5">Visitas</th>
-                  <th className="px-3 py-2.5">Cierres</th>
-                  <th className="px-3 py-2.5">Respuesta</th>
+                  <th className="px-3 py-2.5">Conversión</th>
+                  <th className="px-3 py-2.5">Ganadas</th>
+                  <th className="px-3 py-2.5">Próximas citas</th>
+                  <th className="px-3 py-2.5">Respuesta mediana</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/80">
-                {ranking.map((r, i) => (
+                {desempeno.map((item) => (
                   <tr
-                    key={r.asesor.id}
-                    onClick={() => onVerAsesor(r.asesor.id)}
-                    className="cursor-pointer rounded-xl hover:bg-white/70"
+                    key={item.asesor.id}
+                    onClick={() => {
+                      setDetalle(null);
+                      onVerAsesor(item.asesor.id);
+                    }}
+                    className="cursor-pointer hover:bg-white/70"
                   >
-                    <td className="flex items-center gap-2 px-3 py-3">
-                      <span className="w-4 text-xs font-bold text-slate-500">{i + 1}</span>
-                      <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[11px] font-bold text-white">
-                        {r.asesor.iniciales}
-                      </span>
-                      <span className="font-medium text-slate-800">{r.asesor.nombre}</span>
+                    <td className="px-3 py-3 font-medium text-slate-800">
+                      {item.asesor.nombre}
                     </td>
-                    <td className="px-3 py-3 text-slate-600">{r.leads}</td>
-                    <td className="px-3 py-3 text-slate-600">{r.visitas}</td>
-                    <td className="px-3 py-3 text-slate-600">{r.cierres}</td>
-                    <td className="px-3 py-3 text-slate-600">{formatMin(r.tiempoProm)}</td>
+                    <td className="px-3 py-3 text-slate-600">{item.leads}</td>
+                    <td className="px-3 py-3 text-slate-600">{item.conversion}%</td>
+                    <td className="px-3 py-3 text-slate-600">{item.ganadas}</td>
+                    <td className="px-3 py-3 text-slate-600">{item.citas}</td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {formatMin(item.respuesta)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -370,45 +818,119 @@ export default function BrokerDashboard({
         </GlassModal>
       )}
 
-      {detalle === "comisiones" && (
+      {detalle === "citas" && (
         <GlassModal
-          titulo="Comisiones proyectadas"
-          subtitulo="Leads en negociación o cierre · tarifa pactada o predeterminada"
+          titulo="Próximas citas"
+          subtitulo={`Agenda de la oficina para los próximos ${periodoActual.ventana}`}
+          ancho="lg"
           onCerrar={() => setDetalle(null)}
         >
-          <ul className="space-y-2">
-            {leadsComisionables.map(({ lead: l, finanzas }) => (
-              <li
-                key={l.id}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-4 py-3 shadow-sm"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900">{l.nombre}</p>
-                  <p className="text-xs text-slate-500">
-                    {l.etapa} · operación {formatoMXN(finanzas.valorOperacion)}
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm font-bold text-emerald-700">
-                  {formatoMXN(finanzas.ingresoEsperado)}
-                </span>
-              </li>
-            ))}
-            {leadsComisionables.length === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-slate-500">
-                Sin ofertas registradas en este periodo.
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+            {[...proximasCitas]
+              .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime())
+              .map((cita) => (
+                <button
+                  key={cita.id}
+                  disabled={!cita.leadId}
+                  onClick={() => cita.leadId && irACliente(cita.leadId)}
+                  className="grid w-full gap-1 rounded-xl bg-white/70 px-4 py-3 text-left enabled:hover:bg-white sm:grid-cols-[7rem_minmax(0,1fr)_10rem]"
+                >
+                  <span className="text-xs font-semibold text-violet-700">
+                    {formatFecha(cita.inicio)}
+                  </span>
+                  <span className="truncate text-sm font-semibold text-slate-800">
+                    {cita.titulo}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {nombreAsesorDe(usuarios, cita.asesorId)} · {cita.estado}
+                  </span>
+                </button>
+              ))}
+            {proximasCitas.length === 0 && (
+              <p className="py-8 text-center text-xs text-slate-500">
+                No hay citas próximas en esta ventana.
               </p>
             )}
-          </ul>
-          {leadsComisionables.length > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-2xl bg-emerald-50/90 px-4 py-3 ring-1 ring-emerald-200">
-              <span className="text-xs font-semibold text-emerald-800">Total proyectado</span>
-              <span className="text-sm font-bold text-emerald-700">
-                {formatoMXN(Math.round(comisionesProyectadas))}
-              </span>
-            </div>
-          )}
+          </div>
+        </GlassModal>
+      )}
+
+      {detalle === "operaciones" && (
+        <GlassModal
+          titulo="Operaciones ganadas"
+          subtitulo={`Ganadas y fechadas en las últimas ${periodoActual.ventana}`}
+          ancho="lg"
+          onCerrar={() => setDetalle(null)}
+        >
+          <div className="space-y-2">
+            {ganadasPeriodo.map((lead) => {
+              const propiedad = propiedades.find(
+                (item) => item.id === lead.interesPropiedadId,
+              );
+              const finanzas = finanzasDeLead(lead, propiedad);
+              return (
+                <button
+                  key={lead.id}
+                  onClick={() => irACliente(lead.id)}
+                  className="grid w-full gap-1 rounded-xl bg-white/70 px-4 py-3 text-left hover:bg-white sm:grid-cols-[minmax(0,1fr)_10rem_9rem]"
+                >
+                  <span>
+                    <span className="block truncate text-sm font-semibold text-slate-800">
+                      {lead.nombre}
+                    </span>
+                    <span className="block truncate text-[11px] text-slate-500">
+                      {propiedad?.titulo ?? "Sin propiedad vinculada"}
+                    </span>
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {lead.cerradoEn ? formatFecha(lead.cerradoEn) : "Sin fecha"}
+                  </span>
+                  <span className="text-right text-xs font-bold text-emerald-700">
+                    {formatoMXN(finanzas.ingresoConfirmado)}
+                  </span>
+                </button>
+              );
+            })}
+            {ganadasPeriodo.length === 0 && (
+              <p className="py-8 text-center text-xs text-slate-500">
+                No hay operaciones ganadas y fechadas en esta ventana.
+              </p>
+            )}
+          </div>
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200">
+            <span className="font-semibold text-emerald-800">Ingreso confirmado</span>
+            <span className="font-black text-emerald-700">
+              {formatoMXN(ingresoConfirmado)}
+            </span>
+          </div>
+          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
+            La clasificación individual, entre asesores o con otra oficina aparecerá cuando cada
+            operación registre captador, colocador y contraparte. No se infiere con datos
+            incompletos.
+          </p>
         </GlassModal>
       )}
     </div>
+  );
+}
+
+function FiltroBoton({
+  activo,
+  etiqueta,
+  onClick,
+}: {
+  activo: boolean;
+  etiqueta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+        activo ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"
+      }`}
+    >
+      {etiqueta}
+    </button>
   );
 }

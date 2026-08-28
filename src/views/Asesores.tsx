@@ -50,7 +50,10 @@ export default function Asesores({
     ).length;
     const leadsAsesor = leads.filter((l) => l.asesorId === u.id);
     const cierresMes = leadsAsesor.filter(
-      (l) => l.etapa === "Cierre" && (ahora - new Date(l.creado).getTime()) / MS_DIA <= 31,
+      (l) =>
+        l.estado === "Ganado" &&
+        l.cerradoEn &&
+        (ahora - new Date(l.cerradoEn).getTime()) / MS_DIA <= 31,
     ).length;
     const tiempoResp = promedio(
       leadsAsesor.map(minutosRespuesta).filter((m): m is number => m !== null),
@@ -84,7 +87,7 @@ export default function Asesores({
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Propiedades activas</th>
               <th className="px-4 py-3">Leads atendidos</th>
-              <th className="px-4 py-3">Cierres del mes</th>
+              <th className="px-4 py-3">Operaciones ganadas</th>
               <th className="px-4 py-3">Tiempo de respuesta</th>
               <th className="px-4 py-3 text-right">Acción</th>
             </tr>

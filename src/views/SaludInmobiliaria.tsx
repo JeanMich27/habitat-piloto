@@ -159,12 +159,16 @@ export default function SaludInmobiliaria({
   onVerPropiedadesPorAntiguedad,
 }: Props) {
   const misLeads = useMemo(() => leads.filter((l) => l.asesorId === asesor.id), [leads, asesor.id]);
+  const misLeadsEnJuego = useMemo(
+    () => misLeads.filter((l) => l.estado !== "Descartado" && l.estado !== "Ganado"),
+    [misLeads],
+  );
   const misPropiedades = useMemo(
     () => propiedades.filter((p) => p.asesorId === asesor.id),
     [propiedades, asesor.id],
   );
 
-  const proyeccion = totalesProyeccion(misLeads, propiedades);
+  const proyeccion = totalesProyeccion(misLeadsEnJuego, propiedades);
 
   // --- Embudo de conversión ---
   const embudo = ETAPAS_LEAD.map(({ etapa, titulo, acento }) => ({
@@ -174,7 +178,7 @@ export default function SaludInmobiliaria({
     cantidad: misLeads.filter((l) => l.etapa === etapa).length,
   }));
   const maxEmbudo = Math.max(1, ...embudo.map((e) => e.cantidad));
-  const cierres = embudo.find((e) => e.etapa === "Cierre")?.cantidad ?? 0;
+  const cierres = misLeads.filter((l) => l.estado === "Ganado").length;
   const tasaGlobal = misLeads.length ? Math.round((cierres / misLeads.length) * 100) : 0;
 
   // --- Velocidad de respuesta (mismos cortes que el filtro de Clientes) ---
@@ -276,7 +280,7 @@ export default function SaludInmobiliaria({
             Icono={Filter}
             titulo="Tu embudo de conversión"
             pista="Toca una etapa"
-            lectura={`De cada 100 clientes que entran, ${tasaGlobal} llegan a cierre. Donde la barra se encoge de golpe es donde se te están cayendo los clientes.`}
+            lectura={`${tasaGlobal} de cada 100 clientes terminan en una operación ganada. La etapa "Cierre" de abajo es documentación y firma en proceso, no el resultado final: donde la barra se encoge de golpe es donde se te están cayendo los clientes.`}
           >
             <div className="mt-4 space-y-1.5">
               {embudo.map((e) => (
@@ -497,7 +501,7 @@ export default function SaludInmobiliaria({
 
         {/* Proyección detallada (interactiva: cortes y tarifas) */}
         <div className="mt-4 sm:mt-6">
-          <ProyeccionComisiones leads={misLeads} propiedades={propiedades} />
+          <ProyeccionComisiones leads={misLeadsEnJuego} propiedades={propiedades} />
         </div>
       </div>
 

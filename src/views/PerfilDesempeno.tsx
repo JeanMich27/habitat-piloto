@@ -43,7 +43,7 @@ export default function PerfilDesempeno({
     ),
   ).length;
   const cierresMes = leadsAsesor.filter(
-    (l) => l.etapa === "Cierre" && diasDesde(l.creado, ahora) <= 31,
+    (l) => l.estado === "Ganado" && l.cerradoEn && diasDesde(l.cerradoEn, ahora) <= 31,
   ).length;
   const tiempoResp = promedio(
     leadsAsesor.map(minutosRespuesta).filter((m): m is number => m !== null),
@@ -89,7 +89,7 @@ export default function PerfilDesempeno({
         <KpiCard label="Propiedades activas" value={String(propiedadesActivas.length)} icon={Building2} accent="text-slate-500" />
         <KpiCard label="Leads atendidos" value={String(leadsAsesor.length)} icon={Users} accent="text-blue-500" />
         <KpiCard label="Visitas" value={String(visitas)} icon={CheckCircle2} accent="text-amber-500" />
-        <KpiCard label="Cierres del mes" value={String(cierresMes)} icon={Target} accent="text-emerald-600" />
+        <KpiCard label="Operaciones ganadas" value={String(cierresMes)} icon={Target} accent="text-emerald-600" />
         <KpiCard label="Tiempo de respuesta" value={formatMin(tiempoResp)} icon={Clock} accent="text-violet-500" />
       </section>
 

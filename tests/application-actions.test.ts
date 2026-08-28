@@ -33,4 +33,18 @@ describe("casos de uso de leads", () => {
     expect(context.getState()[0]).toMatchObject({ etapa: "Cierre" });
     expect(context.getState()[0].historial?.at(-1)?.tipo).toBe("Etapa");
   });
+
+  it("separa la etapa Cierre del desenlace Ganado y registra la fecha real", async () => {
+    const context = setup([lead({ id: "l-1", etapa: "Cierre", estado: "Activo" })]);
+    await expect(context.actions.marcarLeadGanado("l-1")).resolves.toBe(true);
+    expect(context.getState()[0]).toMatchObject({
+      etapa: "Cierre",
+      estado: "Ganado",
+      cerradoPor: asesor.nombre,
+    });
+    expect(context.getState()[0].cerradoEn).toBeTruthy();
+    expect(context.getState()[0].historial?.at(-1)?.descripcion).toBe(
+      "Operación marcada como ganada",
+    );
+  });
 });

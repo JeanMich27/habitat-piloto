@@ -11,7 +11,7 @@ type Tab = "productividad" | "captaciones" | "cierres" | "tiempos";
 const TABS: { key: Tab; label: string }[] = [
   { key: "productividad", label: "Productividad" },
   { key: "captaciones", label: "Captaciones" },
-  { key: "cierres", label: "Cierres" },
+  { key: "cierres", label: "Operaciones ganadas" },
   { key: "tiempos", label: "Tiempos de respuesta" },
 ];
 
@@ -105,7 +105,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
   const leadsRango = leads.filter((l) => enRango(l.creado));
   const propsRango = propiedades.filter((p) => enRango(p.capturadaEl));
 
-  // --- Productividad: leads atendidos, visitas, cierres y conversión por asesor ---
+  // --- Productividad: cohorte de leads ingresados en el rango ---
   const productividad = asesores
     .map((a) => {
       const suyos = leadsRango.filter((l) => l.asesorId === a.id);
@@ -114,7 +114,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
           l.etapa as "Visitado" | "Negociacion" | "Cierre",
         ),
       ).length;
-      const cierres = suyos.filter((l) => l.etapa === "Cierre").length;
+      const cierres = suyos.filter((l) => l.estado === "Ganado").length;
       const tasaConv = suyos.length ? Math.round((cierres / suyos.length) * 100) : 0;
       const tiempoProm = promedio(
         suyos.map(minutosRespuesta).filter((m): m is number => m !== null),
@@ -136,8 +136,10 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
     (a, b) => new Date(b.capturadaEl).getTime() - new Date(a.capturadaEl).getTime(),
   );
 
-  // --- Cierres: leads en etapa Cierre creados en el rango, por asesor ---
-  const cierresRango = leadsRango.filter((l) => l.etapa === "Cierre");
+  // --- Operaciones ganadas: desenlace y fecha real de cierre en el rango ---
+  const cierresRango = leads.filter(
+    (l) => l.estado === "Ganado" && l.cerradoEn && enRango(l.cerradoEn),
+  );
   const cierresPorAsesor = asesores
     .map((a) => ({
       asesor: a,
@@ -206,7 +208,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
             finanzasDeLead(l, propiedad).cerrada
               ? finanzasDeLead(l, propiedad).ingresoConfirmado
               : "Pendiente",
-            isoADiaInput(l.creado),
+            isoADiaInput(l.cerradoEn!),
           ];
         }),
       );
@@ -310,7 +312,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                   <th className="px-4 py-3">Asesor</th>
                   <th className="px-4 py-3">Leads</th>
                   <th className="px-4 py-3">Visitas</th>
-                  <th className="px-4 py-3">Cierres</th>
+                  <th className="px-4 py-3">Ganados de la cohorte</th>
                   <th className="px-4 py-3">Conversión</th>
                   <th className="px-4 py-3">Tiempo de respuesta</th>
                 </tr>
@@ -396,7 +398,7 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
         <>
           <section className="rounded-xl border border-slate-200 bg-white p-4">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Cierres por asesor
+              Operaciones ganadas por asesor
             </h2>
             <div className="space-y-2.5">
               {cierresPorAsesor.map((c) => (
@@ -439,14 +441,14 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
                           ? formatoMXN(finanzas.ingresoConfirmado)
                           : "Pendiente"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{formatFecha(l.creado)}</td>
+                      <td className="px-4 py-3 text-slate-600">{formatFecha(l.cerradoEn!)}</td>
                     </tr>
                   );
                 })}
                 {cierresRango.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                      No hay cierres registrados en este rango de fechas.
+                      No hay operaciones ganadas y fechadas en este rango.
                     </td>
                   </tr>
                 )}

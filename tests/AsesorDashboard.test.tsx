@@ -29,6 +29,8 @@ const leads = [
     id: "l1",
     nombre: "Cliente Cerrado",
     etapa: "Cierre",
+    estado: "Ganado",
+    cerradoEn: haceMinutos(20),
     bant: bantHot,
     creado: haceMinutos(120),
     primerContactoEn: haceMinutos(80),
@@ -220,7 +222,7 @@ describe("Dashboard del asesor — navegación", () => {
 
   it("los signos vitales cuadran con los datos del asesor", () => {
     montar();
-    expect(screen.getByText("25%")).toBeInTheDocument(); // 1 cierre de 4
+    expect(screen.getByText("25%")).toBeInTheDocument(); // 1 operación ganada de 4
     expect(screen.getByText(/De 2 con \+4 meses/i)).toBeInTheDocument();
   });
 });

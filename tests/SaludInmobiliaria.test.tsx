@@ -21,6 +21,8 @@ const leads = [
   lead({
     id: "l1",
     etapa: "Cierre",
+    estado: "Ganado",
+    cerradoEn: haceMinutos(20),
     bant: bantHot,
     creado: haceMinutos(120),
     primerContactoEn: haceMinutos(80),

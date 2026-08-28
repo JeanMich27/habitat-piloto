@@ -144,6 +144,9 @@ export default function AsesorDashboard({
   onVerAgenda,
 }: Props) {
   const misLeads = leads.filter((l) => l.asesorId === asesor.id);
+  const misLeadsEnJuego = misLeads.filter(
+    (l) => l.estado !== "Descartado" && l.estado !== "Ganado",
+  );
   const misPropiedades = propiedades.filter((p) => p.asesorId === asesor.id);
 
   const activas = misPropiedades.filter((p) => p.estatus === "Publicada").length;
@@ -160,8 +163,8 @@ export default function AsesorDashboard({
     : undefined;
 
   // --- Signos vitales: el mismo cálculo que la pantalla de Salud ---
-  const porNivel = conteoPorNivel(misLeads);
-  const cierres = misLeads.filter((l) => l.etapa === "Cierre").length;
+  const porNivel = conteoPorNivel(misLeadsEnJuego);
+  const cierres = misLeads.filter((l) => l.estado === "Ganado").length;
   const tasaCierre = misLeads.length ? Math.round((cierres / misLeads.length) * 100) : 0;
   const tiempoProm = promedio(
     misLeads.map(minutosRespuesta).filter((m): m is number => m !== null),
@@ -172,7 +175,9 @@ export default function AsesorDashboard({
   }).length;
 
   // --- Guía: un solo "siguiente paso", el más valioso ---
-  const sinContactar = misLeads.filter((l) => !l.primerContactoEn && l.etapa !== "Cierre");
+  const sinContactar = misLeadsEnJuego.filter(
+    (l) => !l.primerContactoEn && l.etapa !== "Cierre",
+  );
   const guia =
     sinContactar.length > 0
       ? {
@@ -337,8 +342,10 @@ export default function AsesorDashboard({
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           {ETAPAS_LEAD.map(({ etapa, titulo }) => {
-            const cantidad = misLeads.filter((l) => l.etapa === etapa).length;
-            const pct = misLeads.length ? Math.round((cantidad / misLeads.length) * 100) : 0;
+            const cantidad = misLeadsEnJuego.filter((l) => l.etapa === etapa).length;
+            const pct = misLeadsEnJuego.length
+              ? Math.round((cantidad / misLeadsEnJuego.length) * 100)
+              : 0;
             const estilo = ESTILO_ETAPA[etapa];
             return (
               <button

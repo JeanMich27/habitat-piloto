@@ -140,6 +140,7 @@ interface Props {
   onRegistrarIntento: (leadId: string) => Promise<boolean>;
   onDescartarLead: (leadId: string, r: ResultadoDescarte) => Promise<boolean>;
   onReactivarLead: (leadId: string) => Promise<boolean>;
+  onMarcarGanado: (leadId: string) => Promise<boolean>;
   /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
@@ -163,6 +164,7 @@ export default function Clientes({
   onRegistrarIntento,
   onDescartarLead,
   onReactivarLead,
+  onMarcarGanado,
   clienteInicialId,
   etapaInicial,
   claseInicial,
@@ -210,7 +212,9 @@ export default function Clientes({
   // prospectos ya cerrados; los descartados siguen a un toque de distancia
   // porque son la materia prima del análisis de pérdida.
   const [filtroEstado, setFiltroEstado] =
-    useState<"en_juego" | "sin_respuesta" | "descartados" | "todos">("en_juego");
+    useState<"en_juego" | "sin_respuesta" | "descartados" | "ganados" | "todos">(
+      "en_juego",
+    );
   const [descartando, setDescartando] = useState<Lead | null>(null);
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
@@ -240,6 +244,7 @@ export default function Clientes({
     setFiltroEtapa("Todas");
     setFiltroRespuesta("Todas");
     setFiltroCartera("todos");
+    setFiltroEstado("todos");
   }, [clienteInicialId]);
 
   useEffect(() => {
@@ -247,6 +252,7 @@ export default function Clientes({
       setFiltroEtapa(etapaInicial);
       setFiltroClase("Todas");
       setFiltroRespuesta("Todas");
+      setFiltroEstado("todos");
       setPanelMovil("lista");
     }
   }, [etapaInicial]);
@@ -287,8 +293,9 @@ export default function Clientes({
         const coincideEstado =
           filtroEstado === "todos" ||
           (filtroEstado === "descartados" && l.estado === "Descartado") ||
+          (filtroEstado === "ganados" && l.estado === "Ganado") ||
           (filtroEstado === "sin_respuesta" && l.estado === "Sin respuesta") ||
-          (filtroEstado === "en_juego" && l.estado !== "Descartado");
+          (filtroEstado === "en_juego" && l.estado !== "Descartado" && l.estado !== "Ganado");
         // Las tres primeras píldoras solo ven lo que sigue vivo en el CRM.
         const enCrm = l.fueraDeCrm !== true;
         const coincideCartera =
@@ -471,7 +478,8 @@ export default function Clientes({
                 [
                   { clave: "en_juego", texto: "En juego" },
                   { clave: "sin_respuesta", texto: "Sin respuesta" },
-                  { clave: "descartados", texto: "Cerrados" },
+                  { clave: "descartados", texto: "Descartados" },
+                  { clave: "ganados", texto: "Ganados" },
                   { clave: "todos", texto: "Todos" },
                 ] as const
               ).map((op) => {
@@ -480,9 +488,11 @@ export default function Clientes({
                     ? true
                     : op.clave === "descartados"
                       ? l.estado === "Descartado"
+                      : op.clave === "ganados"
+                        ? l.estado === "Ganado"
                       : op.clave === "sin_respuesta"
                         ? l.estado === "Sin respuesta"
-                        : l.estado !== "Descartado",
+                        : l.estado !== "Descartado" && l.estado !== "Ganado",
                 ).length;
                 const activo = filtroEstado === op.clave;
                 return (
@@ -793,6 +803,21 @@ export default function Clientes({
                         </span>
                       )}
                     </>
+                  ) : seleccionado.estado === "Ganado" ? (
+                    <>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[11px] font-bold ${ESTILO_ESTADO.Ganado}`}
+                      >
+                        Operación ganada
+                        {seleccionado.cerradoEn ? ` · ${fmtFecha(seleccionado.cerradoEn)}` : ""}
+                      </span>
+                      <button
+                        onClick={() => onReactivarLead(seleccionado.id)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Reabrir operación
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button
@@ -810,6 +835,22 @@ export default function Clientes({
                       >
                         Cerrar prospecto
                       </button>
+                      {seleccionado.etapa === "Cierre" && (
+                        <button
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `¿Confirmas que la operación de ${seleccionado.nombre} fue ganada? Se registrará la fecha de hoy.`,
+                              )
+                            ) {
+                              void onMarcarGanado(seleccionado.id);
+                            }
+                          }}
+                          className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                        >
+                          Marcar operación ganada
+                        </button>
+                      )}
                       {sugiereDescarte(seleccionado) && (
                         <span className="text-xs font-medium text-rose-600">
                           {seleccionado.intentosContacto} intentos sin respuesta — considera

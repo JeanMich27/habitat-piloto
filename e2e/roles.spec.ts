@@ -8,7 +8,7 @@ async function enterDemoAs(page: Page, name: string) {
 
 test("broker: dashboard, propiedades, detalle y leads", async ({ page }) => {
   await enterDemoAs(page, "Jean Morales");
-  await expect(page.getByRole("heading", { name: "Hola, Jean" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Centro de control de Jean" })).toBeVisible();
   await page.getByRole("button", { name: "Propiedades", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Propiedades de la agencia" })).toBeVisible();
   await page.getByRole("button", { name: /Acciones para Casa en Lomas Verdes/ }).click();

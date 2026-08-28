@@ -322,7 +322,7 @@ function AplicacionConfigurada() {
   const confirmarPersistencia = createPersistenceCoordinator(isCloudEnabled, setAvisoNube);
   const {
     moverLead, guardarCalificacion, registrarIntentoSinRespuesta, descartarLead,
-    reactivarLead, registrarInteraccion, resolverOferta, crearCliente, importarLeads,
+    reactivarLead, marcarLeadGanado, registrarInteraccion, resolverOferta, crearCliente, importarLeads,
   } = createLeadActions({
     leads, setLeads, currentUser: yo, confirmPersistence: confirmarPersistencia,
     setBusinessNotice: setAvisoBant,
@@ -577,8 +577,11 @@ function AplicacionConfigurada() {
               broker={yo}
               usuarios={usuarios}
               propiedades={propiedades}
-              leads={leadsEnSeguimiento}
+              leads={leadsOperativos}
+              citas={citas}
               onVerAsesor={irAPerfil}
+              onVerPropiedad={irADetalle}
+              onVerCliente={irACliente}
               onVerClientes={irAClientes}
             />
           )}
@@ -662,7 +665,7 @@ function AplicacionConfigurada() {
           {vista === "asesor" && (
             <AsesorDashboard
               asesor={yo}
-              leads={leadsEnSeguimiento}
+              leads={leadsOperativos}
               propiedades={propiedades}
               citas={citas}
               onVerPropiedades={irAPropiedades}
@@ -708,6 +711,7 @@ function AplicacionConfigurada() {
                 onRegistrarIntento={registrarIntentoSinRespuesta}
                 onDescartarLead={descartarLead}
                 onReactivarLead={reactivarLead}
+                onMarcarGanado={marcarLeadGanado}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}

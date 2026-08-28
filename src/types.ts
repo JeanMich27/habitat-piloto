@@ -728,7 +728,7 @@ export const esLeadOperativo = (l: Lead) =>
  * la tasa de conversión.
  */
 export const esLeadEnSeguimiento = (l: Lead) =>
-  esLeadOperativo(l) && l.estado !== "Descartado";
+  esLeadOperativo(l) && l.estado !== "Descartado" && l.estado !== "Ganado";
 
 // --- Proceso de cierre (Fase 4: Cliente/Comprador) ---
 // Se activa una vez que una oferta se acepta (Lead.etapa === "Cierre"). Las 6

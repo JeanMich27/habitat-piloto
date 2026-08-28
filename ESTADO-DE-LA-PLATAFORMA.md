@@ -3,6 +3,46 @@
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
+> **28/08/2026 — Revisión del Centro de control del Broker (Claude), local sin publicar.**
+> Verificado contra las decisiones previas del proyecto: la cohorte usa
+> `leadsOperativos`/`esLeadOperativo`, así que el embudo y la conversión NO
+> heredan la etapa `Contactado` constante del directorio importado
+> (`diagnostico-reparto-asesor-y-pipeline-eb.md`). `tsc -b` y `eslint` en
+> verde. De la suite completa se corrieron sin fallos, contra este árbol,
+> `broker-metrics.test.ts` + `BrokerDashboard.test.tsx` (16) y, tras el
+> ajuste de abajo, `SaludInmobiliaria.test.tsx` + `salud-logica.test.ts`
+> (31); una corrida de `npx vitest run` completa alcanzó a mostrar ~30
+> archivos en verde sin ningún fallo antes de que el límite de tiempo de
+> esta sesión cortara el proceso — no hay confirmación independiente del
+> total (Codex reportó 211/39). Se reinstaló el binario
+> `@rollup/rollup-linux-arm64-gnu` con `--no-save`, mismo síntoma cosmético
+> ya documentado.
+>
+> **Bug encontrado y corregido:** al separar `etapa = Cierre` de `estado =
+> Ganado`, `SaludInmobiliaria.tsx` quedó con `cierres` calculado por estado
+> real pero el texto bajo el embudo ("De cada 100 clientes que entran, X
+> llegan a cierre") seguía describiéndolo como si fuera la barra "Cierre"
+> del embudo — que ahora es un número distinto (leads en negociación/firma,
+> no ganados). Dos cifras distintas en la misma tarjeta bajo el mismo
+> nombre. Se corrigió el texto para distinguir explícitamente la etapa
+> "Cierre" (documentación en proceso) del resultado ganado. Sin cambios de
+> cálculo. `tsc -b` y 31 pruebas (`SaludInmobiliaria.test.tsx` +
+> `salud-logica.test.ts`) en verde tras el ajuste.
+>
+> Sin más hallazgos bloqueantes. No se corrió `npm run e2e` ni se hizo
+> commit ni push — queda igual que el resto del árbol, pendiente de que
+> Jean lo revise y publique.
+
+> **28/08/2026 — Centro de control del Broker, local sin publicar.**
+> El Dashboard ya separa la etapa `Cierre` del desenlace real `Ganado`, usa
+> `cerradoEn` para operaciones del periodo, calcula conversión por cohorte y
+> muestra respuesta mediana. Agrega inventario por estado/exclusiva/documentos,
+> demanda trazable por inmueble, próximas citas, desempeño por asesor e ingreso
+> confirmado. La ficha de Cliente incorpora la acción explícita **Marcar
+> operación ganada**; antes existía el estado en el esquema, pero ninguna ruta
+> de interfaz lo escribía, por lo que cualquier KPI correcto habría quedado en
+> cero. Contrato: `docs/METRICAS-BROKER.md`. No hubo cambio de base ni despliegue.
+
 > **28/08/2026 — Ajuste morado y ficha pública por inmueble.**
 > Elimina "Mi Micrositio" del menú, concentra su edición en "Mi perfil",
 > mueve el logo a "Información de la inmobiliaria" para broker, elimina CTAs
