@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import db from "../../data/db.json";
 import { NOTIFICACIONES_DEFAULT } from "../../data/configuracionOpciones";
-import type { AgenciaInfo, Lead, Propiedad, SolicitudEstado, Usuario } from "../../types";
+import type { AgenciaInfo, Lead, Operacion, Propiedad, SolicitudEstado, Usuario } from "../../types";
 import { esLeadEnSeguimiento, esLeadOperativo } from "../../types";
 import {
   cargarSnapshotLocal,
@@ -23,6 +23,7 @@ export const factorySnapshot: EstadoCompleto = {
   leads: db.leads as Lead[],
   usuarios: db.usuarios as Usuario[],
   citas: [],
+  operaciones: [],
   agencia: db.agencia as AgenciaInfo,
   permisoEquipoVerTodas: false,
   notificaciones: NOTIFICACIONES_DEFAULT,
@@ -48,7 +49,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
     // En nube se inicia vacío: si falla la lectura, nunca se presentan datos
     // demo como si fueran datos reales de la oficina.
     return {
-      propiedades: [], leads: [], usuarios: [], citas: [],
+      propiedades: [], leads: [], usuarios: [], citas: [], operaciones: [],
       agencia: { nombre: "", direccion: "" },
       permisoEquipoVerTodas: false,
       notificaciones: {},
@@ -59,6 +60,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
   const [leads, setLeads] = useState(initial.leads);
   const [usuarios, setUsuarios] = useState(initial.usuarios);
   const [citas, setCitas] = useState(initial.citas ?? []);
+  const [operaciones, setOperaciones] = useState<Operacion[]>(initial.operaciones ?? []);
   const [solicitudes, setSolicitudes] = useState<SolicitudEstado[]>([]);
   const [agencia, setAgencia] = useState(initial.agencia);
   const [permisoEquipoVerTodas, setPermisoEquipoVerTodas] = useState(initial.permisoEquipoVerTodas);
@@ -90,6 +92,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
     setLeads(snapshot.leads);
     setUsuarios(snapshot.usuarios);
     setCitas(snapshot.citas);
+    setOperaciones(snapshot.operaciones);
     setMetricasPropietario(snapshot.metricasPropietario ?? {});
     setErrorMetricasPropietario(snapshot.errorMetricasPropietario ?? null);
     setAgencia(snapshot.agencia);
@@ -142,6 +145,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
       onCita: (item) => setCitas((current) => reemplazarEnArreglo(current, item)),
       onCitaEliminada: (id) => setCitas((current) => current.filter((item) => item.id !== id)),
       onSolicitud: (item) => setSolicitudes((current) => reemplazarEnArreglo(current, item)),
+      onOperacion: (item) => setOperaciones((current) => reemplazarEnArreglo(current, item)),
     });
   }, [sesionActiva]);
 
@@ -176,11 +180,12 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
       leads,
       usuarios,
       citas,
+      operaciones,
       agencia,
       permisoEquipoVerTodas,
       notificaciones,
     });
-  }, [propiedades, leads, usuarios, citas, agencia, permisoEquipoVerTodas, notificaciones]);
+  }, [propiedades, leads, usuarios, citas, operaciones, agencia, permisoEquipoVerTodas, notificaciones]);
 
   const clearDemoUser = () => {
     window.localStorage.removeItem(DEMO_USER_KEY);
@@ -197,6 +202,7 @@ export function useAppData({ perfil, cloudSessionPresent }: UseAppDataInput) {
     leads, setLeads, leadsOperativos, leadsEnSeguimiento,
     usuarios, setUsuarios,
     citas, setCitas,
+    operaciones, setOperaciones,
     solicitudes, setSolicitudes,
     agencia, setAgencia,
     permisoEquipoVerTodas, setPermisoEquipoVerTodas,

@@ -190,10 +190,42 @@ export interface Propiedad {
   exclusiva?: boolean;
   crmOrigen?: string;
   crmIdInterno?: string;
+  /** Estado literal reportado por el CRM; no sustituye el estado comercial local. */
+  crmEstatus?: string;
+  /** Momento en que el sincronizador observó el estado externo. */
+  crmEstatusEn?: string;
+  /** Todas las operaciones publicadas por el CRM, no sólo la primera. */
+  crmOperaciones?: Record<string, unknown>[];
   /** Enlace público que genera EasyBroker (lo llena la sincronización). */
   urlPublica?: string;
   /** Portales/medios donde se promociona, capturados por el broker. */
   enlacesPromocion?: EnlacePromocion[];
+}
+
+export type EstadoValidacionOperacion = "reportada" | "devuelta" | "validada" | "cancelada";
+
+/** Cierre reportado por un asesor y confirmado posteriormente por un broker. */
+export interface Operacion {
+  id: string;
+  version: number;
+  leadId: string;
+  propiedadId?: string;
+  propiedadReferencia?: string;
+  crmPropiedadId?: string;
+  estadoValidacion: EstadoValidacionOperacion;
+  reportadoPor: string;
+  reportadoEn: string;
+  tipoOperacion?: TipoOperacion;
+  fechaCierre?: string;
+  montoFinal?: number;
+  moneda: string;
+  comisionBrutaConfirmada?: number;
+  comentarioAsesor?: string;
+  observacionBroker?: string;
+  resueltoPor?: string;
+  resueltoEn?: string;
+  datosReportadosOriginales: Record<string, unknown>;
+  historialRevisiones: Record<string, unknown>[];
 }
 
 export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";

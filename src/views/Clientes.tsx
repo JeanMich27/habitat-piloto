@@ -24,6 +24,8 @@ import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
 import DescartarLeadModal, { type ResultadoDescarte } from "../components/DescartarLeadModal";
 import NuevoClienteModal from "../components/NuevoClienteModal";
+import OperacionModal from "../components/OperacionModal";
+import type { ReportarOperacionInput, ResolverOperacionInput } from "../repositories/operationsRepository";
 import { QualificationBadge } from "./clientes/QualificationBadge";
 import { ClientsHeader } from "./clientes/ClientsHeader";
 import { evaluarBant } from "../domain/leads/qualification";
@@ -40,6 +42,7 @@ import type {
   Interaccion,
   Lead,
   LeadStage,
+  Operacion,
   Propiedad,
   TipoInteraccion,
   Usuario,
@@ -140,7 +143,9 @@ interface Props {
   onRegistrarIntento: (leadId: string) => Promise<boolean>;
   onDescartarLead: (leadId: string, r: ResultadoDescarte) => Promise<boolean>;
   onReactivarLead: (leadId: string) => Promise<boolean>;
-  onMarcarGanado: (leadId: string) => Promise<boolean>;
+  operaciones?: Operacion[];
+  onReportarOperacion: (input: ReportarOperacionInput) => Promise<boolean>;
+  onResolverOperacion: (input: ResolverOperacionInput) => Promise<boolean>;
   /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
   clienteInicialId?: string | null;
   /** Filtro de etapa precargado (al tocar un número del embudo). */
@@ -164,7 +169,9 @@ export default function Clientes({
   onRegistrarIntento,
   onDescartarLead,
   onReactivarLead,
-  onMarcarGanado,
+  operaciones = [],
+  onReportarOperacion,
+  onResolverOperacion,
   clienteInicialId,
   etapaInicial,
   claseInicial,
@@ -219,6 +226,7 @@ export default function Clientes({
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
   const [calificando, setCalificando] = useState(false);
   const [creando, setCreando] = useState(false);
+  const [modalOperacion, setModalOperacion] = useState<"reportar" | "validar" | null>(null);
   // En pantalla chica no caben lista y ficha a la vez: se muestra una u otra.
   // En pantalla grande esta variable no hace nada (ambas conviven).
   const [panelMovil, setPanelMovil] = useState<"lista" | "ficha">("lista");
@@ -352,6 +360,11 @@ export default function Clientes({
   }
 
   const seleccionado = filtrados.find((l) => l.id === seleccionadoId) ?? filtrados[0] ?? null;
+  const operacionSeleccionada = seleccionado
+    ? operaciones
+        .filter((item) => item.leadId === seleccionado.id)
+        .sort((a, b) => Date.parse(b.reportadoEn) - Date.parse(a.reportadoEn))[0]
+    : undefined;
   const propiedadInteres = propiedades.find((p) => p.id === seleccionado?.interesPropiedadId);
   const asesor = usuarios.find((u) => u.id === seleccionado?.asesorId);
 
@@ -811,12 +824,9 @@ export default function Clientes({
                         Operación ganada
                         {seleccionado.cerradoEn ? ` · ${fmtFecha(seleccionado.cerradoEn)}` : ""}
                       </span>
-                      <button
-                        onClick={() => onReactivarLead(seleccionado.id)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Reabrir operación
-                      </button>
+                      {operacionSeleccionada?.comisionBrutaConfirmada == null && (
+                        <span className="text-xs font-semibold text-amber-700">Ingreso pendiente de confirmar</span>
+                      )}
                     </>
                   ) : (
                     <>
@@ -835,21 +845,33 @@ export default function Clientes({
                       >
                         Cerrar prospecto
                       </button>
-                      {seleccionado.etapa === "Cierre" && (
+                      {!operacionSeleccionada && (
                         <button
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `¿Confirmas que la operación de ${seleccionado.nombre} fue ganada? Se registrará la fecha de hoy.`,
-                              )
-                            ) {
-                              void onMarcarGanado(seleccionado.id);
-                            }
-                          }}
+                          onClick={() => setModalOperacion("reportar")}
                           className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
                         >
-                          Marcar operación ganada
+                          Reportar operación cerrada
                         </button>
+                      )}
+                      {operacionSeleccionada?.estadoValidacion === "reportada" && (
+                        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                          <span><strong>Pendiente de validación.</strong> El lead todavía no cuenta como ganado.</span>
+                          {usuario.rol === "broker" && (
+                            <button onClick={() => setModalOperacion("validar")} className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-bold text-white">
+                              Revisar cierre
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {operacionSeleccionada?.estadoValidacion === "devuelta" && (
+                        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                          <span><strong>Requiere corrección.</strong> {operacionSeleccionada.observacionBroker}</span>
+                          {(usuario.rol === "broker" || operacionSeleccionada.reportadoPor === usuario.id || seleccionado.asesorId === usuario.id) && (
+                            <button onClick={() => setModalOperacion("reportar")} className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-bold text-white">
+                              Corregir y reenviar
+                            </button>
+                          )}
+                        </div>
                       )}
                       {sugiereDescarte(seleccionado) && (
                         <span className="text-xs font-medium text-rose-600">
@@ -1187,6 +1209,27 @@ export default function Clientes({
           onDescartar={async (r) => {
             if (await onDescartarLead(descartando.id, r)) setDescartando(null);
           }}
+        />
+      )}
+
+      {modalOperacion === "reportar" && seleccionado && (
+        <OperacionModal
+          modo="reportar"
+          lead={seleccionado}
+          propiedades={propiedades}
+          operacion={operacionSeleccionada}
+          onCerrar={() => setModalOperacion(null)}
+          onEnviar={onReportarOperacion}
+        />
+      )}
+      {modalOperacion === "validar" && seleccionado && operacionSeleccionada && (
+        <OperacionModal
+          modo="validar"
+          lead={seleccionado}
+          propiedades={propiedades}
+          operacion={operacionSeleccionada}
+          onCerrar={() => setModalOperacion(null)}
+          onEnviar={onResolverOperacion}
         />
       )}
     </div>

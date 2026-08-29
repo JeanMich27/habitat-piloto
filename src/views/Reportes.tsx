@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import { finanzasDeLead } from "../lib/comisiones";
 import { formatFecha, formatMin, minutosRespuesta, promedio } from "../lib/metrics";
-import type { Lead, Propiedad, Usuario } from "../types";
+import type { Lead, Operacion, Propiedad, Usuario } from "../types";
 import { formatoMXN } from "../types";
 
 type Tab = "productividad" | "captaciones" | "cierres" | "tiempos";
@@ -19,6 +19,7 @@ interface Props {
   usuarios: Usuario[];
   propiedades: Propiedad[];
   leads: Lead[];
+  operaciones?: Operacion[];
 }
 
 function isoADiaInput(iso: string) {
@@ -78,7 +79,7 @@ function descargarCSV(
   URL.revokeObjectURL(url);
 }
 
-export default function Reportes({ usuarios, propiedades, leads }: Props) {
+export default function Reportes({ usuarios, propiedades, leads, operaciones = [] }: Props) {
   const [tab, setTab] = useState<Tab>("productividad");
 
   const hoyISO = useMemo(() => new Date().toISOString(), []);
@@ -197,17 +198,17 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
     } else if (tab === "cierres") {
       descargarCSV(
         `reporte-cierres-${fechaArchivo}.csv`,
-        ["Lead", "Propiedad", "Asesor", "Valor operación", "Comisión estimada", "Fecha"],
+        ["Lead", "Propiedad", "Asesor", "Valor operación", "Comisión confirmada", "Fecha"],
         cierresRango.map((l) => {
-          const propiedad = propiedades.find((p) => p.id === l.interesPropiedadId);
+          const operacion = operaciones.find((item) => item.leadId === l.id && item.estadoValidacion === "validada");
+          const propiedad = propiedades.find((p) => p.id === (operacion?.propiedadId ?? l.interesPropiedadId));
+          const finanzas = finanzasDeLead(l, propiedad, operacion);
           return [
             l.nombre,
-            propiedad?.titulo ?? "—",
+            propiedad?.titulo ?? operacion?.propiedadReferencia ?? "—",
             nombreAsesor(l.asesorId),
-            finanzasDeLead(l, propiedad).valorOperacion,
-            finanzasDeLead(l, propiedad).cerrada
-              ? finanzasDeLead(l, propiedad).ingresoConfirmado
-              : "Pendiente",
+            operacion?.montoFinal ?? finanzas.valorOperacion,
+            finanzas.ingresoPendiente ? "Pendiente" : finanzas.ingresoConfirmado,
             isoADiaInput(l.cerradoEn!),
           ];
         }),
@@ -426,20 +427,21 @@ export default function Reportes({ usuarios, propiedades, leads }: Props) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {cierresRango.map((l) => {
-                  const propiedad = propiedades.find((p) => p.id === l.interesPropiedadId);
-                  const finanzas = finanzasDeLead(l, propiedad);
+                  const operacion = operaciones.find((item) => item.leadId === l.id && item.estadoValidacion === "validada");
+                  const propiedad = propiedades.find((p) => p.id === (operacion?.propiedadId ?? l.interesPropiedadId));
+                  const finanzas = finanzasDeLead(l, propiedad, operacion);
                   return (
                     <tr key={l.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{l.nombre}</td>
-                      <td className="px-4 py-3 text-slate-600">{propiedad?.titulo ?? "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{propiedad?.titulo ?? operacion?.propiedadReferencia ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-600">{nombreAsesor(l.asesorId)}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {finanzas.valorOperacion > 0 ? formatoMXN(finanzas.valorOperacion) : "—"}
+                        {(operacion?.montoFinal ?? finanzas.valorOperacion) > 0
+                          ? formatoMXN(operacion?.montoFinal ?? finanzas.valorOperacion)
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {finanzas.cerrada
-                          ? formatoMXN(finanzas.ingresoConfirmado)
-                          : "Pendiente"}
+                        {finanzas.ingresoPendiente ? "Pendiente" : formatoMXN(finanzas.ingresoConfirmado)}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{formatFecha(l.cerradoEn!)}</td>
                     </tr>

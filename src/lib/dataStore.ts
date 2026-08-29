@@ -19,6 +19,7 @@ import {
   rowToCita,
   rowToConfiguracion,
   rowToLead,
+  rowToOperacion,
   rowToPropiedad,
   rowToSolicitud,
   rowToUsuario,
@@ -28,6 +29,7 @@ import type {
   AgenciaInfo,
   CitaAgenda,
   Lead,
+  Operacion,
   Propiedad,
   SolicitudEstado,
   Usuario,
@@ -37,6 +39,7 @@ import type {
   AppointmentRow,
   ConfigurationRow,
   LeadRow,
+  OperationRow,
   PropertyRow,
   StatusRequestRow,
   UserRow,
@@ -119,6 +122,7 @@ export interface EstadoCompleto {
   leads: Lead[];
   usuarios: Usuario[];
   citas: CitaAgenda[];
+  operaciones: Operacion[];
   agencia: AgenciaInfo;
   permisoEquipoVerTodas: boolean;
   notificaciones: Record<string, boolean>;
@@ -173,10 +177,11 @@ export async function fetchInitialData(usuarioActual: Usuario): Promise<EstadoCo
   // crecen con el negocio y las únicas que pueden pasar de 1,000 filas.
   // Los leads llegan del más nuevo al más viejo para que la app no dependa del
   // orden físico de la tabla al decidir qué mostrar primero.
-  const [propiedadesFilas, leadsFilas, usuariosFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
+  const [propiedadesFilas, leadsFilas, usuariosFilas, operacionesFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
     leerTodo<PropertyRow>("propiedades"),
     leerTodo<LeadRow>("leads", { columna: "creado", ascendente: false }),
     leerDirectorioVisible<UserRow>(usuarioActual),
+    leerTodo<OperationRow>("operaciones", { columna: "reportado_en", ascendente: false }),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
@@ -210,6 +215,7 @@ export async function fetchInitialData(usuarioActual: Usuario): Promise<EstadoCo
     leads: leadsFilas.map(rowToLead),
     usuarios: usuariosFilas.map(rowToUsuario),
     citas: [...citasPorId.values()].map(rowToCita),
+    operaciones: operacionesFilas.map(rowToOperacion),
     agencia: aRes.data ? rowToAgencia(aRes.data) : { nombre: "", direccion: "" },
     permisoEquipoVerTodas: cRes.data ? rowToConfiguracion(cRes.data).permisoEquipoVerTodas : false,
     notificaciones: cRes.data ? rowToConfiguracion(cRes.data).notificaciones : {},
@@ -267,6 +273,7 @@ type RealtimeHandlers = {
   onCita: (c: CitaAgenda) => void;
   onCitaEliminada: (id: string) => void;
   onSolicitud?: (s: SolicitudEstado) => void;
+  onOperacion?: (o: Operacion) => void;
 };
 
 export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
@@ -313,6 +320,15 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
       (payload) => {
         if (payload.eventType !== "DELETE") {
           handlers.onSolicitud?.(rowToSolicitud(payload.new as StatusRequestRow));
+        }
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "operaciones", ...soloMiAgencia },
+      (payload) => {
+        if (payload.eventType !== "DELETE") {
+          handlers.onOperacion?.(rowToOperacion(payload.new as OperationRow));
         }
       },
     )

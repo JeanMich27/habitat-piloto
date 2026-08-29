@@ -11,7 +11,7 @@
 //     operaciones usan 0.5 en rentas cortas o 2 en corporativas).
 //
 // Ambos parámetros son editables por el usuario: no son supuestos ocultos.
-import type { Lead, Propiedad, TipoOperacion } from "../types";
+import type { Lead, Operacion, Propiedad, TipoOperacion } from "../types";
 
 export const PCT_VENTA_DEFAULT = 5;
 export const MESES_RENTA_DEFAULT = 1;
@@ -80,13 +80,14 @@ export interface FinanzasLead {
   cerrada: boolean;
   ingresoEsperado: number;
   ingresoConfirmado: number;
+  ingresoPendiente: boolean;
 }
 
 export const valorOperacionDeLead = (lead: Lead, propiedad?: Propiedad): number =>
   redondearDinero(lead.montoOferta ?? propiedad?.precio ?? 0);
 
 /** Fuente única para dashboards, reportes, proyección y cierres. */
-export function finanzasDeLead(lead: Lead, propiedad?: Propiedad): FinanzasLead {
+export function finanzasDeLead(lead: Lead, propiedad?: Propiedad, operacion?: Operacion): FinanzasLead {
   const valorOperacion = valorOperacionDeLead(lead, propiedad);
   const tarifa = tarifaDePropiedad(propiedad);
   const comision = comisionBase({
@@ -97,14 +98,16 @@ export function finanzasDeLead(lead: Lead, propiedad?: Propiedad): FinanzasLead 
   });
   // "Cierre" es una etapa de documentos/firma/entrega; el desenlace que
   // confirma que la operación sí se ganó es EstadoLead = "Ganado".
-  const cerrada = lead.estado === "Ganado";
+  const cerrada = lead.estado === "Ganado" && operacion?.estadoValidacion === "validada";
+  const ingresoConfirmado = cerrada ? operacion.comisionBrutaConfirmada : undefined;
   return {
     valorOperacion,
     comision,
     tarifa,
     cerrada,
     ingresoEsperado: comision,
-    ingresoConfirmado: cerrada ? comision : 0,
+    ingresoConfirmado: ingresoConfirmado ?? 0,
+    ingresoPendiente: cerrada && ingresoConfirmado == null,
   };
 }
 

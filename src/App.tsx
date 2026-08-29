@@ -62,6 +62,7 @@ import { createPropertyActions } from "./app/application/propertyActions";
 import { createAppointmentActions } from "./app/application/appointmentActions";
 import { createTeamSettingsActions } from "./app/application/teamSettingsActions";
 import { createDocumentActions } from "./app/application/documentActions";
+import { createOperationActions } from "./app/application/operationActions";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
@@ -118,13 +119,14 @@ function AplicacionConfigurada() {
     leads, setLeads, leadsOperativos, leadsEnSeguimiento,
     usuarios, setUsuarios,
     citas, setCitas,
+    operaciones, setOperaciones,
     solicitudes, setSolicitudes,
     agencia, setAgencia,
     permisoEquipoVerTodas, setPermisoEquipoVerTodas,
     notificaciones, setNotificaciones,
     metricasPropietario, errorMetricasPropietario,
     usuarioActual, clearDemoUser, selectDemoUser,
-    cargandoNube, avisoNube, setAvisoNube,
+    cargandoNube, avisoNube,
   } = useAppData({ perfil, cloudSessionPresent: Boolean(sesion) });
 
   // --- Navegación ---
@@ -135,6 +137,9 @@ function AplicacionConfigurada() {
   const [origenCalculadora, setOrigenCalculadora] = useState<Vista | null>(null);
   // Aviso cuando alguien intenta avanzar un prospecto sin calificarlo.
   const [avisoBant, setAvisoBant] = useState<string | null>(null);
+  // Fallas no fatales al guardar. Se mantienen separadas de `avisoNube`, que
+  // representa que la carga inicial completa falló y sustituye la pantalla.
+  const [avisoPersistencia, setAvisoPersistencia] = useState<string | null>(null);
   // Cliente y filtro con los que debe abrirse la vista de Clientes.
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
   const [etapaClientes, setEtapaClientes] = useState<LeadStage | null>(null);
@@ -205,9 +210,9 @@ function AplicacionConfigurada() {
   const avisos: Notificacion[] = useMemo(
     () =>
       usuarioActual
-        ? construirNotificaciones(usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios)
+        ? construirNotificaciones(usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios, operaciones)
         : [],
-    [usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios],
+    [usuarioActual, leadsEnSeguimiento, propiedades, solicitudes, usuarios, operaciones],
   );
 
   useEffect(() => {
@@ -319,10 +324,10 @@ function AplicacionConfigurada() {
 
   const yo = usuarioActual!;
 
-  const confirmarPersistencia = createPersistenceCoordinator(isCloudEnabled, setAvisoNube);
+  const confirmarPersistencia = createPersistenceCoordinator(isCloudEnabled, setAvisoPersistencia);
   const {
     moverLead, guardarCalificacion, registrarIntentoSinRespuesta, descartarLead,
-    reactivarLead, marcarLeadGanado, registrarInteraccion, resolverOferta, crearCliente, importarLeads,
+    reactivarLead, registrarInteraccion, resolverOferta, crearCliente, importarLeads,
   } = createLeadActions({
     leads, setLeads, currentUser: yo, confirmPersistence: confirmarPersistencia,
     setBusinessNotice: setAvisoBant,
@@ -335,6 +340,15 @@ function AplicacionConfigurada() {
   } = createPropertyActions({
     propiedades, setPropiedades, setSolicitudes, currentUser: yo, cloudEnabled: isCloudEnabled,
     confirmPersistence: confirmarPersistencia, setBusinessNotice: setAvisoBant,
+  });
+  const { reportarOperacion, resolverOperacion } = createOperationActions({
+    operaciones,
+    setOperaciones,
+    setLeads,
+    setPropiedades,
+    currentUser: yo,
+    cloudEnabled: isCloudEnabled,
+    confirmPersistence: confirmarPersistencia,
   });
   const { generatePropertySheet } = createDocumentActions({ currentUserId: yo.id, publicOrigin: window.location.origin });
   const irADetalle = (propiedadId: string) => {
@@ -513,6 +527,7 @@ function AplicacionConfigurada() {
                 leads,
                 usuarios,
                 citas,
+                operaciones,
                 agencia,
                 permisoEquipoVerTodas,
                 notificaciones,
@@ -534,6 +549,20 @@ function AplicacionConfigurada() {
             <button
               onClick={() => setAvisoBant(null)}
               className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {avisoPersistencia && (
+        <div className="fixed inset-x-0 bottom-20 z-50 mx-auto max-w-md px-4 md:bottom-6">
+          <div role="alert" className="flex items-start gap-3 rounded-xl border border-rose-300 bg-rose-50 p-4 shadow-lg">
+            <p className="flex-1 text-sm font-medium text-rose-900">{avisoPersistencia}</p>
+            <button
+              onClick={() => setAvisoPersistencia(null)}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100"
             >
               Entendido
             </button>
@@ -579,6 +608,7 @@ function AplicacionConfigurada() {
               propiedades={propiedades}
               leads={leadsOperativos}
               citas={citas}
+              operaciones={operaciones}
               onVerAsesor={irAPerfil}
               onVerPropiedad={irADetalle}
               onVerCliente={irACliente}
@@ -703,6 +733,7 @@ function AplicacionConfigurada() {
                 usuarios={usuarios}
                 leads={leads}
                 propiedades={propiedades}
+                operaciones={operaciones}
                 onGuardarCalificacion={guardarCalificacion}
                 onRegistrarInteraccion={registrarInteraccion}
                 onCambiarEtapa={moverLead}
@@ -711,7 +742,8 @@ function AplicacionConfigurada() {
                 onRegistrarIntento={registrarIntentoSinRespuesta}
                 onDescartarLead={descartarLead}
                 onReactivarLead={reactivarLead}
-                onMarcarGanado={marcarLeadGanado}
+                onReportarOperacion={reportarOperacion}
+                onResolverOperacion={resolverOperacion}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}
@@ -813,7 +845,7 @@ function AplicacionConfigurada() {
             />
           )}
           {vista === "reportes" && (yo.rol === "broker" || yo.rol === "asesor_independiente") && (
-            <Reportes usuarios={usuarios} propiedades={propiedades} leads={leadsOperativos} />
+            <Reportes usuarios={usuarios} propiedades={propiedades} leads={leadsOperativos} operaciones={operaciones} />
           )}
           {vista === "importar" && (yo.rol === "broker" || yo.rol === "asesor_independiente") && (
             <ImportarDatos

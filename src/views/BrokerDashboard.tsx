@@ -35,6 +35,7 @@ import type {
   CitaAgenda,
   Lead,
   LeadStage,
+  Operacion,
   Propiedad,
   PropertyStatus,
   Usuario,
@@ -69,6 +70,7 @@ interface Props {
   propiedades: Propiedad[];
   leads: Lead[];
   citas: CitaAgenda[];
+  operaciones?: Operacion[];
   onVerAsesor: (asesorId: string) => void;
   onVerPropiedad: (propiedadId: string) => void;
   onVerCliente: (leadId: string) => void;
@@ -88,6 +90,7 @@ export default function BrokerDashboard({
   propiedades,
   leads,
   citas,
+  operaciones = [],
   onVerAsesor,
   onVerPropiedad,
   onVerCliente,
@@ -135,8 +138,9 @@ export default function BrokerDashboard({
     .filter((minutos): minutos is number => minutos !== null && minutos >= 0);
   const tiempoRespuestaMediano = mediana(tiemposRespuesta);
   const ingresoConfirmado = ganadasPeriodo.reduce((total, lead) => {
-    const propiedad = propiedades.find((item) => item.id === lead.interesPropiedadId);
-    return total + finanzasDeLead(lead, propiedad).ingresoConfirmado;
+    const operacion = operaciones.find((item) => item.leadId === lead.id && item.estadoValidacion === "validada");
+    const propiedad = propiedades.find((item) => item.id === (operacion?.propiedadId ?? lead.interesPropiedadId));
+    return total + finanzasDeLead(lead, propiedad, operacion).ingresoConfirmado;
   }, 0);
 
   // El pipeline describe dónde terminó hoy la cohorte elegida. Ganados y
@@ -864,10 +868,11 @@ export default function BrokerDashboard({
         >
           <div className="space-y-2">
             {ganadasPeriodo.map((lead) => {
+              const operacion = operaciones.find((item) => item.leadId === lead.id && item.estadoValidacion === "validada");
               const propiedad = propiedades.find(
-                (item) => item.id === lead.interesPropiedadId,
+                (item) => item.id === (operacion?.propiedadId ?? lead.interesPropiedadId),
               );
-              const finanzas = finanzasDeLead(lead, propiedad);
+              const finanzas = finanzasDeLead(lead, propiedad, operacion);
               return (
                 <button
                   key={lead.id}
@@ -879,14 +884,14 @@ export default function BrokerDashboard({
                       {lead.nombre}
                     </span>
                     <span className="block truncate text-[11px] text-slate-500">
-                      {propiedad?.titulo ?? "Sin propiedad vinculada"}
+                      {propiedad?.titulo ?? operacion?.propiedadReferencia ?? "Sin propiedad vinculada"}
                     </span>
                   </span>
                   <span className="text-xs text-slate-500">
                     {lead.cerradoEn ? formatFecha(lead.cerradoEn) : "Sin fecha"}
                   </span>
                   <span className="text-right text-xs font-bold text-emerald-700">
-                    {formatoMXN(finanzas.ingresoConfirmado)}
+                    {finanzas.ingresoPendiente ? "Ingreso pendiente" : formatoMXN(finanzas.ingresoConfirmado)}
                   </span>
                 </button>
               );

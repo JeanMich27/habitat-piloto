@@ -8,6 +8,7 @@ import type {
   AgenciaInfo,
   CitaAgenda,
   Lead,
+  Operacion,
   Propiedad,
   SolicitudEstado,
   Usuario,
@@ -17,6 +18,7 @@ import type {
   AppointmentRow,
   ConfigurationRow,
   LeadRow,
+  OperationRow,
   PropertyRow,
   StatusRequestRow,
   UserRow,
@@ -128,8 +130,37 @@ export function rowToPropiedad(r: PropertyRow): Propiedad {
     exclusiva: r.exclusiva ?? undefined,
     crmOrigen: r.crm_origen ?? undefined,
     crmIdInterno: r.crm_id_interno ?? undefined,
+    crmEstatus: r.crm_estatus ?? undefined,
+    crmEstatusEn: r.crm_estatus_en ?? undefined,
+    crmOperaciones: r.crm_operaciones ?? [],
     urlPublica: r.eb_public_url ?? undefined,
     enlacesPromocion: r.enlaces_promocion ?? [],
+  };
+}
+
+export function rowToOperacion(r: OperationRow): Operacion {
+  return {
+    id: r.id,
+    version: Number(r.version) || 1,
+    leadId: r.lead_id,
+    propiedadId: r.propiedad_id ?? undefined,
+    propiedadReferencia: r.propiedad_referencia ?? undefined,
+    crmPropiedadId: r.crm_propiedad_id ?? undefined,
+    estadoValidacion: r.estado_validacion,
+    reportadoPor: r.reportado_por,
+    reportadoEn: r.reportado_en,
+    tipoOperacion: r.tipo_operacion ?? undefined,
+    fechaCierre: r.fecha_cierre ?? undefined,
+    montoFinal: r.monto_final != null ? Number(r.monto_final) : undefined,
+    moneda: r.moneda,
+    comisionBrutaConfirmada:
+      r.comision_bruta_confirmada != null ? Number(r.comision_bruta_confirmada) : undefined,
+    comentarioAsesor: r.comentario_asesor ?? undefined,
+    observacionBroker: r.observacion_broker ?? undefined,
+    resueltoPor: r.resuelto_por ?? undefined,
+    resueltoEn: r.resuelto_en ?? undefined,
+    datosReportadosOriginales: r.datos_reportados_originales ?? {},
+    historialRevisiones: r.historial_revisiones ?? [],
   };
 }
 
