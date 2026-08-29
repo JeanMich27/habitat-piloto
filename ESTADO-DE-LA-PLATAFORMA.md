@@ -3,6 +3,18 @@
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
+> **29/08/2026 — Rediseño de Clientes, local sin publicar.**
+> En `codex/clientes-bandeja-simple`, la pantalla deja de mezclar ubicación,
+> desenlace y etapa. La navegación principal ahora es `Por atender`,
+> `En seguimiento` y `Cerrados`; `Contactos` y `Archivo` quedan como áreas
+> secundarias. `tareas.vence_en` es la fuente canónica de seguimientos
+> programados/vencidos y una sola función de dominio produce clasificación,
+> orden y conteos para evitar discrepancias entre encabezado y lista. Se agregó
+> programación de seguimiento sobre la tabla `tareas` existente, sin migración.
+> Verificado en escritorio y móvil. `npm ci`, typecheck, lint, 220 pruebas,
+> build, presupuesto de bundle y 14 E2E en verde. Sin despliegue ni cambios de
+> base de datos.
+
 > **28/08/2026 — Revisión del Centro de control del Broker (Claude), local sin publicar.**
 > Verificado contra las decisiones previas del proyecto: la cohorte usa
 > `leadsOperativos`/`esLeadOperativo`, así que el embudo y la conversión NO

@@ -32,6 +32,7 @@ test("asesor: cartera, seguimiento y agenda", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Hola, Lulu" })).toBeVisible();
   await page.getByRole("button", { name: "Clientes", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Clientes" })).toBeVisible();
+  await page.getByRole("button", { name: /Actividad \(/ }).click();
   const note = page.getByPlaceholder("¿Qué pasó con este cliente?");
   await note.fill("Seguimiento smoke E2E");
   await page.getByRole("button", { name: "Registrar", exact: true }).click();

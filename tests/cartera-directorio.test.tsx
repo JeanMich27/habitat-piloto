@@ -50,7 +50,7 @@ describe("esLeadOperativo", () => {
   });
 });
 
-describe("Clientes: selector de cartera", () => {
+describe("Clientes: navegación por tipo de relación", () => {
   const pintar = () =>
     render(
       <Clientes
@@ -70,27 +70,25 @@ describe("Clientes: selector de cartera", () => {
       />,
     );
 
-  it("abre en Embudo activo y esconde directorio e histórico", () => {
+  it("abre en Por atender y esconde contactos y archivo", () => {
     pintar();
     expect(screen.getAllByText("Prospecto Activo").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("Contacto Directorio")).toHaveLength(0);
     expect(screen.queryAllByText("Lead Historico")).toHaveLength(0);
   });
 
-  it("Directorio muestra solo lo importado del CRM", async () => {
+  it("Contactos muestra solo la agenda importada del CRM", async () => {
     pintar();
-    await userEvent.click(screen.getByRole("button", { name: /Directorio/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Contactos/i }));
     expect(screen.getAllByText("Contacto Directorio").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("Prospecto Activo")).toHaveLength(0);
   });
 
-  it("Todos muestra la cartera completa", async () => {
+  it("Archivo muestra las solicitudes antiguas sin mezclarlas con el trabajo actual", async () => {
     pintar();
-    // El primer "Todos" pertenece al selector de cartera; el segundo filtra
-    // el estado del lead y no cambia el universo directorio/histórico.
-    await userEvent.click(screen.getAllByRole("button", { name: /^Todos/i })[0]);
-    expect(screen.getAllByText("Prospecto Activo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Contacto Directorio").length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: /Archivo/i }));
+    expect(screen.queryAllByText("Prospecto Activo")).toHaveLength(0);
+    expect(screen.queryAllByText("Contacto Directorio")).toHaveLength(0);
     expect(screen.getAllByText("Lead Historico").length).toBeGreaterThan(0);
   });
 });

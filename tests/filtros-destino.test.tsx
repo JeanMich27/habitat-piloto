@@ -100,9 +100,9 @@ describe("Clientes — llegada filtrada por velocidad de respuesta", () => {
     expect(nombresEnLista()).toHaveLength(leads.length);
   });
 
-  it("sin filtro inicial muestra la cartera completa", () => {
+  it("sin filtro inicial muestra solo lo que está Por atender", () => {
     render(<Clientes {...propsClientes} />);
-    expect(nombresEnLista()).toHaveLength(leads.length);
+    expect(nombresEnLista().sort()).toEqual(["Fantasma Dos", "Fantasma Uno"]);
   });
 });
 

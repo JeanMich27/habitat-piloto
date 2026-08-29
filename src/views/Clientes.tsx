@@ -1,33 +1,36 @@
-// Vista de Clientes — visible solo para asesores y broker.
-//
-// Es la misma persona que vive en el pipeline (Lead), pero vista como ficha:
-// quién es, qué tan calificado está y todo lo que ha pasado con él.
-//
-// Regla de la interfaz: todo lo que el asesor captura se muestra resumido.
-// Nada de volver a leer el cuestionario completo para entender al cliente —
-// la ficha responde en tres segundos: ¿qué tan bueno es y qué sigue?
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
   Building2,
-  CalendarPlus,
+  CalendarClock,
+  CheckCircle2,
   Clock,
+  ContactRound,
+  Filter,
+  FolderArchive,
   Mail,
+  MoreHorizontal,
   Phone,
-  Search,
   Sparkles,
   Target,
   User as UserIcon,
+  Users,
   X,
 } from "lucide-react";
+import type { ProgramarSeguimientoInput } from "../app/application/taskActions";
 import BotonWhatsApp from "../components/BotonWhatsApp";
 import CalificarProspectoModal from "../components/CalificarProspectoModal";
 import DescartarLeadModal, { type ResultadoDescarte } from "../components/DescartarLeadModal";
 import NuevoClienteModal from "../components/NuevoClienteModal";
 import OperacionModal from "../components/OperacionModal";
-import type { ReportarOperacionInput, ResolverOperacionInput } from "../repositories/operationsRepository";
-import { QualificationBadge } from "./clientes/QualificationBadge";
-import { ClientsHeader } from "./clientes/ClientsHeader";
+import ProgramarSeguimientoModal from "../components/ProgramarSeguimientoModal";
+import {
+  construirBandejaClientes,
+  textoMotivoAtencion,
+  type BandejaCliente,
+  type ClienteClasificado,
+} from "../domain/clients/attention";
 import { evaluarBant } from "../domain/leads/qualification";
 import { etiquetaEtapa } from "../lib/metrics";
 import {
@@ -36,6 +39,7 @@ import {
   rangoDeLead,
   type RangoRespuesta,
 } from "../lib/respuesta";
+import type { ReportarOperacionInput, ResolverOperacionInput } from "../repositories/operationsRepository";
 import type {
   CalificacionBANT,
   ClasificacionLead,
@@ -44,6 +48,7 @@ import type {
   LeadStage,
   Operacion,
   Propiedad,
+  Tarea,
   TipoInteraccion,
   Usuario,
 } from "../types";
@@ -57,14 +62,13 @@ import {
   motivoPerdidaEtiqueta,
   puntajeBant,
   sugiereDescarte,
-  totalBant,
 } from "../types";
+import { ClientsHeader } from "./clientes/ClientsHeader";
+import { QualificationBadge } from "./clientes/QualificationBadge";
 
-const COLOR: Record<ClasificacionLead, string> = {
-  Hot: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Warm: "border-amber-200 bg-amber-50 text-amber-700",
-  Cold: "border-slate-200 bg-slate-100 text-slate-600",
-};
+type VistaClientes = BandejaCliente | "resultados";
+type TabDetalle = "resumen" | "actividad" | "intereses";
+type FiltroRapido = "ninguno" | "vencidos" | "alta_prioridad" | "cierres_por_validar";
 
 const TIPOS_INTERACCION: { valor: TipoInteraccion; etiqueta: string }[] = [
   { valor: "Nota", etiqueta: "Nota" },
@@ -74,85 +78,56 @@ const TIPOS_INTERACCION: { valor: TipoInteraccion; etiqueta: string }[] = [
   { valor: "Visita", etiqueta: "Visita" },
 ];
 
-const fmtFechaHora = (iso: string) =>
-  new Date(iso).toLocaleString("es-MX", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const COLOR_CLASE: Record<ClasificacionLead, string> = {
+  Hot: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  Warm: "border-amber-200 bg-amber-50 text-amber-800",
+  Cold: "border-sky-200 bg-sky-50 text-sky-800",
+};
 
 const fmtFecha = (iso: string) =>
   new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+const fmtFechaHora = (iso: string) =>
+  new Date(iso).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-/**
- * Cuánto lleva esperando este lead. Se muestra en relativo ("hace 3 h") porque
- * es la única forma en que la urgencia se lee sin hacer cuentas: "20 ago" no
- * le dice nada a un asesor a las 6 de la tarde; "hace 3 h" sí.
- */
 const haceCuanto = (iso: string): string => {
   const ms = Date.now() - (Date.parse(iso) || Date.now());
   if (ms < 0) return "ahora";
-  const min = Math.floor(ms / 60000);
-  if (min < 60) return min <= 1 ? "hace un momento" : `hace ${min} min`;
-  const horas = Math.floor(min / 60);
+  const minutos = Math.floor(ms / 60_000);
+  if (minutos < 60) return minutos <= 1 ? "hace un momento" : `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
   if (horas < 24) return `hace ${horas} h`;
   const dias = Math.floor(horas / 24);
   if (dias < 31) return `hace ${dias} día${dias === 1 ? "" : "s"}`;
-  const meses = Math.floor(dias / 30.44);
-  if (meses < 12) return `hace ${meses} mes${meses === 1 ? "" : "es"}`;
-  const anios = Math.floor(meses / 12);
-  return `hace ${anios} año${anios === 1 ? "" : "s"}`;
-};
-
-/** Un lead sin atender pierde valor por hora: las primeras horas se marcan. */
-const colorEspera = (iso: string, atendido: boolean): string => {
-  if (atendido) return "text-slate-500";
-  const horas = (Date.now() - (Date.parse(iso) || Date.now())) / 3.6e6;
-  if (horas <= 1) return "font-bold text-emerald-600";
-  if (horas <= 24) return "font-semibold text-amber-600";
-  return "font-semibold text-rose-600";
-};
-
-const ESTILO_ESTADO: Record<string, string> = {
-  "Sin respuesta": "border-amber-200 bg-amber-50 text-amber-700",
-  Descartado: "border-rose-200 bg-rose-50 text-rose-700",
-  Ganado: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  return fmtFecha(iso);
 };
 
 const etiquetaDe = (catalogo: { valor: string; etiqueta: string }[], valor?: string) =>
-  catalogo.find((o) => o.valor === valor)?.etiqueta ?? "—";
+  catalogo.find((opcion) => opcion.valor === valor)?.etiqueta ?? "—";
+
+const noopBoolean = async () => false;
 
 interface Props {
   usuario: Usuario;
   usuarios: Usuario[];
   leads: Lead[];
   propiedades: Propiedad[];
-  onGuardarCalificacion: (leadId: string, bant: CalificacionBANT) => Promise<boolean>;
-  onRegistrarInteraccion: (
-    leadId: string,
-    tipo: TipoInteraccion,
-    descripcion: string,
-  ) => Promise<boolean>;
-  onCambiarEtapa: (leadId: string, etapa: LeadStage) => Promise<boolean>;
-  onCrearCliente: (lead: Lead) => Promise<boolean>;
-  /** Abre el modal de agenda con este prospecto precargado. */
-  onAgendarVisita: (leadId: string) => void;
-  /** Un intento sin respuesta. No es descarte: es información que se cuenta. */
-  onRegistrarIntento: (leadId: string) => Promise<boolean>;
-  onDescartarLead: (leadId: string, r: ResultadoDescarte) => Promise<boolean>;
-  onReactivarLead: (leadId: string) => Promise<boolean>;
+  tareas?: Tarea[];
   operaciones?: Operacion[];
-  onReportarOperacion: (input: ReportarOperacionInput) => Promise<boolean>;
-  onResolverOperacion: (input: ResolverOperacionInput) => Promise<boolean>;
-  /** Cliente que se debe abrir al entrar (desde el dashboard o una notificación). */
+  onGuardarCalificacion: (leadId: string, bant: CalificacionBANT) => Promise<boolean> | boolean | void;
+  onRegistrarInteraccion: (leadId: string, tipo: TipoInteraccion, descripcion: string) => Promise<boolean> | boolean | void;
+  onCambiarEtapa: (leadId: string, etapa: LeadStage) => Promise<boolean> | boolean | void;
+  onCrearCliente: (lead: Lead) => Promise<boolean> | boolean | void;
+  onAgendarVisita: (leadId: string) => void;
+  onRegistrarIntento?: (leadId: string) => Promise<boolean>;
+  onDescartarLead?: (leadId: string, resultado: ResultadoDescarte) => Promise<boolean>;
+  onReactivarLead?: (leadId: string) => Promise<boolean>;
+  onReportarOperacion?: (input: ReportarOperacionInput) => Promise<boolean>;
+  onResolverOperacion?: (input: ResolverOperacionInput) => Promise<boolean>;
+  onProgramarSeguimiento?: (input: ProgramarSeguimientoInput) => Promise<boolean>;
+  onCompletarProximaTarea?: (leadId: string) => Promise<boolean>;
   clienteInicialId?: string | null;
-  /** Filtro de etapa precargado (al tocar un número del embudo). */
   etapaInicial?: LeadStage | null;
-  /** Filtro de calificación precargado (al tocar un nivel en Salud inmobiliaria). */
   claseInicial?: ClasificacionLead | "Sin calificar" | null;
-  /** Filtro de velocidad de primer contacto (al tocar una barra en Salud inmobiliaria). */
   respuestaInicial?: RangoRespuesta | null;
 }
 
@@ -161,1077 +136,320 @@ export default function Clientes({
   usuarios,
   leads,
   propiedades,
+  tareas = [],
+  operaciones = [],
   onGuardarCalificacion,
   onRegistrarInteraccion,
   onCambiarEtapa,
   onCrearCliente,
   onAgendarVisita,
-  onRegistrarIntento,
-  onDescartarLead,
-  onReactivarLead,
-  operaciones = [],
-  onReportarOperacion,
-  onResolverOperacion,
+  onRegistrarIntento = noopBoolean,
+  onDescartarLead = noopBoolean,
+  onReactivarLead = noopBoolean,
+  onReportarOperacion = noopBoolean,
+  onResolverOperacion = noopBoolean,
+  onProgramarSeguimiento = noopBoolean,
+  onCompletarProximaTarea = noopBoolean,
   clienteInicialId,
   etapaInicial,
   claseInicial,
   respuestaInicial,
 }: Props) {
-  // El asesor de equipo ve su cartera; el broker y el independiente, todo su alcance.
-  const visibles = useMemo(() => {
-    const todos =
-      usuario.rol === "broker" ||
-      usuario.rol === "asesor_independiente" ||
-      usuario.puedeVerOtrasPropiedades;
-    return todos ? leads : leads.filter((l) => l.asesorId === usuario.id);
-  }, [leads, usuario]);
-
+  const bandeja = useMemo(
+    () => construirBandejaClientes({ leads, tareas, operaciones, usuario }),
+    [leads, tareas, operaciones, usuario],
+  );
+  const [vista, setVista] = useState<VistaClientes>("por_atender");
   const [busqueda, setBusqueda] = useState("");
-  const [filtroClase, setFiltroClase] = useState<"Todas" | ClasificacionLead | "Sin calificar">(
-    claseInicial ?? "Todas",
-  );
+  const [filtroRapido, setFiltroRapido] = useState<FiltroRapido>("ninguno");
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const [filtroClase, setFiltroClase] = useState<"Todas" | ClasificacionLead | "Sin calificar">(claseInicial ?? "Todas");
   const [filtroEtapa, setFiltroEtapa] = useState<"Todas" | LeadStage>(etapaInicial ?? "Todas");
-  // Esta pantalla es la única que recibe la lista COMPLETA: embudo activo,
-  // directorio importado de EasyBroker (contactos sin actividad de portal) e
-  // histórico (solicitudes anteriores a la ventana del sync). Arranca en
-  // "Embudo activo" a propósito: abrir en 1,200 fichas sin etapa real haría
-  // inútil la pantalla y escondería lo que sí hay que trabajar hoy.
-  //
-  // La cuarta píldora, "Fuera del CRM", existe para que esta pantalla cuadre
-  // contra EasyBroker: las tres primeras suman EXACTAMENTE lo que el CRM
-  // devuelve hoy, y ahí caen las fichas cuyo contacto el broker ya borró allá.
-  // Sin separarlas, la app mostraba más clientes que el CRM y no había forma
-  // de saber si sobraban o si el sync estaba fallando.
-  const [filtroCartera, setFiltroCartera] =
-    useState<"activos" | "directorio" | "historico" | "fuera_crm" | "todos">("activos");
-  // Velocidad de primer contacto: el filtro con el que aterriza el asesor
-  // cuando toca una barra en Salud inmobiliaria.
-  const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(
-    respuestaInicial ?? "Todas",
-  );
-  // Orden de la lista. Arranca en "recientes" a propósito: lo primero que un
-  // asesor necesita ver al abrir Clientes es quién acaba de llegar. Un lead sin
-  // atender pierde valor por hora, y antes quedaba hasta abajo porque la lista
-  // se ordenaba solo por puntaje BANT — que un lead recién llegado todavía no
-  // tiene. "Prioridad" conserva la lectura de cartera por cercanía al cierre.
-  const [orden, setOrden] = useState<"recientes" | "prioridad">("recientes");
-  // Desenlace. Arranca en "en juego" para que la lista de trabajo no cargue con
-  // prospectos ya cerrados; los descartados siguen a un toque de distancia
-  // porque son la materia prima del análisis de pérdida.
-  const [filtroEstado, setFiltroEstado] =
-    useState<"en_juego" | "sin_respuesta" | "descartados" | "ganados" | "todos">(
-      "en_juego",
-    );
-  const [descartando, setDescartando] = useState<Lead | null>(null);
+  const [filtroRespuesta, setFiltroRespuesta] = useState<"Todas" | RangoRespuesta>(respuestaInicial ?? "Todas");
+  const [filtroAsesor, setFiltroAsesor] = useState("todos");
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicialId ?? null);
-  const [calificando, setCalificando] = useState(false);
-  const [creando, setCreando] = useState(false);
-  const [modalOperacion, setModalOperacion] = useState<"reportar" | "validar" | null>(null);
-  // En pantalla chica no caben lista y ficha a la vez: se muestra una u otra.
-  // En pantalla grande esta variable no hace nada (ambas conviven).
   const [panelMovil, setPanelMovil] = useState<"lista" | "ficha">("lista");
-
-  // Abrir un cliente: en móvil cambia de panel y sube el scroll, para que el
-  // toque tenga una respuesta visible en lugar de "no pasó nada".
-  const abrirCliente = (id: string) => {
-    setSeleccionadoId(id);
-    setPanelMovil("ficha");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const [tab, setTab] = useState<TabDetalle>("resumen");
   const [tipoEvento, setTipoEvento] = useState<TipoInteraccion>("Nota");
   const [textoEvento, setTextoEvento] = useState("");
+  const [creando, setCreando] = useState(false);
+  const [calificando, setCalificando] = useState(false);
+  const [programando, setProgramando] = useState(false);
+  const [descartando, setDescartando] = useState<Lead | null>(null);
+  const [modalOperacion, setModalOperacion] = useState<"reportar" | "validar" | null>(null);
 
-  // Si llegan desde el dashboard o una notificación pidiendo un cliente
-  // concreto, se abre ese y se limpian los filtros que podrían esconderlo.
+  const seleccionarVista = (siguiente: VistaClientes) => {
+    setVista(siguiente);
+    setFiltroRapido("ninguno");
+    setSeleccionadoId(null);
+    setPanelMovil("lista");
+  };
+
   useEffect(() => {
     if (!clienteInicialId) return;
+    setVista("resultados");
     setSeleccionadoId(clienteInicialId);
     setPanelMovil("ficha");
-    setBusqueda("");
-    setFiltroClase("Todas");
-    setFiltroEtapa("Todas");
-    setFiltroRespuesta("Todas");
-    setFiltroCartera("todos");
-    setFiltroEstado("todos");
+    setFiltroRapido("ninguno");
   }, [clienteInicialId]);
 
   useEffect(() => {
-    if (etapaInicial) {
-      setFiltroEtapa(etapaInicial);
-      setFiltroClase("Todas");
-      setFiltroRespuesta("Todas");
-      setFiltroEstado("todos");
-      setPanelMovil("lista");
-    }
-  }, [etapaInicial]);
-
-  // Llegada desde Salud inmobiliaria: se aplica el filtro que se tocó y se
-  // limpian los otros dos, para que la lista muestre exactamente el mismo
-  // conjunto que la barra o el segmento del que vino.
-  useEffect(() => {
-    if (!claseInicial) return;
-    setFiltroClase(claseInicial);
-    setFiltroEtapa("Todas");
-    setFiltroRespuesta("Todas");
+    if (!etapaInicial && !claseInicial && !respuestaInicial) return;
+    setVista("resultados");
     setPanelMovil("lista");
-  }, [claseInicial]);
-
-  useEffect(() => {
-    if (!respuestaInicial) return;
-    setFiltroRespuesta(respuestaInicial);
-    setFiltroClase("Todas");
-    setFiltroEtapa("Todas");
-    setPanelMovil("lista");
-  }, [respuestaInicial]);
+    setFiltroEtapa(etapaInicial ?? "Todas");
+    setFiltroClase(claseInicial ?? "Todas");
+    setFiltroRespuesta(respuestaInicial ?? "Todas");
+  }, [etapaInicial, claseInicial, respuestaInicial]);
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return visibles
-      .filter((l) => {
-        const coincide =
-          q === "" ||
-          l.nombre.toLowerCase().includes(q) ||
-          (l.correo ?? "").toLowerCase().includes(q) ||
-          l.telefono.includes(q);
-        const clase = evaluarBant(l.bant).clasificacion ?? "Sin calificar";
-        const coincideClase = filtroClase === "Todas" || clase === filtroClase;
-        const coincideEtapa = filtroEtapa === "Todas" || l.etapa === filtroEtapa;
-        const coincideRespuesta =
-          filtroRespuesta === "Todas" || rangoDeLead(l) === filtroRespuesta;
-        const coincideEstado =
-          filtroEstado === "todos" ||
-          (filtroEstado === "descartados" && l.estado === "Descartado") ||
-          (filtroEstado === "ganados" && l.estado === "Ganado") ||
-          (filtroEstado === "sin_respuesta" && l.estado === "Sin respuesta") ||
-          (filtroEstado === "en_juego" && l.estado !== "Descartado" && l.estado !== "Ganado");
-        // Las tres primeras píldoras solo ven lo que sigue vivo en el CRM.
-        const enCrm = l.fueraDeCrm !== true;
-        const coincideCartera =
-          filtroCartera === "todos" ||
-          (filtroCartera === "fuera_crm" && l.fueraDeCrm === true) ||
-          (filtroCartera === "directorio" && enCrm && l.esDirectorio === true) ||
-          (filtroCartera === "historico" && enCrm && l.esHistorico === true) ||
-          (filtroCartera === "activos" && enCrm && !l.esDirectorio && !l.esHistorico);
-        return (
-          coincide &&
-          coincideClase &&
-          coincideEtapa &&
-          coincideRespuesta &&
-          coincideCartera &&
-          coincideEstado
-        );
-      })
-      .sort((a, b) => {
-        if (orden === "recientes") {
-          // El último en llegar, primero. El desempate por puntaje evita que
-          // dos registros con la misma fecha (una carga masiva del CRM) salgan
-          // en un orden distinto en cada render.
-          const fa = Date.parse(a.creado) || 0;
-          const fb = Date.parse(b.creado) || 0;
-          if (fb !== fa) return fb - fa;
-          return (evaluarBant(b.bant).puntaje ?? -1) - (evaluarBant(a.bant).puntaje ?? -1);
-        }
-        // Los calificados alto primero: la cartera se lee por prioridad de cierre.
-        const pa = evaluarBant(a.bant).puntaje ?? -1;
-        const pb = evaluarBant(b.bant).puntaje ?? -1;
-        if (pb !== pa) return pb - pa;
-        return (Date.parse(b.creado) || 0) - (Date.parse(a.creado) || 0);
-      });
-  }, [
-    visibles,
-    busqueda,
-    filtroClase,
-    filtroEtapa,
-    filtroRespuesta,
-    filtroCartera,
-    filtroEstado,
-    orden,
-  ]);
-
-  // Filtros activos que NO se ven en los selects, para que el asesor entienda
-  // por qué la lista está recortada y pueda quitarlos de un toque.
-  const filtrosActivos: { clave: string; texto: string; limpiar: () => void }[] = [];
-  if (filtroRespuesta !== "Todas") {
-    filtrosActivos.push({
-      clave: "respuesta",
-      texto: `Respuesta: ${etiquetaRango(filtroRespuesta)}`,
-      limpiar: () => setFiltroRespuesta("Todas"),
+    return bandeja.clientes.filter((item) => {
+      const lead = item.lead;
+      const coincideBusqueda = !q || lead.nombre.toLowerCase().includes(q) ||
+        (lead.correo ?? "").toLowerCase().includes(q) || lead.telefono.includes(q);
+      if (!coincideBusqueda) return false;
+      if (!q && vista !== "resultados" && item.bandeja !== vista) return false;
+      if (filtroRapido === "vencidos" && item.motivo !== "seguimiento_vencido") return false;
+      if (filtroRapido === "alta_prioridad" && !item.altaPrioridad) return false;
+      if (filtroRapido === "cierres_por_validar" && item.motivo !== "cierre_por_validar") return false;
+      const clase = evaluarBant(lead.bant).clasificacion ?? "Sin calificar";
+      if (filtroClase !== "Todas" && clase !== filtroClase) return false;
+      if (filtroEtapa !== "Todas" && lead.etapa !== filtroEtapa) return false;
+      if (filtroRespuesta !== "Todas" && rangoDeLead(lead) !== filtroRespuesta) return false;
+      if (filtroAsesor !== "todos" && lead.asesorId !== filtroAsesor) return false;
+      return true;
     });
-  }
+  }, [bandeja.clientes, busqueda, vista, filtroRapido, filtroClase, filtroEtapa, filtroRespuesta, filtroAsesor]);
 
-  const seleccionado = filtrados.find((l) => l.id === seleccionadoId) ?? filtrados[0] ?? null;
-  const operacionSeleccionada = seleccionado
-    ? operaciones
-        .filter((item) => item.leadId === seleccionado.id)
-        .sort((a, b) => Date.parse(b.reportadoEn) - Date.parse(a.reportadoEn))[0]
-    : undefined;
-  const propiedadInteres = propiedades.find((p) => p.id === seleccionado?.interesPropiedadId);
-  const asesor = usuarios.find((u) => u.id === seleccionado?.asesorId);
+  // Una interacción puede mover al cliente de "Por atender" a "En seguimiento".
+  // La ficha permanece abierta para confirmar lo que se guardó; cambiar de
+  // sección explícitamente sí limpia la selección mediante `seleccionarVista`.
+  const seleccionadoItem =
+    (seleccionadoId ? bandeja.clientes.find((item) => item.lead.id === seleccionadoId) : null) ??
+    filtrados[0] ??
+    null;
+  const seleccionado = seleccionadoItem?.lead ?? null;
+  const propiedadInteres = propiedades.find((propiedad) => propiedad.id === seleccionado?.interesPropiedadId);
+  const asesor = usuarios.find((item) => item.id === seleccionado?.asesorId);
+  const operacionSeleccionada = seleccionadoItem?.operacion;
+  const historial: Interaccion[] = [...(seleccionado?.historial ?? [])].sort((a, b) => b.fecha.localeCompare(a.fecha));
 
-  const sinCalificar = visibles.filter((l) => !evaluarBant(l.bant).calificado).length;
-  const calientes = visibles.filter(
-    (l) => evaluarBant(l.bant).clasificacion === "Hot",
-  ).length;
+  const abrirCliente = (id: string) => {
+    setSeleccionadoId(id);
+    setPanelMovil("ficha");
+    setTab("resumen");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const registrar = async () => {
     if (!seleccionado || !textoEvento.trim()) return;
-    if (!(await onRegistrarInteraccion(seleccionado.id, tipoEvento, textoEvento.trim()))) return;
+    // El primer evento convierte un lead nuevo en contactado y puede moverlo
+    // de bandeja; fijar la selección evita que la ficha salte al siguiente.
+    setSeleccionadoId(seleccionado.id);
+    const guardado = await onRegistrarInteraccion(seleccionado.id, tipoEvento, textoEvento.trim());
+    if (guardado === false) return;
+    if (tipoEvento !== "Nota") await onCompletarProximaTarea(seleccionado.id);
     setTextoEvento("");
   };
 
-  // Historial ordenado del más reciente al más viejo.
-  const historial: Interaccion[] = [...(seleccionado?.historial ?? [])].sort((a, b) =>
-    b.fecha.localeCompare(a.fecha),
-  );
+  const registrarWhatsApp = async () => {
+    if (!seleccionado) return;
+    const guardado = await onRegistrarInteraccion(seleccionado.id, "WhatsApp", "Se le escribió por WhatsApp");
+    if (guardado !== false) await onCompletarProximaTarea(seleccionado.id);
+  };
 
-  const bant = seleccionado?.bant;
-  const evaluacionBant = evaluarBant(bant);
-  const total = evaluacionBant.puntaje ?? (bant ? totalBant(bant) : 0);
-  const clase = evaluacionBant.clasificacion;
-  const desglose = bant ? puntajeBant(bant) : null;
+  const registrarSinRespuesta = async () => {
+    if (!seleccionado || !(await onRegistrarIntento(seleccionado.id))) return;
+    await onCompletarProximaTarea(seleccionado.id);
+    setProgramando(true);
+  };
+
+  const limpiarFiltros = () => {
+    setFiltroClase("Todas");
+    setFiltroEtapa("Todas");
+    setFiltroRespuesta("Todas");
+    setFiltroAsesor("todos");
+    setFiltroRapido("ninguno");
+    setVista("por_atender");
+  };
+
+  const filtrosActivos = [
+    filtroClase !== "Todas",
+    filtroEtapa !== "Todas",
+    filtroRespuesta !== "Todas",
+    filtroAsesor !== "todos",
+    filtroRapido !== "ninguno",
+  ].filter(Boolean).length;
+
+  const abrirFiltroRapido = (filtro: FiltroRapido) => {
+    setVista(filtro === "alta_prioridad" ? "resultados" : "por_atender");
+    setFiltroRapido(filtro);
+    setPanelMovil("lista");
+    setSeleccionadoId(null);
+  };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-      <ClientsHeader hot={calientes} unqualified={sinCalificar} onCreate={() => setCreando(true)} />
+    <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+      <div className={`${panelMovil === "ficha" ? "hidden" : "block"} space-y-5 lg:block`}>
+        <ClientsHeader search={busqueda} onSearch={setBusqueda} onCreate={() => setCreando(true)} />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* ============ Lista ============ */}
-        <div
-          className={`space-y-3 lg:col-span-5 lg:block xl:col-span-4 ${
-            panelMovil === "ficha" ? "hidden" : ""
-          }`}
-        >
-          <div className="glass space-y-2 p-3">
-            <div className="flex items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 transition-colors focus-within:border-violet-400 focus-within:bg-white">
-              <Search className="size-4 shrink-0 text-slate-500" />
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre, correo o teléfono"
-                className="w-full bg-transparent py-2 text-sm text-slate-900 outline-none"
-              />
-            </div>
-            {/* Qué parte de la cartera se está viendo. Va primero porque
-                cambia el universo, no solo el recorte. */}
-            <div className="flex flex-wrap gap-1.5">
-              {(
-                [
-                  { clave: "activos", texto: "Embudo activo" },
-                  { clave: "directorio", texto: "Directorio" },
-                  { clave: "historico", texto: "Histórico" },
-                  { clave: "fuera_crm", texto: "Fuera del CRM" },
-                  { clave: "todos", texto: "Todos" },
-                ] as const
-              )
-                // La píldora de "Fuera del CRM" solo aparece cuando hay algo
-                // que mostrar. Un contador clavado en 0 es ruido permanente.
-                .filter((op) => op.clave !== "fuera_crm" || visibles.some((l) => l.fueraDeCrm === true))
-                .map((op) => {
-                const n = visibles.filter((l) => {
-                  const enCrm = l.fueraDeCrm !== true;
-                  if (op.clave === "todos") return true;
-                  if (op.clave === "fuera_crm") return l.fueraDeCrm === true;
-                  if (op.clave === "directorio") return enCrm && l.esDirectorio === true;
-                  if (op.clave === "historico") return enCrm && l.esHistorico === true;
-                  return enCrm && !l.esDirectorio && !l.esHistorico;
-                }).length;
-                const activo = filtroCartera === op.clave;
-                return (
-                  <button
-                    key={op.clave}
-                    type="button"
-                    onClick={() => setFiltroCartera(op.clave)}
-                    aria-pressed={activo}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      activo
-                        ? "bg-violet-600 text-white"
-                        : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    {op.texto} <span className="opacity-70">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <section aria-label="Trabajo de hoy" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <IndicadorHoy icon={<Users className="size-4" />} label="Por atender" value={bandeja.conteos.porAtender} tone="violet" onClick={() => seleccionarVista("por_atender")} />
+        <IndicadorHoy icon={<AlertCircle className="size-4" />} label="Seguimientos vencidos" value={bandeja.conteos.vencidos} tone="rose" onClick={() => abrirFiltroRapido("vencidos")} />
+        <IndicadorHoy icon={<Sparkles className="size-4" />} label="Alta prioridad" value={bandeja.conteos.altaPrioridad} tone="emerald" onClick={() => abrirFiltroRapido("alta_prioridad")} />
+        {usuario.rol === "broker" ? (
+          <IndicadorHoy icon={<CheckCircle2 className="size-4" />} label="Cierres por validar" value={bandeja.conteos.cierresPorValidar} tone="amber" onClick={() => abrirFiltroRapido("cierres_por_validar")} />
+        ) : (
+          <IndicadorHoy icon={<CalendarClock className="size-4" />} label="Seguimientos para hoy" value={bandeja.conteos.paraHoy} tone="amber" onClick={() => seleccionarVista("por_atender")} />
+        )}
+        </section>
 
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={filtroClase}
-                onChange={(e) => setFiltroClase(e.target.value as typeof filtroClase)}
-                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
-              >
-                <option value="Todas">Todas las calificaciones</option>
-                <option value="Hot">Hot — listos para cerrar</option>
-                <option value="Warm">Warm — en seguimiento</option>
-                <option value="Cold">Cold — aún no listos</option>
-                <option value="Sin calificar">Sin calificar</option>
-              </select>
-              <select
-                value={filtroEtapa}
-                onChange={(e) => setFiltroEtapa(e.target.value as typeof filtroEtapa)}
-                className="rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
-              >
-                <option value="Todas">Todas las etapas</option>
-                {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
-                  (e) => (
-                    <option key={e} value={e}>
-                      {etiquetaEtapa(e)}
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
-
-            {/* Desenlace. Los cerrados no se borran ni se esconden en un menú:
-                se apartan de la lista de trabajo y quedan a un toque, porque
-                el "por qué los perdimos" es de lo más valioso que produce
-                esta pantalla. */}
-            <div className="flex flex-wrap gap-1.5">
-              {(
-                [
-                  { clave: "en_juego", texto: "En juego" },
-                  { clave: "sin_respuesta", texto: "Sin respuesta" },
-                  { clave: "descartados", texto: "Descartados" },
-                  { clave: "ganados", texto: "Ganados" },
-                  { clave: "todos", texto: "Todos" },
-                ] as const
-              ).map((op) => {
-                const n = visibles.filter((l) =>
-                  op.clave === "todos"
-                    ? true
-                    : op.clave === "descartados"
-                      ? l.estado === "Descartado"
-                      : op.clave === "ganados"
-                        ? l.estado === "Ganado"
-                      : op.clave === "sin_respuesta"
-                        ? l.estado === "Sin respuesta"
-                        : l.estado !== "Descartado" && l.estado !== "Ganado",
-                ).length;
-                const activo = filtroEstado === op.clave;
-                return (
-                  <button
-                    key={op.clave}
-                    type="button"
-                    onClick={() => setFiltroEstado(op.clave)}
-                    aria-pressed={activo}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      activo
-                        ? "bg-slate-700 text-white"
-                        : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
-                    }`}
-                  >
-                    {op.texto} <span className="opacity-70">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Orden de la lista. Va junto a los filtros y no escondido en un
-                menú: cambiar de "lo más nuevo" a "lo más caliente" es una
-                decisión que el asesor toma varias veces al día. */}
-            <div className="flex items-center gap-1.5">
-              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Ordenar
-              </span>
-              {(
-                [
-                  { clave: "recientes", texto: "Más reciente" },
-                  { clave: "prioridad", texto: "Prioridad" },
-                ] as const
-              ).map((op) => (
-                <button
-                  key={op.clave}
-                  type="button"
-                  onClick={() => setOrden(op.clave)}
-                  aria-pressed={orden === op.clave}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    orden === op.clave
-                      ? "bg-slate-900 text-white"
-                      : "border border-white/70 bg-white/70 text-slate-600 hover:bg-white"
-                  }`}
-                >
-                  {op.texto}
-                </button>
-              ))}
-            </div>
-
-            {/* Velocidad de primer contacto: mismos cortes que la gráfica de
-                Salud inmobiliaria, para que barra y lista nunca discrepen. */}
-            <select
-              value={filtroRespuesta}
-              onChange={(e) => setFiltroRespuesta(e.target.value as typeof filtroRespuesta)}
-              aria-label="Filtrar por velocidad de primer contacto"
-              className="w-full rounded-xl border border-white/70 bg-white/70 px-2 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
-            >
-              <option value="Todas">Cualquier velocidad de respuesta</option>
-              {RANGOS_RESPUESTA.map((r) => (
-                <option key={r.clave} value={r.clave}>
-                  {r.etiqueta}
-                </option>
-              ))}
-            </select>
-
-            {filtrosActivos.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                {filtrosActivos.map((f) => (
-                  <button
-                    key={f.clave}
-                    onClick={f.limpiar}
-                    className="flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-bold text-violet-700 hover:bg-violet-200"
-                  >
-                    {f.texto} <X className="size-3" />
-                  </button>
-                ))}
-                <span className="text-[11px] text-slate-500">
-                  {filtrados.length} resultado{filtrados.length === 1 ? "" : "s"}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
-            {filtrados.length === 0 && (
-              <p className="glass border-dashed p-8 text-center text-sm text-slate-500">
-                No hay clientes que coincidan con lo que buscas.
-              </p>
-            )}
-
-            {filtrados.map((l) => {
-              const prop = propiedades.find((p) => p.id === l.interesPropiedadId);
-              const activo = seleccionado?.id === l.id;
-              const ultimo = [...(l.historial ?? [])].sort((a, b) =>
-                b.fecha.localeCompare(a.fecha),
-              )[0];
-              return (
-                <div
-                  key={l.id}
-                  className={`glass transition ${
-                    activo
-                      ? "ring-2 ring-violet-400"
-                      : "hover:-translate-y-0.5"
-                  }`}
-                >
-                  <button
-                    onClick={() => abrirCliente(l.id)}
-                    className="w-full p-4 pb-2 text-left"
-                  >
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-[11px] font-bold text-white">
-                          {l.nombre.slice(0, 2).toUpperCase()}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold text-slate-900">
-                            {l.nombre}
-                          </span>
-                          <span className="block truncate text-xs text-slate-500">
-                            {l.ocupacion || l.telefono || "Sin datos de contacto"}
-                          </span>
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {l.fueraDeCrm === true && (
-                          <span
-                            title="Este contacto ya no existe en EasyBroker. La ficha y su historial se conservan aquí."
-                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200"
-                          >
-                            Fuera del CRM
-                          </span>
-                        )}
-                        <QualificationBadge lead={l} />
-                      </span>
-                    </span>
-
-                    <span className="mt-3 block space-y-1 border-t border-slate-100 pt-3 text-xs">
-                      {/* Cuándo llegó y qué le interesa: las dos preguntas que
-                          el asesor hace ANTES de decidir a quién llama. Antes
-                          había que abrir la ficha para saber la fecha. */}
-                      <span className="flex items-center justify-between gap-2">
-                        <span
-                          className={`flex min-w-0 items-center gap-1.5 ${colorEspera(
-                            l.creado,
-                            Boolean(l.primerContactoEn) || l.esDirectorio === true,
-                          )}`}
-                        >
-                          <Clock className="size-3.5 shrink-0" />
-                          <span className="truncate">
-                            {l.esDirectorio ? "En el CRM desde" : "Llegó"} {haceCuanto(l.creado)}
-                            <span className="text-slate-500"> · {fmtFecha(l.creado)}</span>
-                          </span>
-                        </span>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                          {etiquetaEtapa(l.etapa)}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-1.5 text-slate-500">
-                        <Building2 className="size-3.5 shrink-0" />
-                        <span className="truncate">
-                          {prop?.titulo ??
-                            (l.ebPropertyId
-                              ? `Propiedad ${l.ebPropertyId} · ya no está en el catálogo`
-                              : "Sin propiedad de interés")}
-                        </span>
-                      </span>
-                      {(l.estado === "Descartado" || l.estado === "Sin respuesta") && (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
-                            ESTILO_ESTADO[l.estado]
-                          }`}
-                        >
-                          {l.estado === "Descartado"
-                            ? `Cerrado · ${motivoPerdidaEtiqueta(l.motivoPerdida)}`
-                            : `Sin respuesta · ${l.intentosContacto ?? 0} intento${
-                                (l.intentosContacto ?? 0) === 1 ? "" : "s"
-                              }`}
-                        </span>
-                      )}
-                      <span className="flex items-start gap-1.5 text-slate-500">
-                        <Sparkles className="mt-0.5 size-3.5 shrink-0" />
-                        <span className="line-clamp-1">
-                          {ultimo
-                            ? `${ultimo.tipo}: ${ultimo.descripcion}`
-                            : l.nota || "Sin actividad registrada"}
-                        </span>
-                      </span>
-                    </span>
-                  </button>
-
-                  {/* Contactar sin entrar a la ficha: un toque desde la lista. */}
-                  <div className="flex justify-end px-4 pb-3">
-                    <BotonWhatsApp
-                      lead={l}
-                      propiedad={prop}
-                      nombreAsesor={usuario.nombre}
-                      compacto
-                      onContactar={() =>
-                        onRegistrarInteraccion(l.id, "WhatsApp", "Se le escribió por WhatsApp")
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 lg:flex-row lg:items-center lg:justify-between">
+        <nav aria-label="Estado de los clientes" className="grid grid-cols-3 rounded-2xl bg-slate-100 p-1 lg:flex">
+          <BotonVista active={vista === "por_atender"} label="Por atender" count={bandeja.conteos.porAtender} onClick={() => seleccionarVista("por_atender")} />
+          <BotonVista active={vista === "en_seguimiento"} label="En seguimiento" count={bandeja.conteos.enSeguimiento} onClick={() => seleccionarVista("en_seguimiento")} />
+          <BotonVista active={vista === "cerrados"} label="Cerrados" count={bandeja.conteos.cerrados} onClick={() => seleccionarVista("cerrados")} />
+        </nav>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => seleccionarVista("contactos")} aria-pressed={vista === "contactos"} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${vista === "contactos" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}><ContactRound className="size-4" /> Contactos <span className="text-slate-400">{bandeja.conteos.contactos}</span></button>
+          <button onClick={() => seleccionarVista("archivo")} aria-pressed={vista === "archivo"} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold ${vista === "archivo" ? "bg-violet-100 text-violet-800" : "text-slate-600 hover:bg-slate-100"}`}><FolderArchive className="size-4" /> Archivo <span className="text-slate-400">{bandeja.conteos.archivo}</span></button>
+          <button onClick={() => setFiltrosAbiertos((actual) => !actual)} aria-expanded={filtrosAbiertos} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Filter className="size-4" /> Filtros{filtrosActivos > 0 ? ` (${filtrosActivos})` : ""}</button>
+        </div>
         </div>
 
-        {/* ============ Ficha ============ */}
-        <div
-          className={`space-y-4 lg:col-span-7 lg:block xl:col-span-8 ${
-            panelMovil === "lista" ? "hidden" : ""
-          }`}
-        >
-          {/* Regreso a la lista: solo existe en móvil, donde hubo un cambio de panel. */}
-          <button
-            onClick={() => setPanelMovil("lista")}
-            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 lg:hidden"
-          >
-            <ArrowLeft className="size-4" /> Volver a la lista
-          </button>
+        {filtrosAbiertos && (
+        <section className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Filtros de clientes">
+          <select aria-label="Filtrar por calificación" value={filtroClase} onChange={(e) => setFiltroClase(e.target.value as typeof filtroClase)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs">
+            <option value="Todas">Cualquier prioridad</option><option value="Hot">Hot · alta prioridad</option><option value="Warm">Warm</option><option value="Cold">Cold</option><option value="Sin calificar">Sin calificar</option>
+          </select>
+          <select aria-label="Filtrar por etapa" value={filtroEtapa} onChange={(e) => setFiltroEtapa(e.target.value as typeof filtroEtapa)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs">
+            <option value="Todas">Cualquier etapa</option>{(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map((etapa) => <option key={etapa} value={etapa}>{etiquetaEtapa(etapa)}</option>)}
+          </select>
+          <select aria-label="Filtrar por velocidad de primer contacto" value={filtroRespuesta} onChange={(e) => setFiltroRespuesta(e.target.value as typeof filtroRespuesta)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs">
+            <option value="Todas">Cualquier respuesta</option>{RANGOS_RESPUESTA.map((rango) => <option key={rango.clave} value={rango.clave}>{rango.etiqueta}</option>)}
+          </select>
+          {usuario.rol === "broker" ? <select aria-label="Filtrar por asesor" value={filtroAsesor} onChange={(e) => setFiltroAsesor(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs"><option value="todos">Todo el equipo</option>{usuarios.filter((item) => item.rol.includes("asesor")).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select> : <span />}
+          <button onClick={limpiarFiltros} className="flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100"><X className="size-3.5" /> Limpiar filtros</button>
+        </section>
+        )}
 
-          {!seleccionado ? (
-            <div className="glass border-dashed p-12 text-center">
-              <UserIcon className="mx-auto size-8 text-slate-300" />
-              <p className="mt-3 text-sm text-slate-500">
-                Selecciona un cliente para ver su ficha completa.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* --- Identidad --- */}
-              <section className="glass p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-500 text-sm font-bold text-white">
-                      {seleccionado.nombre.slice(0, 2).toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <h2 className="truncate text-lg font-bold text-slate-900">
-                        {seleccionado.nombre}
-                      </h2>
-                      <p className="text-xs text-slate-500">
-                        {seleccionado.ocupacion || "Cliente particular"} ·{" "}
-                        {bant?.perfil === "Inquilino" ? "Busca rentar" : null}
-                        {bant?.perfil === "Comprador" ? "Busca comprar" : null}
-                        {bant?.perfil ? " · " : ""}
-                        Registrado el {fmtFecha(seleccionado.creado)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <BotonWhatsApp
-                      lead={seleccionado}
-                      propiedad={propiedadInteres}
-                      nombreAsesor={usuario.nombre}
-                      onContactar={() =>
-                        onRegistrarInteraccion(
-                          seleccionado.id,
-                          "WhatsApp",
-                          "Se le escribió por WhatsApp",
-                        )
-                      }
-                    />
-                    {/* Agendar desde aquí, no desde la Agenda: el asesor está
-                        mirando al prospecto justo cuando cuelga la llamada. */}
-                    <button
-                      onClick={() => onAgendarVisita(seleccionado.id)}
-                      className="flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700"
-                    >
-                      <CalendarPlus className="size-3.5" /> Agendar visita
-                    </button>
-                    <button
-                      onClick={() => setCalificando(true)}
-                      className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                        bant
-                          ? "border border-slate-200 bg-white/70 text-slate-700 hover:bg-white"
-                          : "bg-slate-900 text-white hover:bg-slate-700"
-                      }`}
-                    >
-                      {bant ? "Volver a calificar" : "Calificar prospecto"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Desenlace. Estas dos acciones son la diferencia entre una
-                    cartera que se puede leer y mil fichas eternamente en
-                    "Nuevo". Registrar un intento fallido también es trabajo:
-                    queda en el historial y cuenta como primer contacto. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                  {seleccionado.estado === "Descartado" ? (
-                    <>
-                      <span
-                        className={`rounded-full border px-3 py-1 text-[11px] font-bold ${ESTILO_ESTADO.Descartado}`}
-                      >
-                        Cerrado · {motivoPerdidaEtiqueta(seleccionado.motivoPerdida)}
-                        {seleccionado.cerradoEn ? ` · ${fmtFecha(seleccionado.cerradoEn)}` : ""}
-                      </span>
-                      <button
-                        onClick={() => onReactivarLead(seleccionado.id)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Reactivar
-                      </button>
-                      {seleccionado.detallePerdida && (
-                        <span className="w-full text-xs text-slate-500">
-                          {seleccionado.detallePerdida}
-                        </span>
-                      )}
-                    </>
-                  ) : seleccionado.estado === "Ganado" ? (
-                    <>
-                      <span
-                        className={`rounded-full border px-3 py-1 text-[11px] font-bold ${ESTILO_ESTADO.Ganado}`}
-                      >
-                        Operación ganada
-                        {seleccionado.cerradoEn ? ` · ${fmtFecha(seleccionado.cerradoEn)}` : ""}
-                      </span>
-                      {operacionSeleccionada?.comisionBrutaConfirmada == null && (
-                        <span className="text-xs font-semibold text-amber-700">Ingreso pendiente de confirmar</span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => onRegistrarIntento(seleccionado.id)}
-                        className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                      >
-                        No contestó · registrar intento
-                        {(seleccionado.intentosContacto ?? 0) > 0
-                          ? ` (${seleccionado.intentosContacto})`
-                          : ""}
-                      </button>
-                      <button
-                        onClick={() => setDescartando(seleccionado)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                      >
-                        Cerrar prospecto
-                      </button>
-                      {!operacionSeleccionada && (
-                        <button
-                          onClick={() => setModalOperacion("reportar")}
-                          className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
-                        >
-                          Reportar operación cerrada
-                        </button>
-                      )}
-                      {operacionSeleccionada?.estadoValidacion === "reportada" && (
-                        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                          <span><strong>Pendiente de validación.</strong> El lead todavía no cuenta como ganado.</span>
-                          {usuario.rol === "broker" && (
-                            <button onClick={() => setModalOperacion("validar")} className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-bold text-white">
-                              Revisar cierre
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {operacionSeleccionada?.estadoValidacion === "devuelta" && (
-                        <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                          <span><strong>Requiere corrección.</strong> {operacionSeleccionada.observacionBroker}</span>
-                          {(usuario.rol === "broker" || operacionSeleccionada.reportadoPor === usuario.id || seleccionado.asesorId === usuario.id) && (
-                            <button onClick={() => setModalOperacion("reportar")} className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-bold text-white">
-                              Corregir y reenviar
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {sugiereDescarte(seleccionado) && (
-                        <span className="text-xs font-medium text-rose-600">
-                          {seleccionado.intentosContacto} intentos sin respuesta — considera
-                          cerrarlo y quedarte con el motivo.
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      Teléfono
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 font-semibold text-slate-800">
-                      <Phone className="size-3.5 text-slate-500" />
-                      {seleccionado.telefono || "Sin teléfono"}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      Correo
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 truncate font-semibold text-slate-800">
-                      <Mail className="size-3.5 shrink-0 text-slate-500" />
-                      <span className="truncate">{seleccionado.correo || "Sin correo"}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      Etapa
-                    </p>
-                    <select
-                      value={seleccionado.etapa}
-                      onChange={(e) => onCambiarEtapa(seleccionado.id, e.target.value as LeadStage)}
-                      className="mt-0.5 w-full rounded-xl border border-white/70 bg-white/70 px-2 py-1 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
-                    >
-                      {(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map(
-                        (e) => (
-                          <option key={e} value={e}>
-                            {etiquetaEtapa(e)}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                {(propiedadInteres || asesor) && (
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                    {propiedadInteres && (
-                      <span className="flex items-center gap-1.5">
-                        <Building2 className="size-3.5" /> Interesado en{" "}
-                        <span className="font-semibold text-slate-700">
-                          {propiedadInteres.titulo}
-                        </span>{" "}
-                        ({formatoMXN(propiedadInteres.precio)})
-                      </span>
-                    )}
-                    {asesor && <span>Atiende: {asesor.nombre}</span>}
-                  </div>
-                )}
-              </section>
-
-              {/* --- Calificación --- */}
-              <section className="glass p-5">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                  <Target className="size-4 text-slate-500" /> Qué tan listo está para comprar
-                </h3>
-
-                {!bant || !desglose || !clase ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-6 text-center">
-                    <Sparkles className="mx-auto size-6 text-amber-500" />
-                    <p className="mt-2 text-sm font-bold text-slate-900">Todavía sin calificar</p>
-                    <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
-                      Son cuatro preguntas: cómo va a pagar, quién decide, qué tan claro tiene lo
-                      que busca y para cuándo lo necesita. Toma menos de un minuto y el sistema
-                      calcula el resultado solo.
-                    </p>
-                    <button
-                      onClick={() => setCalificando(true)}
-                      className="mt-3 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
-                    >
-                      Calificar ahora
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-4">
-                    <div className={`rounded-xl border p-4 ${COLOR[clase]}`}>
-                      <div className="flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                            Calificación
-                          </p>
-                          <p className="text-3xl font-black">{total}/100</p>
-                        </div>
-                        <span className="rounded-full bg-white/70 px-3 py-1 text-sm font-bold">
-                          {clase} · {ACCION_POR_CLASIFICACION[clase].titulo}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm font-medium">
-                        {ACCION_POR_CLASIFICACION[clase].accion}
-                      </p>
-                    </div>
-
-                    {/* Resumen de las 4 respuestas, en una línea cada una. */}
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {[
-                        {
-                          etiqueta:
-                            bant.perfil === "Inquilino" ? "Solvencia" : "Cómo va a pagar",
-                          texto: etiquetaDe(
-                            catalogoPresupuesto(bant.perfil ?? "Comprador"),
-                            bant.presupuesto,
-                          ),
-                          puntos: desglose.presupuesto,
-                          max: 30,
-                        },
-                        {
-                          etiqueta: "Quién decide",
-                          texto: etiquetaDe(BANT_AUTORIDAD, bant.autoridad),
-                          puntos: desglose.autoridad,
-                          max: 20,
-                        },
-                        {
-                          etiqueta: "Qué tan claro lo tiene",
-                          texto: etiquetaDe(BANT_NECESIDAD, bant.necesidad),
-                          puntos: desglose.necesidad,
-                          max: 30,
-                        },
-                        {
-                          etiqueta: "Para cuándo",
-                          texto: etiquetaDe(BANT_PLAZO, bant.plazo),
-                          puntos: desglose.plazo,
-                          max: 20,
-                        },
-                      ].map((f) => (
-                        <div key={f.etiqueta} className="rounded-xl bg-white/70 p-3 ring-1 ring-slate-200/70">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                              {f.etiqueta}
-                            </p>
-                            <span className="shrink-0 text-[11px] font-bold text-slate-500">
-                              {f.puntos}/{f.max}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-sm font-semibold text-slate-800">{f.texto}</p>
-                          <div className="mt-1.5 h-1 rounded-full bg-slate-200">
-                            <div
-                              className="h-1 rounded-full bg-slate-700"
-                              style={{ width: `${(f.puntos / f.max) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Datos de apoyo capturados en el cuestionario. */}
-                    {(bant.montoMaximo ||
-                      bant.formaPago ||
-                      bant.quienMasDecide ||
-                      bant.requisitos ||
-                      bant.observaciones) && (
-                      <div className="space-y-1 rounded-xl bg-white/70 p-3 text-xs text-slate-600 ring-1 ring-slate-200/70">
-                        {bant.montoMaximo ? (
-                          <p>
-                            <span className="font-semibold text-slate-800">
-                              {bant.perfil === "Inquilino"
-                                ? "Renta máxima:"
-                                : "Puede pagar hasta:"}
-                            </span>{" "}
-                            {formatoMXN(bant.montoMaximo)}
-                            {propiedadInteres && bant.montoMaximo < propiedadInteres.precio && (
-                              <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
-                                Por debajo del precio de la propiedad que le interesa
-                              </span>
-                            )}
-                          </p>
-                        ) : null}
-                        {bant.formaPago && (
-                          <p>
-                            <span className="font-semibold text-slate-800">
-                              {bant.perfil === "Inquilino" ? "Respaldo:" : "Forma de pago:"}
-                            </span>{" "}
-                            {bant.formaPago}
-                          </p>
-                        )}
-                        {bant.quienMasDecide && (
-                          <p>
-                            <span className="font-semibold text-slate-800">También decide:</span>{" "}
-                            {bant.quienMasDecide}
-                          </p>
-                        )}
-                        {bant.requisitos && (
-                          <p>
-                            <span className="font-semibold text-slate-800">No puede faltar:</span>{" "}
-                            {bant.requisitos}
-                          </p>
-                        )}
-                        {bant.observaciones && (
-                          <p>
-                            <span className="font-semibold text-slate-800">Notas del asesor:</span>{" "}
-                            {bant.observaciones}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    <p className="text-[11px] text-slate-500">
-                      Calificado por {bant.calificadoPor} el {fmtFechaHora(bant.calificadoEl)}.
-                    </p>
-                  </div>
-                )}
-              </section>
-
-              {/* --- Historial --- */}
-              <section className="glass p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Clock className="size-4 text-slate-500" /> Historial del cliente
-                  </h3>
-                  <span className="text-xs text-slate-500">
-                    {historial.length} {historial.length === 1 ? "evento" : "eventos"}
-                  </span>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <select
-                    value={tipoEvento}
-                    onChange={(e) => setTipoEvento(e.target.value as TipoInteraccion)}
-                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white sm:w-36"
-                  >
-                    {TIPOS_INTERACCION.map((t) => (
-                      <option key={t.valor} value={t.valor}>
-                        {t.etiqueta}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={textoEvento}
-                    onChange={(e) => setTextoEvento(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && registrar()}
-                    placeholder="¿Qué pasó con este cliente?"
-                    className="flex-1 rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-violet-400 focus:ring-2 focus:ring-violet-400/30 focus:bg-white"
-                  />
-                  <button
-                    onClick={registrar}
-                    disabled={!textoEvento.trim()}
-                    className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-violet-300/60 hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
-                  >
-                    Registrar
-                  </button>
-                </div>
-
-                <div className="mt-4">
-                  {historial.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-slate-300/80 p-6 text-center text-xs text-slate-500">
-                      Todavía no hay nada registrado. Cada llamada, visita o mensaje que anotes aquí
-                      queda como evidencia del seguimiento.
-                    </p>
-                  ) : (
-                    <ol className="space-y-3">
-                      {historial.map((h) => (
-                        <li key={h.id} className="flex gap-3">
-                          <div className="flex flex-col items-center">
-                            <span className="mt-1.5 size-2 rounded-full bg-slate-300" />
-                            <span className="w-px flex-1 bg-slate-200" />
-                          </div>
-                          <div className="min-w-0 flex-1 pb-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                                {h.tipo}
-                              </span>
-                              <span className="text-[11px] text-slate-500">
-                                {fmtFechaHora(h.fecha)} · {h.autor}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-sm text-slate-700">{h.descripcion}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              </section>
-            </>
-          )}
+        {(busqueda || vista === "resultados" || filtroRapido !== "ninguno") && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span className="font-semibold">{filtrados.length} resultado{filtrados.length === 1 ? "" : "s"}</span>
+          {filtroRespuesta !== "Todas" && <button onClick={() => setFiltroRespuesta("Todas")} className="flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Respuesta: {etiquetaRango(filtroRespuesta)} <X className="size-3" /></button>}
+          <button onClick={limpiarFiltros} className="font-semibold text-violet-700 hover:underline">Volver a Por atender</button>
         </div>
+        )}
       </div>
 
-      {creando && (
-        <NuevoClienteModal
-          propiedades={propiedades}
-          asesorId={usuario.id}
-          onCancelar={() => setCreando(false)}
-          onGuardar={async (nuevo) => {
-            if (!(await onCrearCliente(nuevo))) return false;
-            setCreando(false);
-            // Se abre su ficha de inmediato: el asesor acaba de capturarlo,
-            // lo siguiente que quiere es calificarlo o escribirle.
-            abrirCliente(nuevo.id);
-            setBusqueda("");
-            setFiltroClase("Todas");
-            setFiltroEtapa("Todas");
-            return true;
-          }}
-        />
-      )}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <aside className={`${panelMovil === "ficha" ? "hidden" : "block"} lg:col-span-5 lg:block xl:col-span-4`}>
+          <div className="space-y-2 lg:max-h-[72vh] lg:overflow-y-auto lg:pr-1">
+            {filtrados.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><UserIcon className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-700">No hay clientes aquí</p><p className="mt-1 text-xs text-slate-500">Prueba otra sección o limpia los filtros.</p></div>
+            ) : filtrados.map((item) => (
+              <TarjetaCliente key={item.lead.id} item={item} propiedad={propiedades.find((propiedad) => propiedad.id === item.lead.interesPropiedadId)} active={seleccionado?.id === item.lead.id} onClick={() => abrirCliente(item.lead.id)} />
+            ))}
+          </div>
+        </aside>
 
-      {calificando && seleccionado && (
-        <CalificarProspectoModal
-          lead={seleccionado}
-          propiedad={propiedadInteres}
-          nombreAsesor={usuario.nombre}
-          onCancelar={() => setCalificando(false)}
-          onGuardar={async (b) => {
-            if (await onGuardarCalificacion(seleccionado.id, b)) setCalificando(false);
-          }}
-          onNoContesta={async () => {
-            if (await onRegistrarIntento(seleccionado.id)) setCalificando(false);
-          }}
-          onDescartar={() => {
-            setCalificando(false);
-            setDescartando(seleccionado);
-          }}
-        />
-      )}
+        <main className={`${panelMovil === "lista" ? "hidden" : "block"} space-y-4 lg:col-span-7 lg:block xl:col-span-8`}>
+          <button onClick={() => setPanelMovil("lista")} className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 lg:hidden"><ArrowLeft className="size-4" /> Volver a la lista</button>
+          {!seleccionado || !seleccionadoItem ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center"><UserIcon className="mx-auto size-8 text-slate-300" /><p className="mt-3 text-sm text-slate-500">Selecciona un cliente para ver qué sigue.</p></div>
+          ) : (
+            <>
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-sm font-bold text-white">{seleccionado.nombre.slice(0, 2).toUpperCase()}</span>
+                    <div className="min-w-0"><h2 className="truncate text-xl font-bold text-slate-950">{seleccionado.nombre}</h2><p className="mt-0.5 text-xs text-slate-500">{asesor ? `Atiende ${asesor.nombre}` : "Sin asesor"} · Registrado {fmtFecha(seleccionado.creado)}</p></div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AccionPrincipal item={seleccionadoItem} lead={seleccionado} propiedad={propiedadInteres} usuario={usuario} onWhatsApp={registrarWhatsApp} onCalificar={() => setCalificando(true)} onActividad={() => setTab("actividad")} onProgramar={() => setProgramando(true)} onValidar={() => setModalOperacion("validar")} onCorregir={() => setModalOperacion("reportar")} />
+                    <details className="relative"><summary aria-label="Más acciones" className="flex size-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"><MoreHorizontal className="size-5" /></summary><div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
+                      <button onClick={() => setProgramando(true)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Programar seguimiento</button>
+                      <button onClick={() => onAgendarVisita(seleccionado.id)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Agendar visita</button>
+                      {seleccionado.estado !== "Ganado" && seleccionado.estado !== "Descartado" && <><button onClick={registrarSinRespuesta} className="w-full rounded-xl px-3 py-2 text-left hover:bg-amber-50">Registrar que no contestó</button><button onClick={() => setModalOperacion("reportar")} className="w-full rounded-xl px-3 py-2 text-left hover:bg-emerald-50">Reportar operación</button><button onClick={() => setDescartando(seleccionado)} className="w-full rounded-xl px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Descartar prospecto</button></>}
+                      {seleccionado.estado === "Descartado" && <button onClick={() => onReactivarLead(seleccionado.id)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Reactivar prospecto</button>}
+                    </div></details>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
+                  <p className="flex items-center gap-2 text-slate-700"><Phone className="size-4 text-slate-400" /> {seleccionado.telefono || "Sin teléfono"}</p>
+                  <p className="flex min-w-0 items-center gap-2 text-slate-700"><Mail className="size-4 shrink-0 text-slate-400" /><span className="truncate">{seleccionado.correo || "Sin correo"}</span></p>
+                  <p className="flex items-center gap-2 text-slate-700"><Building2 className="size-4 text-slate-400" /><span className="truncate">{propiedadInteres?.titulo ?? "Sin propiedad asociada"}</span></p>
+                </div>
+              </section>
 
-      {descartando && (
-        <DescartarLeadModal
-          lead={descartando}
-          onCancelar={() => setDescartando(null)}
-          onDescartar={async (r) => {
-            if (await onDescartarLead(descartando.id, r)) setDescartando(null);
-          }}
-        />
-      )}
+              <nav aria-label="Información del cliente" className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1">
+                {(["resumen", "actividad", "intereses"] as TabDetalle[]).map((item) => <button key={item} onClick={() => setTab(item)} aria-pressed={tab === item} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold capitalize ${tab === item ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-50"}`}>{item === "actividad" ? `Actividad (${historial.length})` : item}</button>)}
+              </nav>
 
-      {modalOperacion === "reportar" && seleccionado && (
-        <OperacionModal
-          modo="reportar"
-          lead={seleccionado}
-          propiedades={propiedades}
-          operacion={operacionSeleccionada}
-          onCerrar={() => setModalOperacion(null)}
-          onEnviar={onReportarOperacion}
-        />
-      )}
-      {modalOperacion === "validar" && seleccionado && operacionSeleccionada && (
-        <OperacionModal
-          modo="validar"
-          lead={seleccionado}
-          propiedades={propiedades}
-          operacion={operacionSeleccionada}
-          onCerrar={() => setModalOperacion(null)}
-          onEnviar={onResolverOperacion}
-        />
-      )}
+              {tab === "resumen" && <ResumenCliente item={seleccionadoItem} propiedad={propiedadInteres} onCambiarEtapa={onCambiarEtapa} onProgramar={() => setProgramando(true)} onCalificar={() => setCalificando(true)} />}
+              {tab === "actividad" && <ActividadCliente historial={historial} tipo={tipoEvento} texto={textoEvento} onTipo={setTipoEvento} onTexto={setTextoEvento} onRegistrar={registrar} />}
+              {tab === "intereses" && <InteresesCliente lead={seleccionado} propiedad={propiedadInteres} />}
+
+              {operacionSeleccionada?.estadoValidacion === "reportada" && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>Operación reportada.</strong> {usuario.rol === "broker" ? "Revísala para confirmar el cierre." : "Está esperando validación del broker."}</div>}
+              {operacionSeleccionada?.estadoValidacion === "devuelta" && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"><strong>El broker pidió una corrección.</strong> {operacionSeleccionada.observacionBroker}</div>}
+            </>
+          )}
+        </main>
+      </div>
+
+      {creando && <NuevoClienteModal propiedades={propiedades} asesorId={usuario.id} onCancelar={() => setCreando(false)} onGuardar={async (nuevo) => { const ok = await onCrearCliente(nuevo); if (ok === false) return false; setCreando(false); abrirCliente(nuevo.id); return true; }} />}
+      {calificando && seleccionado && <CalificarProspectoModal lead={seleccionado} propiedad={propiedadInteres} nombreAsesor={usuario.nombre} onCancelar={() => setCalificando(false)} onGuardar={async (bant) => { const ok = await onGuardarCalificacion(seleccionado.id, bant); if (ok !== false) setCalificando(false); }} onNoContesta={async () => { await registrarSinRespuesta(); setCalificando(false); }} onDescartar={() => { setCalificando(false); setDescartando(seleccionado); }} />}
+      {programando && seleccionado && <ProgramarSeguimientoModal lead={seleccionado} tarea={seleccionadoItem?.proximaTarea} onCerrar={() => setProgramando(false)} onGuardar={onProgramarSeguimiento} />}
+      {descartando && <DescartarLeadModal lead={descartando} onCancelar={() => setDescartando(null)} onDescartar={async (resultado) => { if (await onDescartarLead(descartando.id, resultado)) setDescartando(null); }} />}
+      {modalOperacion === "reportar" && seleccionado && <OperacionModal modo="reportar" lead={seleccionado} propiedades={propiedades} operacion={operacionSeleccionada} onCerrar={() => setModalOperacion(null)} onEnviar={onReportarOperacion} />}
+      {modalOperacion === "validar" && seleccionado && operacionSeleccionada && <OperacionModal modo="validar" lead={seleccionado} propiedades={propiedades} operacion={operacionSeleccionada} onCerrar={() => setModalOperacion(null)} onEnviar={onResolverOperacion} />}
     </div>
   );
+}
+
+function IndicadorHoy({ icon, label, value, tone, onClick }: { icon: React.ReactNode; label: string; value: number; tone: "violet" | "rose" | "emerald" | "amber"; onClick: () => void }) {
+  const colors = { violet: "text-violet-700 bg-violet-50", rose: "text-rose-700 bg-rose-50", emerald: "text-emerald-700 bg-emerald-50", amber: "text-amber-700 bg-amber-50" };
+  return <button onClick={onClick} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-violet-300"><span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${colors[tone]}`}>{icon}</span><span className="min-w-0"><strong className="block text-lg leading-none text-slate-950">{value}</strong><span className="mt-1 block truncate text-[11px] font-medium text-slate-500 sm:text-xs">{label}</span></span></button>;
+}
+
+function BotonVista({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return <button onClick={onClick} aria-pressed={active} className={`rounded-xl px-3 py-2 text-xs font-semibold sm:px-4 sm:text-sm ${active ? "bg-white text-violet-700 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>{label} <span className="ml-1 opacity-60">{count}</span></button>;
+}
+
+function TarjetaCliente({ item, propiedad, active, onClick }: { item: ClienteClasificado; propiedad?: Propiedad; active: boolean; onClick: () => void }) {
+  const urgency = item.motivo === "seguimiento_vencido" || item.motivo === "cierre_devuelto" ? "text-rose-700" : item.motivo === "cierre_por_validar" || item.motivo === "seguimiento_hoy" ? "text-amber-700" : "text-slate-600";
+  return <button onClick={onClick} className={`w-full rounded-2xl border bg-white p-4 text-left transition ${active ? "border-violet-400 ring-2 ring-violet-100" : "border-slate-200 hover:border-violet-300"}`}><span className="flex items-start justify-between gap-3"><span className="flex min-w-0 items-center gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-xs font-bold text-violet-700">{item.lead.nombre.slice(0, 2).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-950">{item.lead.nombre}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{propiedad?.titulo ?? item.lead.telefono ?? "Sin propiedad asociada"}</span></span></span>{item.altaPrioridad && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Alta prioridad</span>}</span><span className={`mt-3 flex items-center gap-1.5 text-xs font-semibold ${urgency}`}><Clock className="size-3.5" /> {textoMotivoAtencion(item)}</span><span className="mt-1.5 block text-[11px] text-slate-400">{item.proximaTarea ? fmtFechaHora(item.proximaTarea.venceEn) : `Registrado ${haceCuanto(item.lead.creado)}`}</span></button>;
+}
+
+function AccionPrincipal({ item, lead, propiedad, usuario, onWhatsApp, onCalificar, onActividad, onProgramar, onValidar, onCorregir }: { item: ClienteClasificado; lead: Lead; propiedad?: Propiedad; usuario: Usuario; onWhatsApp: () => void; onCalificar: () => void; onActividad: () => void; onProgramar: () => void; onValidar: () => void; onCorregir: () => void }) {
+  if (item.motivo === "cierre_por_validar" && usuario.rol === "broker") return <button onClick={onValidar} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600">Revisar cierre</button>;
+  if (item.motivo === "cierre_devuelto") return <button onClick={onCorregir} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Corregir cierre</button>;
+  if (lead.estado === "Ganado" || lead.estado === "Descartado" || item.bandeja === "archivo") return <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{textoMotivoAtencion(item)}</span>;
+  if (!lead.primerContactoEn && item.bandeja !== "contactos") return <BotonWhatsApp lead={lead} propiedad={propiedad} nombreAsesor={usuario.nombre} onContactar={onWhatsApp} />;
+  if (!evaluarBant(lead.bant).calificado && item.bandeja !== "contactos") return <button onClick={onCalificar} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800">Calificar cliente</button>;
+  if (item.motivo === "seguimiento_vencido" || item.motivo === "seguimiento_hoy") return <button onClick={onActividad} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Registrar seguimiento</button>;
+  return <button onClick={onProgramar} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700">Programar seguimiento</button>;
+}
+
+function ResumenCliente({ item, propiedad, onCambiarEtapa, onProgramar, onCalificar }: { item: ClienteClasificado; propiedad?: Propiedad; onCambiarEtapa: Props["onCambiarEtapa"]; onProgramar: () => void; onCalificar: () => void }) {
+  const lead = item.lead;
+  const evaluacion = evaluarBant(lead.bant);
+  const clase = evaluacion.clasificacion;
+  const desglose = lead.bant ? puntajeBant(lead.bant) : null;
+  return <div className="grid gap-4 xl:grid-cols-2">
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-violet-600">Siguiente paso</p><h3 className="mt-2 text-lg font-bold text-slate-950">{textoMotivoAtencion(item)}</h3><p className="mt-1 text-sm text-slate-500">{item.proximaTarea ? `Programado para ${fmtFechaHora(item.proximaTarea.venceEn)}` : "Define una fecha para que este cliente no se pierda."}</p></div><CalendarClock className="size-6 text-violet-500" /></div><button onClick={onProgramar} className="mt-5 rounded-xl border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50">{item.proximaTarea ? "Cambiar fecha" : "Programar seguimiento"}</button></section>
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Etapa comercial</p><select value={lead.etapa} onChange={(e) => onCambiarEtapa(lead.id, e.target.value as LeadStage)} className="mt-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800">{(["Nuevo", "Contactado", "Visitado", "Negociacion", "Cierre"] as LeadStage[]).map((etapa) => <option key={etapa} value={etapa}>{etiquetaEtapa(etapa)}</option>)}</select></div><QualificationBadge lead={lead} /></div>{lead.estado === "Descartado" && <p className="mt-3 text-xs text-rose-700">Descartado: {motivoPerdidaEtiqueta(lead.motivoPerdida)}</p>}</section>
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2"><div className="flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-950"><Target className="size-4 text-slate-400" /> Prioridad del cliente</h3>{!evaluacion.calificado && <button onClick={onCalificar} className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white">Calificar</button>}</div>{!evaluacion.calificado || !clase ? <p className="mt-3 text-sm text-slate-500">Aún no hay suficiente información. Son cuatro preguntas y toma menos de un minuto.</p> : <><div className={`mt-3 rounded-2xl border p-4 ${COLOR_CLASE[clase]}`}><div className="flex items-center justify-between gap-3"><div><strong className="text-2xl">{evaluacion.puntaje}/100</strong><p className="text-sm font-semibold">{clase === "Hot" ? "Alta prioridad" : ACCION_POR_CLASIFICACION[clase].titulo}</p></div><Sparkles className="size-6" /></div><p className="mt-2 text-sm">{ACCION_POR_CLASIFICACION[clase].accion}</p></div>{lead.bant && desglose && <details className="mt-3 rounded-xl bg-slate-50 p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-600">Ver respuestas de la calificación</summary><div className="mt-3 grid gap-2 text-xs sm:grid-cols-2"><p><strong>Pago:</strong> {etiquetaDe(catalogoPresupuesto(lead.bant.perfil ?? "Comprador"), lead.bant.presupuesto)}</p><p><strong>Decisión:</strong> {etiquetaDe(BANT_AUTORIDAD, lead.bant.autoridad)}</p><p><strong>Necesidad:</strong> {etiquetaDe(BANT_NECESIDAD, lead.bant.necesidad)}</p><p><strong>Plazo:</strong> {etiquetaDe(BANT_PLAZO, lead.bant.plazo)}</p></div></details>}</>}</section>
+    {propiedad && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Interés principal</p><p className="mt-2 font-bold text-slate-950">{propiedad.titulo}</p><p className="mt-1 text-sm text-slate-500">{propiedad.ubicacion} · {formatoMXN(propiedad.precio)}</p></section>}
+    {sugiereDescarte(lead) && <p className="xl:col-span-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{lead.intentosContacto} intentos sin respuesta. Considera descartar el prospecto y registrar el motivo.</p>}
+  </div>;
+}
+
+function ActividadCliente({ historial, tipo, texto, onTipo, onTexto, onRegistrar }: { historial: Interaccion[]; tipo: TipoInteraccion; texto: string; onTipo: (tipo: TipoInteraccion) => void; onTexto: (texto: string) => void; onRegistrar: () => void }) {
+  return <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-950"><Clock className="size-4 text-slate-400" /> Actividad del cliente</h3><span className="text-xs text-slate-400">{historial.length} eventos</span></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><select value={tipo} onChange={(e) => onTipo(e.target.value as TipoInteraccion)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm sm:w-36">{TIPOS_INTERACCION.map((item) => <option key={item.valor} value={item.valor}>{item.etiqueta}</option>)}</select><input value={texto} onChange={(e) => onTexto(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onRegistrar()} placeholder="¿Qué pasó con este cliente?" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button onClick={onRegistrar} disabled={!texto.trim()} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-200">Registrar</button></div>{historial.length === 0 ? <p className="mt-5 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Todavía no hay actividad registrada.</p> : <ol className="mt-5 space-y-4">{historial.map((evento) => <li key={evento.id} className="flex gap-3"><span className="mt-2 size-2 shrink-0 rounded-full bg-violet-400" /><div><p className="text-sm text-slate-800">{evento.descripcion}</p><p className="mt-1 text-[11px] text-slate-400">{evento.tipo} · {fmtFechaHora(evento.fecha)} · {evento.autor}</p></div></li>)}</ol>}</section>;
+}
+
+function InteresesCliente({ lead, propiedad }: { lead: Lead; propiedad?: Propiedad }) {
+  return <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-950"><Building2 className="size-4 text-slate-400" /> Propiedad de interés</h3>{propiedad ? <div className="mt-4 rounded-2xl bg-slate-50 p-4"><p className="font-bold text-slate-950">{propiedad.titulo}</p><p className="mt-1 text-sm text-slate-500">{propiedad.ubicacion}</p><p className="mt-3 text-lg font-bold text-violet-700">{formatoMXN(propiedad.precio)}</p></div> : <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">{lead.ebPropertyId ? `La propiedad ${lead.ebPropertyId} ya no está en el catálogo, pero conservamos la referencia.` : "Este cliente todavía no tiene una propiedad asociada."}</p>}</section>;
 }
