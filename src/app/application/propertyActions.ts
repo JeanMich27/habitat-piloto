@@ -59,27 +59,32 @@ export function createPropertyActions(input: PropertyActionsInput) {
       creadoEn: new Date().toISOString(),
     };
     if (cloudEnabled) {
-      const error = await crearSolicitudEstado(request);
-      if (error) { setBusinessNotice(error); return false; }
+      const result = await crearSolicitudEstado(request);
+      if (!result.ok) { setBusinessNotice(result.error.message); return false; }
     }
     setSolicitudes((current) => replaceById(current, request));
     await registerEvent(propertyId, "Estado", `${currentUser.nombre} solicitó cambiar el estado a "${status}"${reason ? ` — motivo: ${reason}` : ""} (en revisión del broker)`);
     return true;
   };
 
-  const resolveStatusRequest = async (request: SolicitudEstado, result: "aprobada" | "rechazada") => {
+  const resolveStatusRequest = async (request: SolicitudEstado, result: "aprobada" | "rechazada"): Promise<boolean> => {
     if (cloudEnabled) {
-      const error = await resolverSolicitudEstado(request.id, result);
-      if (error) { setBusinessNotice(error); return; }
+      const persisted = await resolverSolicitudEstado(request.id, result);
+      if (!persisted.ok) { setBusinessNotice(persisted.error.message); return false; }
     }
     setSolicitudes((current) => replaceById(current, {
       ...request, estatus: result, resueltoPor: currentUser.id, resueltoEn: new Date().toISOString(),
     }));
-    if (result === "aprobada") {
-      await changeStatus(request.propiedadId, request.estadoSolicitado, `solicitud aprobada por ${currentUser.nombre}`);
-    } else {
-      await registerEvent(request.propiedadId, "Estado", `Solicitud de cambio a "${request.estadoSolicitado}" rechazada por ${currentUser.nombre}`);
+    if (!cloudEnabled) {
+      if (result === "aprobada") {
+        await changeStatus(request.propiedadId, request.estadoSolicitado, `solicitud aprobada por ${currentUser.nombre}`);
+      } else {
+        await registerEvent(request.propiedadId, "Estado", `Solicitud de cambio a "${request.estadoSolicitado}" rechazada por ${currentUser.nombre}`);
+      }
     }
+    // En nube, el trigger resolver_solicitud_estado ya aplicó el cambio de
+    // propiedad en la misma transacción. Realtime entrega la fila actualizada.
+    return true;
   };
 
   return {
