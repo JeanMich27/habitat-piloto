@@ -52,6 +52,15 @@ const TIPO_INMUEBLE: Record<string, string> = {
   "Local Comercial": "Local",
 };
 
+const ESTATUS_EASYBROKER: Record<string, string> = {
+  published: "Publicada",
+  not_published: "No publicada",
+  reserved: "Reservada",
+  suspended: "Suspendida",
+  sold: "Vendida o Rentada",
+  rented: "Vendida o Rentada",
+};
+
 function partesUbicacion(nombre: string) {
   const p = (nombre ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   return {
@@ -188,6 +197,17 @@ Deno.serve(async (req) => {
   try {
     if (!EB_KEY) throw new Error("Falta el secreto EASYBROKER_API_KEY en el proyecto de Supabase.");
 
+    // Un cierre validado en HomeID no se reabre porque EasyBroker vuelva a
+    // `published`: se conserva la discrepancia en crm_estatus para que el
+    // broker la revise. Los demás estados externos sí gobiernan disponibilidad.
+    const cierresQ = await sb.from("operaciones").select("propiedad_id")
+      .eq("agencia_id", AGENCIA).eq("estado_validacion", "validada")
+      .not("propiedad_id", "is", null);
+    if (cierresQ.error) throw new Error(`operaciones: ${cierresQ.error.message}`);
+    const propiedadesConCierre = new Set(
+      (cierresQ.data ?? []).map((x: any) => String(x.propiedad_id)),
+    );
+
     // 1) Lista de IDs públicos (paginada)
     const ids: string[] = [];
     for (let page = 1; page <= 40; page++) {
@@ -207,7 +227,8 @@ Deno.serve(async (req) => {
         if (asesorId) resumen.asesores_vinculados.add(asesorId);
         else resumen.sin_asesor.push(publicId);
 
-        const op = (p.operations ?? [])[0] ?? {};
+        const operaciones = Array.isArray(p.operations) ? p.operations : [];
+        const op = operaciones[0] ?? {};
         const loc = partesUbicacion(p.location?.name ?? "");
         const imagenes = normalizarImagenes(p);
         const amenidades = normalizarAmenidades(p);
@@ -240,7 +261,7 @@ Deno.serve(async (req) => {
           mantenimiento: p.maintenance_amount != null ? Number(p.maintenance_amount) : null,
           descripcion: p.description ?? "",
           tipo_inmueble: TIPO_INMUEBLE[p.property_type] ?? (p.property_type ?? "Casa"),
-          tipo_operacion: op.type === "rental" ? "Renta" : "Venta",
+          tipo_operacion: ["rental", "temporary_rental"].includes(op.type) ? "Renta" : "Venta",
           asesor_id: asesorId,
           imagenes,
           amenidades,
@@ -254,18 +275,28 @@ Deno.serve(async (req) => {
           agencia_id: AGENCIA,
           crm_origen: "easybroker",
           crm_id_interno: p.internal_id ?? null,
+          crm_estatus: p.status ?? null,
+          crm_estatus_en: new Date().toISOString(),
+          crm_operaciones: operaciones,
           eb_public_id: publicId,
           eb_public_url: p.public_url ?? null,
           eb_sincronizado_en: new Date().toISOString(),
           publicada_el: p.published_at ?? null,
         };
 
-        const existente = await sb.from("propiedades").select("id").eq("agencia_id", AGENCIA).eq("eb_public_id", publicId).maybeSingle();
+        const existente = await sb.from("propiedades").select("id, estatus").eq("agencia_id", AGENCIA).eq("eb_public_id", publicId).maybeSingle();
+        const estatusMapeado = ESTATUS_EASYBROKER[String(p.status ?? "")];
 
         if (existente.data?.id) {
-          // Respeta lo capturado a mano: no toca propietario, documentos,
-          // eventos, comparables ni estatus.
-          const up = await sb.from("propiedades").update(camposEB).eq("id", existente.data.id);
+          // Respeta propietario, documentos, eventos y comparables. El estado
+          // externo actualiza disponibilidad salvo cuando existe un cierre
+          // validado local: esa resolución es la autoridad hasta que se cancele.
+          const conservarCierre = propiedadesConCierre.has(existente.data.id)
+            && estatusMapeado !== "Vendida o Rentada";
+          const up = await sb.from("propiedades").update({
+            ...camposEB,
+            ...(estatusMapeado && !conservarCierre ? { estatus: estatusMapeado } : {}),
+          }).eq("id", existente.data.id);
           if (up.error) throw new Error(up.error.message);
           resumen.actualizadas++;
         } else {
@@ -274,7 +305,7 @@ Deno.serve(async (req) => {
             ...camposEB,
             // Estados comerciales (migración 08). Lo que EasyBroker publica
             // entra como "Publicada"; el broker la mueve desde la app.
-            estatus: "Publicada",
+            estatus: estatusMapeado ?? "No publicada",
             propietario: { nombre: "", correo: "", telefono: "" },
             documentos: [],
             eventos: [],

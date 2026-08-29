@@ -106,31 +106,6 @@ export function createLeadActions({
       }, "Nota", "Prospecto reactivado")
     : lead), leadId);
 
-  const winLead = (leadId: string): Promise<boolean> => {
-    const now = new Date().toISOString();
-    return saveLead(
-      leads.map((lead) =>
-        lead.id === leadId
-          ? withHistory(
-              {
-                ...lead,
-                etapa: "Cierre",
-                estado: "Ganado",
-                cerradoEn: now,
-                cerradoPor: currentUser.nombre,
-                familiaPerdida: undefined,
-                motivoPerdida: undefined,
-                detallePerdida: undefined,
-              },
-              "Etapa",
-              "Operación marcada como ganada",
-            )
-          : lead,
-      ),
-      leadId,
-    );
-  };
-
   const registerInteraction = (leadId: string, type: TipoInteraccion, description: string): Promise<boolean> => {
     const next = leads.map((lead) => {
       if (lead.id !== leadId) return lead;
@@ -168,7 +143,6 @@ export function createLeadActions({
     registrarIntentoSinRespuesta: registerNoAnswer,
     descartarLead: discardLead,
     reactivarLead: reactivateLead,
-    marcarLeadGanado: winLead,
     registrarInteraccion: registerInteraction,
     resolverOferta: resolveOffer,
     crearCliente: createClient,

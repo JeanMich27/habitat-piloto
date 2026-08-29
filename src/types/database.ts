@@ -18,6 +18,7 @@ import type {
   TipoOperacion,
   UserRole,
   Comparable,
+  EstadoValidacionOperacion,
 } from "../types";
 
 /**
@@ -37,6 +38,7 @@ export interface Database {
       configuracion: { Row: ConfigurationRow; Insert: Partial<ConfigurationRow>; Update: Partial<ConfigurationRow> };
       citas: { Row: AppointmentRow; Insert: Partial<AppointmentRow>; Update: Partial<AppointmentRow> };
       solicitudes_estado: { Row: StatusRequestRow; Insert: Partial<StatusRequestRow>; Update: Partial<StatusRequestRow> };
+      operaciones: { Row: OperationRow; Insert: Partial<OperationRow>; Update: Partial<OperationRow> };
       integration_events: { Row: IntegrationEventRow; Insert: Partial<IntegrationEventRow>; Update: Partial<IntegrationEventRow> };
       webhook_deliveries: { Row: WebhookDeliveryRow; Insert: Partial<WebhookDeliveryRow>; Update: Partial<WebhookDeliveryRow> };
       integration_logs: { Row: IntegrationLogRow; Insert: Partial<IntegrationLogRow>; Update: Partial<IntegrationLogRow> };
@@ -61,6 +63,18 @@ export interface PropertyRow {
   comision_tipo: "porcentaje" | "meses" | null; comision_valor: number | string | null;
   comision_compartida_pct: number | string | null; exclusiva: boolean | null; crm_origen: string | null;
   crm_id_interno: string | null; eb_public_url: string | null; enlaces_promocion: EnlacePromocion[] | null;
+  crm_estatus: string | null; crm_estatus_en: string | null; crm_operaciones: Record<string, unknown>[] | null;
+}
+
+export interface OperationRow {
+  id: string; version: number; agencia_id: string; lead_id: string; propiedad_id: string | null;
+  propiedad_referencia: string | null; crm_propiedad_id: string | null;
+  estado_validacion: EstadoValidacionOperacion; reportado_por: string; reportado_en: string;
+  tipo_operacion: TipoOperacion | null; fecha_cierre: string | null; monto_final: number | string | null;
+  moneda: string; comision_bruta_confirmada: number | string | null; comentario_asesor: string | null;
+  observacion_broker: string | null; resuelto_por: string | null; resuelto_en: string | null;
+  datos_reportados_originales: Record<string, unknown> | null;
+  historial_revisiones: Record<string, unknown>[] | null; creado_en: string; actualizado_en: string;
 }
 
 export interface LeadRow {

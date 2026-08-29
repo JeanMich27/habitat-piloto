@@ -8,7 +8,7 @@
 //
 // Cada aviso responde a "¿qué pasó?" y lleva directo al registro que lo
 // originó: nunca es un mensaje sin destino.
-import type { Lead, Propiedad, SolicitudEstado, Usuario } from "../types";
+import type { Lead, Operacion, Propiedad, SolicitudEstado, Usuario } from "../types";
 import { evaluarBant } from "../domain/leads/qualification";
 
 export type DestinoNotificacion = "cliente" | "propiedad";
@@ -44,6 +44,7 @@ export function construirNotificaciones(
   propiedades: Propiedad[],
   solicitudes: SolicitudEstado[] = [],
   usuarios: Usuario[] = [],
+  operaciones: Operacion[] = [],
   ahora = Date.now(),
 ): Notificacion[] {
   const esBroker = usuario.rol === "broker";
@@ -56,6 +57,57 @@ export function construirNotificaciones(
 
   const tituloProp = (id: string) => propiedades.find((p) => p.id === id)?.titulo ?? "una propiedad";
   const nombreDe = (id: string) => usuarios.find((u) => u.id === id)?.nombre ?? "Un asesor";
+  const nombreLead = (id: string) => leads.find((lead) => lead.id === id)?.nombre ?? "un cliente";
+
+  // --- Operaciones: la fila es la notificación y nunca puede desfasarse ---
+  operaciones.forEach((operacion) => {
+    if (esBroker && operacion.estadoValidacion === "reportada") {
+      avisos.push({
+        id: `operacion-${operacion.id}-reportada`,
+        titulo: "Operación pendiente de validar",
+        detalle: `${nombreDe(operacion.reportadoPor)} reportó el cierre de ${nombreLead(operacion.leadId)}.`,
+        fecha: operacion.reportadoEn,
+        destino: "cliente",
+        refId: operacion.leadId,
+        urgente: true,
+      });
+    }
+    if (operacion.reportadoPor === usuario.id && operacion.estadoValidacion === "devuelta") {
+      avisos.push({
+        id: `operacion-${operacion.id}-devuelta-${operacion.version}`,
+        titulo: "Corrige el reporte de cierre",
+        detalle: operacion.observacionBroker ?? `El cierre de ${nombreLead(operacion.leadId)} requiere cambios.`,
+        fecha: operacion.resueltoEn ?? operacion.reportadoEn,
+        destino: "cliente",
+        refId: operacion.leadId,
+        urgente: true,
+      });
+    }
+    if (operacion.reportadoPor === usuario.id && operacion.estadoValidacion === "validada") {
+      const cuando = fechaValida(operacion.resueltoEn);
+      if (cuando !== null && (ahora - cuando) / DIAS <= 14) avisos.push({
+        id: `operacion-${operacion.id}-validada`,
+        titulo: "Operación validada",
+        detalle: `El cierre de ${nombreLead(operacion.leadId)} ya cuenta como ganado.${operacion.comisionBrutaConfirmada == null ? " La comisión sigue pendiente." : ""}`,
+        fecha: operacion.resueltoEn!,
+        destino: "cliente",
+        refId: operacion.leadId,
+      });
+    }
+  });
+
+  if (esBroker) propiedades.forEach((propiedad) => {
+    if (propiedad.estatus !== "Vendida o Rentada" || propiedad.crmEstatus !== "published") return;
+    avisos.push({
+      id: `crm-publicada-${propiedad.id}`,
+      titulo: "EasyBroker sigue mostrando una propiedad publicada",
+      detalle: `${propiedad.titulo} ya tiene un cierre validado en HomeID. Revisa su publicación en EasyBroker.`,
+      fecha: propiedad.ultimaActividad ?? propiedad.capturadaEl,
+      destino: "propiedad",
+      refId: propiedad.id,
+      urgente: true,
+    });
+  });
 
   // --- Solicitudes de cambio de estado ---
   // Broker: cada solicitud pendiente exige su aprobación (se aplica sola al

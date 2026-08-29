@@ -8,6 +8,7 @@ import {
 } from "../src/lib/comisiones";
 import { totalesProyeccion } from "../src/lib/proyeccion";
 import { bantHot, lead, propiedad } from "./fixtures";
+import type { Operacion } from "../src/types";
 
 describe("reglas monetarias únicas", () => {
   it("calcula venta por porcentaje y renta por meses", () => {
@@ -40,10 +41,22 @@ describe("reglas monetarias únicas", () => {
     const p = propiedad({ id: "p", precio: 2_000_000, comisionTipo: "porcentaje", comisionValor: 3 });
     const negociacion = finanzasDeLead(lead({ id: "n", etapa: "Negociacion", interesPropiedadId: p.id }), p);
     const procesoCierre = finanzasDeLead(lead({ id: "pc", etapa: "Cierre", interesPropiedadId: p.id }), p);
-    const cierre = finanzasDeLead(lead({ id: "c", etapa: "Cierre", estado: "Ganado", interesPropiedadId: p.id }), p);
+    const operacion: Operacion = {
+      id: "op-c", version: 1, leadId: "c", propiedadId: p.id,
+      estadoValidacion: "validada", reportadoPor: "asesor", reportadoEn: new Date().toISOString(),
+      tipoOperacion: "Venta", fechaCierre: new Date().toISOString(), moneda: "MXN",
+      comisionBrutaConfirmada: 55_000, datosReportadosOriginales: {}, historialRevisiones: [],
+    };
+    const cierre = finanzasDeLead(lead({ id: "c", etapa: "Cierre", estado: "Ganado", interesPropiedadId: p.id }), p, operacion);
+    const ingresoPendiente = finanzasDeLead(
+      lead({ id: "cp", etapa: "Cierre", estado: "Ganado", interesPropiedadId: p.id }),
+      p,
+      { ...operacion, id: "op-cp", leadId: "cp", comisionBrutaConfirmada: undefined },
+    );
     expect(negociacion).toMatchObject({ cerrada: false, ingresoEsperado: 60_000, ingresoConfirmado: 0 });
     expect(procesoCierre).toMatchObject({ cerrada: false, ingresoEsperado: 60_000, ingresoConfirmado: 0 });
-    expect(cierre).toMatchObject({ cerrada: true, ingresoEsperado: 60_000, ingresoConfirmado: 60_000 });
+    expect(cierre).toMatchObject({ cerrada: true, ingresoEsperado: 60_000, ingresoConfirmado: 55_000, ingresoPendiente: false });
+    expect(ingresoPendiente).toMatchObject({ cerrada: true, ingresoConfirmado: 0, ingresoPendiente: true });
   });
 
   it("proyección consume la misma tarifa real de cada propiedad", () => {
