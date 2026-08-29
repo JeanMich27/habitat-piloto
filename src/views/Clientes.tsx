@@ -296,12 +296,12 @@ export default function Clientes({
 
         <section aria-label="Trabajo de hoy" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <IndicadorHoy icon={<Users className="size-4" />} label="Por atender" value={bandeja.conteos.porAtender} tone="violet" onClick={() => seleccionarVista("por_atender")} />
-        <IndicadorHoy icon={<AlertCircle className="size-4" />} label="Seguimientos vencidos" value={bandeja.conteos.vencidos} tone="rose" onClick={() => abrirFiltroRapido("vencidos")} />
+        <IndicadorHoy icon={<AlertCircle className="size-4" />} label="Seguimientos vencidos" value={bandeja.conteos.vencidos} tone="rose" onClick={() => abrirFiltroRapido("vencidos")} vacio={bandeja.sinSeguimientosRegistrados} textoVacio="Aún sin seguimientos programados" />
         <IndicadorHoy icon={<Sparkles className="size-4" />} label="Alta prioridad" value={bandeja.conteos.altaPrioridad} tone="emerald" onClick={() => abrirFiltroRapido("alta_prioridad")} />
         {usuario.rol === "broker" ? (
           <IndicadorHoy icon={<CheckCircle2 className="size-4" />} label="Cierres por validar" value={bandeja.conteos.cierresPorValidar} tone="amber" onClick={() => abrirFiltroRapido("cierres_por_validar")} />
         ) : (
-          <IndicadorHoy icon={<CalendarClock className="size-4" />} label="Seguimientos para hoy" value={bandeja.conteos.paraHoy} tone="amber" onClick={() => seleccionarVista("por_atender")} />
+          <IndicadorHoy icon={<CalendarClock className="size-4" />} label="Seguimientos para hoy" value={bandeja.conteos.paraHoy} tone="amber" onClick={() => seleccionarVista("por_atender")} vacio={bandeja.sinSeguimientosRegistrados} textoVacio="Empieza a programar seguimientos" />
         )}
         </section>
 
@@ -408,9 +408,13 @@ export default function Clientes({
   );
 }
 
-function IndicadorHoy({ icon, label, value, tone, onClick }: { icon: React.ReactNode; label: string; value: number; tone: "violet" | "rose" | "emerald" | "amber"; onClick: () => void }) {
-  const colors = { violet: "text-violet-700 bg-violet-50", rose: "text-rose-700 bg-rose-50", emerald: "text-emerald-700 bg-emerald-50", amber: "text-amber-700 bg-amber-50" };
-  return <button onClick={onClick} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-violet-300"><span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${colors[tone]}`}>{icon}</span><span className="min-w-0"><strong className="block text-lg leading-none text-slate-950">{value}</strong><span className="mt-1 block truncate text-[11px] font-medium text-slate-500 sm:text-xs">{label}</span></span></button>;
+function IndicadorHoy({ icon, label, value, tone, onClick, vacio, textoVacio }: { icon: React.ReactNode; label: string; value: number; tone: "violet" | "rose" | "emerald" | "amber" | "slate"; onClick: () => void; vacio?: boolean; textoVacio?: string }) {
+  const colors = { violet: "text-violet-700 bg-violet-50", rose: "text-rose-700 bg-rose-50", emerald: "text-emerald-700 bg-emerald-50", amber: "text-amber-700 bg-amber-50", slate: "text-slate-500 bg-slate-100" };
+  const toneEfectivo = vacio ? "slate" : tone;
+  // "0" en un indicador de urgencia se lee como "todo al día". Cuando nadie ha
+  // usado "Programar seguimiento" todavía, ese 0 es en realidad "sin datos" —
+  // se muestra distinto para no prometer una cartera sana que no se midió.
+  return <button onClick={onClick} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-violet-300"><span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${colors[toneEfectivo]}`}>{icon}</span><span className="min-w-0"><strong className="block text-lg leading-none text-slate-950">{vacio ? "—" : value}</strong><span className="mt-1 block truncate text-[11px] font-medium text-slate-500 sm:text-xs">{vacio && textoVacio ? textoVacio : label}</span></span></button>;
 }
 
 function BotonVista({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {

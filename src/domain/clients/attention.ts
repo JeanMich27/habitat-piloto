@@ -46,6 +46,13 @@ export interface ConteosBandeja {
 export interface BandejaClientes {
   clientes: ClienteClasificado[];
   conteos: ConteosBandeja;
+  /**
+   * true cuando ningún lead visible tiene todavía una tarea (de cualquier
+   * estado) asociada. Sirve para no mostrar "0 seguimientos vencidos" como si
+   * fuera "todo al día" cuando en realidad nadie ha usado "Programar
+   * seguimiento" todavía.
+   */
+  sinSeguimientosRegistrados: boolean;
 }
 
 interface ConstruirBandejaInput {
@@ -97,6 +104,10 @@ export function construirBandejaClientes({
   const idsVisibles = new Set(visibles.map((lead) => lead.id));
   const hoy = fechaLocal(ahora, zonaHoraria);
 
+  const sinSeguimientosRegistrados = !tareas.some(
+    (tarea) => tarea.leadId && idsVisibles.has(tarea.leadId),
+  );
+
   const tareasPorLead = new Map<string, Tarea[]>();
   tareas
     .filter((tarea) => tarea.estado === "pendiente" && tarea.leadId && idsVisibles.has(tarea.leadId))
@@ -142,7 +153,7 @@ export function construirBandejaClientes({
     }
     if (
       operacion?.estadoValidacion === "devuelta" &&
-      (usuario.rol === "broker" || operacion.reportadoPor === usuario.id || lead.asesorId === usuario.id)
+      (operacion.reportadoPor === usuario.id || lead.asesorId === usuario.id)
     ) {
       return { lead, bandeja: "por_atender", motivo: "cierre_devuelto", proximaTarea, operacion, altaPrioridad, prioridad: 1 };
     }
@@ -200,7 +211,7 @@ export function construirBandejaClientes({
     if (item.motivo === "cierre_por_validar") conteos.cierresPorValidar += 1;
   });
 
-  return { clientes, conteos };
+  return { clientes, conteos, sinSeguimientosRegistrados };
 }
 
 export const textoMotivoAtencion = (item: ClienteClasificado): string => {

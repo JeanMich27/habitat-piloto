@@ -94,4 +94,43 @@ describe("construirBandejaClientes", () => {
     expect(resultado.clientes.find((item) => item.lead.id === hot.id)?.altaPrioridad).toBe(true);
     expect(resultado.clientes.find((item) => item.lead.id === cerrado.id)?.altaPrioridad).toBe(false);
   });
+
+  it("sinSeguimientosRegistrados es true cuando nadie ha programado ninguna tarea", () => {
+    const cliente = lead({ id: "sin-tareas", primerContactoEn: "2026-08-28T15:00:00Z", etapa: "Contactado" });
+    const resultado = construirBandejaClientes({ leads: [cliente], tareas: [], operaciones: [], usuario: asesor, ahora: AHORA });
+    expect(resultado.sinSeguimientosRegistrados).toBe(true);
+  });
+
+  it("sinSeguimientosRegistrados es false en cuanto existe una tarea, aunque ya esté completada", () => {
+    const cliente = lead({ id: "con-tarea", primerContactoEn: "2026-08-28T15:00:00Z", etapa: "Contactado" });
+    const completada = tarea({
+      id: "t-3",
+      leadId: cliente.id,
+      venceEn: "2026-08-20T14:00:00Z",
+      estado: "completada",
+      completadaEn: "2026-08-20T15:00:00Z",
+    });
+    const resultado = construirBandejaClientes({
+      leads: [cliente],
+      tareas: [completada],
+      operaciones: [],
+      usuario: asesor,
+      ahora: AHORA,
+    });
+    expect(resultado.sinSeguimientosRegistrados).toBe(false);
+  });
+
+  it("una operación devuelta es del asesor, no del broker que solo audita la oficina", () => {
+    const cliente = lead({ id: "devuelto", primerContactoEn: "2026-08-20T15:00:00Z", etapa: "Cierre" });
+    const devuelta = operacion({
+      id: "op-2",
+      leadId: cliente.id,
+      estadoValidacion: "devuelta",
+      reportadoPor: "u-asesor",
+    });
+    const paraAsesor = construirBandejaClientes({ leads: [cliente], tareas: [], operaciones: [devuelta], usuario: asesor, ahora: AHORA });
+    const paraBroker = construirBandejaClientes({ leads: [cliente], tareas: [], operaciones: [devuelta], usuario: broker, ahora: AHORA });
+    expect(paraAsesor.clientes[0]).toMatchObject({ bandeja: "por_atender", motivo: "cierre_devuelto" });
+    expect(paraBroker.clientes[0].bandeja).not.toBe("por_atender");
+  });
 });
