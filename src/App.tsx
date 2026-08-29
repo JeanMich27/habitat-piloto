@@ -63,6 +63,7 @@ import { createAppointmentActions } from "./app/application/appointmentActions";
 import { createTeamSettingsActions } from "./app/application/teamSettingsActions";
 import { createDocumentActions } from "./app/application/documentActions";
 import { createOperationActions } from "./app/application/operationActions";
+import { createTaskActions } from "./app/application/taskActions";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
@@ -120,6 +121,7 @@ function AplicacionConfigurada() {
     usuarios, setUsuarios,
     citas, setCitas,
     operaciones, setOperaciones,
+    tareas, setTareas,
     solicitudes, setSolicitudes,
     agencia, setAgencia,
     permisoEquipoVerTodas, setPermisoEquipoVerTodas,
@@ -350,6 +352,11 @@ function AplicacionConfigurada() {
     cloudEnabled: isCloudEnabled,
     confirmPersistence: confirmarPersistencia,
   });
+  const { programarSeguimiento, completarProximaTarea } = createTaskActions({
+    tasks: tareas,
+    setTasks: setTareas,
+    confirmPersistence: confirmarPersistencia,
+  });
   const { generatePropertySheet } = createDocumentActions({ currentUserId: yo.id, publicOrigin: window.location.origin });
   const irADetalle = (propiedadId: string) => {
     setPropiedadSeleccionadaId(propiedadId);
@@ -526,9 +533,10 @@ function AplicacionConfigurada() {
                 propiedades,
                 leads,
                 usuarios,
-                citas,
-                operaciones,
-                agencia,
+      citas,
+      operaciones,
+      tareas,
+      agencia,
                 permisoEquipoVerTodas,
                 notificaciones,
               })
@@ -734,6 +742,7 @@ function AplicacionConfigurada() {
                 leads={leads}
                 propiedades={propiedades}
                 operaciones={operaciones}
+                tareas={tareas}
                 onGuardarCalificacion={guardarCalificacion}
                 onRegistrarInteraccion={registrarInteraccion}
                 onCambiarEtapa={moverLead}
@@ -744,6 +753,8 @@ function AplicacionConfigurada() {
                 onReactivarLead={reactivarLead}
                 onReportarOperacion={reportarOperacion}
                 onResolverOperacion={resolverOperacion}
+                onProgramarSeguimiento={programarSeguimiento}
+                onCompletarProximaTarea={completarProximaTarea}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}

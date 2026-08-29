@@ -19,6 +19,7 @@ import type {
   UserRole,
   Comparable,
   EstadoValidacionOperacion,
+  EstadoTarea,
 } from "../types";
 
 /**
@@ -39,6 +40,7 @@ export interface Database {
       citas: { Row: AppointmentRow; Insert: Partial<AppointmentRow>; Update: Partial<AppointmentRow> };
       solicitudes_estado: { Row: StatusRequestRow; Insert: Partial<StatusRequestRow>; Update: Partial<StatusRequestRow> };
       operaciones: { Row: OperationRow; Insert: Partial<OperationRow>; Update: Partial<OperationRow> };
+      tareas: { Row: TaskRow; Insert: Partial<TaskRow>; Update: Partial<TaskRow> };
       integration_events: { Row: IntegrationEventRow; Insert: Partial<IntegrationEventRow>; Update: Partial<IntegrationEventRow> };
       webhook_deliveries: { Row: WebhookDeliveryRow; Insert: Partial<WebhookDeliveryRow>; Update: Partial<WebhookDeliveryRow> };
       integration_logs: { Row: IntegrationLogRow; Insert: Partial<IntegrationLogRow>; Update: Partial<IntegrationLogRow> };
@@ -75,6 +77,12 @@ export interface OperationRow {
   observacion_broker: string | null; resuelto_por: string | null; resuelto_en: string | null;
   datos_reportados_originales: Record<string, unknown> | null;
   historial_revisiones: Record<string, unknown>[] | null; creado_en: string; actualizado_en: string;
+}
+
+export interface TaskRow {
+  id: string; agencia_id: string; lead_id: string | null; asesor_id: string | null;
+  titulo: string; estado: EstadoTarea; vence_en: string; creada_en: string;
+  completada_en: string | null; metadata: Record<string, unknown> | null;
 }
 
 export interface LeadRow {

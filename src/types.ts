@@ -228,6 +228,21 @@ export interface Operacion {
   historialRevisiones: Record<string, unknown>[];
 }
 
+export type EstadoTarea = "pendiente" | "completada" | "cancelada";
+
+/** Trabajo programado para un cliente. `venceEn` es la fuente canónica de seguimiento. */
+export interface Tarea {
+  id: string;
+  leadId?: string;
+  asesorId?: string;
+  titulo: string;
+  estado: EstadoTarea;
+  venceEn: string;
+  creadaEn: string;
+  completadaEn?: string;
+  metadata: Record<string, unknown>;
+}
+
 export type EstadoCuenta = "Activo" | "Invitado" | "Inactivo" | "Pendiente";
 
 export interface Usuario {

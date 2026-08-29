@@ -22,6 +22,7 @@ import {
   rowToOperacion,
   rowToPropiedad,
   rowToSolicitud,
+  rowToTarea,
   rowToUsuario,
   usuarioToRow,
 } from "./rowMappers";
@@ -32,6 +33,7 @@ import type {
   Operacion,
   Propiedad,
   SolicitudEstado,
+  Tarea,
   Usuario,
 } from "../types";
 import type {
@@ -42,6 +44,7 @@ import type {
   OperationRow,
   PropertyRow,
   StatusRequestRow,
+  TaskRow,
   UserRow,
 } from "../types/database";
 import {
@@ -123,6 +126,7 @@ export interface EstadoCompleto {
   usuarios: Usuario[];
   citas: CitaAgenda[];
   operaciones: Operacion[];
+  tareas: Tarea[];
   agencia: AgenciaInfo;
   permisoEquipoVerTodas: boolean;
   notificaciones: Record<string, boolean>;
@@ -177,11 +181,12 @@ export async function fetchInitialData(usuarioActual: Usuario): Promise<EstadoCo
   // crecen con el negocio y las únicas que pueden pasar de 1,000 filas.
   // Los leads llegan del más nuevo al más viejo para que la app no dependa del
   // orden físico de la tabla al decidir qué mostrar primero.
-  const [propiedadesFilas, leadsFilas, usuariosFilas, operacionesFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
+  const [propiedadesFilas, leadsFilas, usuariosFilas, operacionesFilas, tareasFilas, aRes, cRes, ciRes, ccRes, mpRes] = await Promise.all([
     leerTodo<PropertyRow>("propiedades"),
     leerTodo<LeadRow>("leads", { columna: "creado", ascendente: false }),
     leerDirectorioVisible<UserRow>(usuarioActual),
     leerTodo<OperationRow>("operaciones", { columna: "reportado_en", ascendente: false }),
+    leerTodo<TaskRow>("tareas", { columna: "vence_en", ascendente: true }),
     // RLS ya limita estas tablas a la oficina de la sesión: no hace falta
     // filtrar por id, y el literal 'default' dejaría fuera a toda oficina nueva.
     supabase.from("agencias").select("*").limit(1).maybeSingle(),
@@ -216,6 +221,7 @@ export async function fetchInitialData(usuarioActual: Usuario): Promise<EstadoCo
     usuarios: usuariosFilas.map(rowToUsuario),
     citas: [...citasPorId.values()].map(rowToCita),
     operaciones: operacionesFilas.map(rowToOperacion),
+    tareas: tareasFilas.map(rowToTarea),
     agencia: aRes.data ? rowToAgencia(aRes.data) : { nombre: "", direccion: "" },
     permisoEquipoVerTodas: cRes.data ? rowToConfiguracion(cRes.data).permisoEquipoVerTodas : false,
     notificaciones: cRes.data ? rowToConfiguracion(cRes.data).notificaciones : {},
@@ -274,6 +280,7 @@ type RealtimeHandlers = {
   onCitaEliminada: (id: string) => void;
   onSolicitud?: (s: SolicitudEstado) => void;
   onOperacion?: (o: Operacion) => void;
+  onTarea?: (t: Tarea) => void;
 };
 
 export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
@@ -329,6 +336,15 @@ export function suscribirCambiosEnVivo(handlers: RealtimeHandlers): () => void {
       (payload) => {
         if (payload.eventType !== "DELETE") {
           handlers.onOperacion?.(rowToOperacion(payload.new as OperationRow));
+        }
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tareas", ...soloMiAgencia },
+      (payload) => {
+        if (payload.eventType !== "DELETE") {
+          handlers.onTarea?.(rowToTarea(payload.new as TaskRow));
         }
       },
     )

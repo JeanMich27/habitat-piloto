@@ -11,6 +11,7 @@ import type {
   Operacion,
   Propiedad,
   SolicitudEstado,
+  Tarea,
   Usuario,
 } from "../types";
 import type {
@@ -21,6 +22,7 @@ import type {
   OperationRow,
   PropertyRow,
   StatusRequestRow,
+  TaskRow,
   UserRow,
 } from "../types/database";
 
@@ -161,6 +163,35 @@ export function rowToOperacion(r: OperationRow): Operacion {
     resueltoEn: r.resuelto_en ?? undefined,
     datosReportadosOriginales: r.datos_reportados_originales ?? {},
     historialRevisiones: r.historial_revisiones ?? [],
+  };
+}
+
+export function tareaToRow(tarea: Tarea) {
+  return {
+    id: tarea.id,
+    agencia_id: getAgenciaActual(),
+    lead_id: tarea.leadId ?? null,
+    asesor_id: tarea.asesorId ?? null,
+    titulo: tarea.titulo,
+    estado: tarea.estado,
+    vence_en: tarea.venceEn,
+    creada_en: tarea.creadaEn,
+    completada_en: tarea.completadaEn ?? null,
+    metadata: tarea.metadata,
+  };
+}
+
+export function rowToTarea(r: TaskRow): Tarea {
+  return {
+    id: r.id,
+    leadId: r.lead_id ?? undefined,
+    asesorId: r.asesor_id ?? undefined,
+    titulo: r.titulo,
+    estado: r.estado,
+    venceEn: r.vence_en,
+    creadaEn: r.creada_en,
+    completadaEn: r.completada_en ?? undefined,
+    metadata: r.metadata ?? {},
   };
 }
 
