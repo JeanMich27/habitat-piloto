@@ -561,6 +561,8 @@ export interface Lead {
   etapa: LeadStage;
   origen: LeadOrigin;
   interesPropiedadId: string;
+  /** Asesor de origen registrado. Es un dato neutral y no define comisiones. */
+  captadoPorId?: string;
   asesorId: string;
   creado: string;
   nota: string;
@@ -611,6 +613,17 @@ export interface Lead {
   // Intentos de contacto sin respuesta. Alimentan la sugerencia de descarte.
   intentosContacto?: number;
   ultimoIntentoEn?: string;
+}
+
+/** Cambio interno de responsable; sólo es visible para brokers de la oficina. */
+export interface AsignacionLead {
+  id: string;
+  leadId: string;
+  asesorAnteriorId?: string;
+  asesorNuevoId: string;
+  reasignadoPorId: string;
+  motivo: string;
+  creadoEn: string;
 }
 
 // --- Desenlace del lead ---------------------------------------------------

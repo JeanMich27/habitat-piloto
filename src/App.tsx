@@ -64,6 +64,7 @@ import { createTeamSettingsActions } from "./app/application/teamSettingsActions
 import { createDocumentActions } from "./app/application/documentActions";
 import { createOperationActions } from "./app/application/operationActions";
 import { createTaskActions } from "./app/application/taskActions";
+import { createLeadAssignmentActions } from "./app/application/leadAssignmentActions";
 import {
   INITIAL_VIEW as VISTA_INICIAL,
   ROLE_LABELS as ETIQUETAS_ROL,
@@ -355,6 +356,14 @@ function AplicacionConfigurada() {
   const { programarSeguimiento, completarProximaTarea } = createTaskActions({
     tasks: tareas,
     setTasks: setTareas,
+    confirmPersistence: confirmarPersistencia,
+  });
+  const { reasignarCliente, cargarHistorialAsignaciones } = createLeadAssignmentActions({
+    leads,
+    setLeads,
+    setTasks: setTareas,
+    setAppointments: setCitas,
+    currentUser: yo,
     confirmPersistence: confirmarPersistencia,
   });
   const { generatePropertySheet } = createDocumentActions({ currentUserId: yo.id, publicOrigin: window.location.origin });
@@ -755,6 +764,8 @@ function AplicacionConfigurada() {
                 onResolverOperacion={resolverOperacion}
                 onProgramarSeguimiento={programarSeguimiento}
                 onCompletarProximaTarea={completarProximaTarea}
+                onReasignarCliente={reasignarCliente}
+                onCargarHistorialAsignaciones={cargarHistorialAsignaciones}
                 clienteInicialId={clienteSeleccionadoId}
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}

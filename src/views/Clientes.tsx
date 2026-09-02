@@ -25,6 +25,7 @@ import DescartarLeadModal, { type ResultadoDescarte } from "../components/Descar
 import NuevoClienteModal from "../components/NuevoClienteModal";
 import OperacionModal from "../components/OperacionModal";
 import ProgramarSeguimientoModal from "../components/ProgramarSeguimientoModal";
+import ReasignarClienteModal from "../components/ReasignarClienteModal";
 import {
   construirBandejaClientes,
   textoMotivoAtencion,
@@ -42,6 +43,7 @@ import {
 import type { ReportarOperacionInput, ResolverOperacionInput } from "../repositories/operationsRepository";
 import type {
   CalificacionBANT,
+  AsignacionLead,
   ClasificacionLead,
   Interaccion,
   Lead,
@@ -125,6 +127,8 @@ interface Props {
   onResolverOperacion?: (input: ResolverOperacionInput) => Promise<boolean>;
   onProgramarSeguimiento?: (input: ProgramarSeguimientoInput) => Promise<boolean>;
   onCompletarProximaTarea?: (leadId: string) => Promise<boolean>;
+  onReasignarCliente?: (input: { leadId: string; nuevoAsesorId: string; motivo: string; version?: number }) => Promise<boolean>;
+  onCargarHistorialAsignaciones?: (leadId: string) => Promise<AsignacionLead[]>;
   clienteInicialId?: string | null;
   etapaInicial?: LeadStage | null;
   claseInicial?: ClasificacionLead | "Sin calificar" | null;
@@ -150,6 +154,8 @@ export default function Clientes({
   onResolverOperacion = noopBoolean,
   onProgramarSeguimiento = noopBoolean,
   onCompletarProximaTarea = noopBoolean,
+  onReasignarCliente = noopBoolean,
+  onCargarHistorialAsignaciones = async () => [],
   clienteInicialId,
   etapaInicial,
   claseInicial,
@@ -177,6 +183,7 @@ export default function Clientes({
   const [programando, setProgramando] = useState(false);
   const [descartando, setDescartando] = useState<Lead | null>(null);
   const [modalOperacion, setModalOperacion] = useState<"reportar" | "validar" | null>(null);
+  const [reasignando, setReasignando] = useState(false);
 
   const seleccionarVista = (siguiente: VistaClientes) => {
     setVista(siguiente);
@@ -364,13 +371,14 @@ export default function Clientes({
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-500 text-sm font-bold text-white">{seleccionado.nombre.slice(0, 2).toUpperCase()}</span>
-                    <div className="min-w-0"><h2 className="truncate text-xl font-bold text-slate-950">{seleccionado.nombre}</h2><p className="mt-0.5 text-xs text-slate-500">{asesor ? `Atiende ${asesor.nombre}` : "Sin asesor"} · Registrado {fmtFecha(seleccionado.creado)}</p></div>
+                    <div className="min-w-0"><h2 className="truncate text-xl font-bold text-slate-950">{seleccionado.nombre}</h2><p className="mt-0.5 text-xs text-slate-500">{asesor ? `Responsable: ${asesor.nombre}` : "Sin responsable"} · Captado por {usuarios.find((item) => item.id === (seleccionado.captadoPorId ?? seleccionado.asesorId))?.nombre ?? "sin registro"} · Registrado {fmtFecha(seleccionado.creado)}</p></div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <AccionPrincipal item={seleccionadoItem} lead={seleccionado} propiedad={propiedadInteres} usuario={usuario} onWhatsApp={registrarWhatsApp} onCalificar={() => setCalificando(true)} onActividad={() => setTab("actividad")} onProgramar={() => setProgramando(true)} onValidar={() => setModalOperacion("validar")} onCorregir={() => setModalOperacion("reportar")} />
                     <details className="relative"><summary aria-label="Más acciones" className="flex size-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"><MoreHorizontal className="size-5" /></summary><div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
                       <button onClick={() => setProgramando(true)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Programar seguimiento</button>
                       <button onClick={() => onAgendarVisita(seleccionado.id)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Agendar visita</button>
+                      {usuario.rol === "broker" && <button onClick={() => setReasignando(true)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-violet-50">Reasignar responsable</button>}
                       {seleccionado.estado !== "Ganado" && seleccionado.estado !== "Descartado" && <><button onClick={registrarSinRespuesta} className="w-full rounded-xl px-3 py-2 text-left hover:bg-amber-50">Registrar que no contestó</button><button onClick={() => setModalOperacion("reportar")} className="w-full rounded-xl px-3 py-2 text-left hover:bg-emerald-50">Reportar operación</button><button onClick={() => setDescartando(seleccionado)} className="w-full rounded-xl px-3 py-2 text-left text-rose-700 hover:bg-rose-50">Descartar prospecto</button></>}
                       {seleccionado.estado === "Descartado" && <button onClick={() => onReactivarLead(seleccionado.id)} className="w-full rounded-xl px-3 py-2 text-left hover:bg-slate-50">Reactivar prospecto</button>}
                     </div></details>
@@ -404,6 +412,7 @@ export default function Clientes({
       {descartando && <DescartarLeadModal lead={descartando} onCancelar={() => setDescartando(null)} onDescartar={async (resultado) => { if (await onDescartarLead(descartando.id, resultado)) setDescartando(null); }} />}
       {modalOperacion === "reportar" && seleccionado && <OperacionModal modo="reportar" lead={seleccionado} propiedades={propiedades} operacion={operacionSeleccionada} onCerrar={() => setModalOperacion(null)} onEnviar={onReportarOperacion} />}
       {modalOperacion === "validar" && seleccionado && operacionSeleccionada && <OperacionModal modo="validar" lead={seleccionado} propiedades={propiedades} operacion={operacionSeleccionada} onCerrar={() => setModalOperacion(null)} onEnviar={onResolverOperacion} />}
+      {reasignando && seleccionado && usuario.rol === "broker" && <ReasignarClienteModal lead={seleccionado} usuarios={usuarios} onCerrar={() => setReasignando(false)} onConfirmar={onReasignarCliente} onCargarHistorial={onCargarHistorialAsignaciones} />}
     </div>
   );
 }

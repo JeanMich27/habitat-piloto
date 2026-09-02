@@ -260,6 +260,7 @@ export function rowToLead(r: LeadRow): Lead {
     etapa: r.etapa,
     origen: r.origen,
     interesPropiedadId: r.interes_propiedad_id,
+    captadoPorId: r.captado_por_id ?? undefined,
     asesorId: r.asesor_id,
     creado: r.creado,
     nota: r.nota,

@@ -34,6 +34,7 @@ export interface Database {
     Tables: {
       propiedades: { Row: PropertyRow; Insert: Partial<PropertyRow>; Update: Partial<PropertyRow> };
       leads: { Row: LeadRow; Insert: Partial<LeadRow>; Update: Partial<LeadRow> };
+      lead_asignaciones: { Row: LeadAssignmentRow; Insert: Partial<LeadAssignmentRow>; Update: Partial<LeadAssignmentRow> };
       usuarios: { Row: UserRow; Insert: Partial<UserRow>; Update: Partial<UserRow> };
       agencias: { Row: AgencyRow; Insert: Partial<AgencyRow>; Update: Partial<AgencyRow> };
       configuracion: { Row: ConfigurationRow; Insert: Partial<ConfigurationRow>; Update: Partial<ConfigurationRow> };
@@ -87,7 +88,7 @@ export interface TaskRow {
 
 export interface LeadRow {
   id: string; version: number; agencia_id: string; nombre: string; telefono: string; correo: string | null;
-  etapa: LeadStage; origen: LeadOrigin; interes_propiedad_id: string; asesor_id: string;
+  etapa: LeadStage; origen: LeadOrigin; interes_propiedad_id: string; captado_por_id: string | null; asesor_id: string;
   creado: string; nota: string; primer_contacto_en: string | null; monto_oferta: number | string | null;
   cierre: ProcesoCierre | null; ocupacion: string | null; bant: CalificacionBANT | null;
   historial: Interaccion[] | null; eb_property_id: string | null; es_directorio: boolean;
@@ -96,6 +97,10 @@ export interface LeadRow {
   familia_perdida: FamiliaPerdida | null; motivo_perdida: string | null; detalle_perdida: string | null;
   cerrado_en: string | null; cerrado_por: string | null; intentos_contacto: number | null;
   ultimo_intento_en: string | null;
+}
+export interface LeadAssignmentRow {
+  id: string; agencia_id: string; lead_id: string; asesor_anterior_id: string | null;
+  asesor_nuevo_id: string; reasignado_por_id: string; motivo: string; creado_en: string;
 }
 export interface UserRow {
   id: string; agencia_id: string; nombre: string; correo: string; telefono: string; rol: UserRole;

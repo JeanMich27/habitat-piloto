@@ -3,6 +3,19 @@
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
+> **01/09/2026 — Reasignación individual de clientes, local sin publicar.**
+> El broker puede distinguir al asesor de origen del responsable actual y
+> reasignar un cliente a otro asesor activo de su oficina. La operación exige
+> motivo, conserva una bitácora interna, transfiere seguimientos pendientes y
+> citas futuras, y preserva la actividad pasada. La RPC valida rol, tenant y
+> versión de concurrencia en una sola transacción. Los eventos con ids de
+> asignación producidos por esta operación se conservan para auditoría, pero no
+> generan entregas a webhooks externos. Incluye migración canónica y pgTAP de
+> aislamiento entre oficinas. Typecheck, lint, 226 pruebas, build, bundle y 14
+> E2E en verde. El pgTAP de reasignación pasó 14/14 contra producción dentro de
+> una transacción revertida al final; se confirmó que no quedaron cambios
+> permanentes. Sin migración aplicada ni despliegue.
+
 > **29/08/2026 — Rediseño de Clientes, local sin publicar.**
 > En `codex/clientes-bandeja-simple`, la pantalla deja de mezclar ubicación,
 > desenlace y etapa. La navegación principal ahora es `Por atender`,
