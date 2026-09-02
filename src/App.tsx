@@ -14,9 +14,10 @@ const Agenda = lazy(() => import("./views/Agenda"));
 const SaludInmobiliaria = lazy(() => import("./views/SaludInmobiliaria"));
 const AsesorDashboard = lazy(() => import("./views/AsesorDashboard"));
 const Asesores = lazy(() => import("./views/Asesores"));
+const AuthScreen = lazy(() => import("./views/AuthScreen"));
+const PendienteAprobacion = lazy(() => import("./views/PendienteAprobacion"));
 const CalculadoraComisiones = lazy(() => import("./views/CalculadoraComisiones"));
 const Clientes = lazy(() => import("./views/Clientes"));
-import AuthScreen from "./views/AuthScreen";
 const BrokerDashboard = lazy(() => import("./views/BrokerDashboard"));
 const Configuracion = lazy(() => import("./views/Configuracion"));
 const DetalleDePropiedad = lazy(() => import("./views/DetalleDePropiedad"));
@@ -24,7 +25,6 @@ const ImportarDatos = lazy(() => import("./views/ImportarDatos"));
 const IntakeValidacion = lazy(() => import("./views/IntakeValidacion"));
 const ListadoPropiedades = lazy(() => import("./views/ListadoPropiedades"));
 const NuevaPropiedad = lazy(() => import("./views/NuevaPropiedad"));
-import PendienteAprobacion from "./views/PendienteAprobacion";
 const PerfilDesempeno = lazy(() => import("./views/PerfilDesempeno"));
 const PerfilPersonal = lazy(() => import("./views/PerfilPersonal"));
 const ClientePortal = lazy(() => import("./views/ClientePortal"));
@@ -285,8 +285,25 @@ function AplicacionConfigurada() {
         </div>
       );
     }
-    if (!sesion || enRecuperacion) return <AuthScreen />;
-    if (!perfil || perfil.estadoCuenta !== "Activo") return <PendienteAprobacion />;
+    const cargandoGateFallback = (
+      <div className="flex min-h-screen items-center justify-center bg-white text-sm text-slate-500">
+        Cargando…
+      </div>
+    );
+    if (!sesion || enRecuperacion) {
+      return (
+        <Suspense fallback={cargandoGateFallback}>
+          <AuthScreen />
+        </Suspense>
+      );
+    }
+    if (!perfil || perfil.estadoCuenta !== "Activo") {
+      return (
+        <Suspense fallback={cargandoGateFallback}>
+          <PendienteAprobacion />
+        </Suspense>
+      );
+    }
   } else if (isDemoMode && !usuarioActual) {
     // Modo local sin backend: selector de usuario de demostración.
     return (
