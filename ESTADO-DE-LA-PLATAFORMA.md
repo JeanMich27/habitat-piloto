@@ -1,5 +1,38 @@
 # Estado de la plataforma — 26/08/2026
 
+> **02/09/2026 — WhatsApp Coexistence recuperado del frontend (Claude), local sin publicar.**
+> Se cerraron los bloqueantes #2 y #3 de la sección 5 directamente en Meta y
+> Supabase (con autorización explícita de Jean): los 3 secretos de función
+> (`WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `GEMINI_API_KEY`) están
+> cargados, el token expuesto `209e1065...` fue regenerado, y la Callback URL
+> de Meta ya apunta a `zhtwvxarovfohhmrgqoy` (antes avisaba a HABITAT DEV) —
+> Meta validó el handshake y lo guardó.
+>
+> Aparte, en este árbol se recuperó lo que quedó parqueado en
+> `wip-whatsapp-corte1/` desde el 28/08 (commit `8a119a7`): la migración
+> `20260827090000_whatsapp_handoff_mvp.sql` (se le quitó el `.wip`),
+> `src/views/WhatsAppHandoffs.tsx` y `src/repositories/whatsappRepository.ts`
+> movidos a su lugar final, tipos nuevos en `src/types/database.ts`
+> (`WhatsAppConversationRow`, `WhatsAppMessageRow`, `NotificationRow`), y el
+> destino "whatsapp" agregado a `navigation.tsx`/`App.tsx` para broker,
+> asesor_independiente y asesor_equipo — mismo patrón que "Clientes".
+> Typecheck, lint, 226 pruebas (44 archivos) y build en verde; presupuesto de
+> bundle 499.7/500 KiB (al límite, sin margen). `npm run e2e` no se corrió
+> (Chromium bloqueado por la lista blanca del bridge).
+>
+> **La migración NO está aplicada a producción todavía.** El repositorio de
+> WhatsApp llama a RPC (`tomar_conversacion_whatsapp`,
+> `cerrar_conversacion_whatsapp`) y columnas (`asignado_a`, `handoff_reason`,
+> etc.) que solo existen en esa migración — sin aplicarla, la pantalla nueva
+> carga pero no puede tomar ni cerrar conversaciones. Regla "base primero,
+> código después": no fusionar/publicar el frontend hasta correrla, y
+> correrla requiere confirmación explícita de Jean (cambia RLS y agrega 6
+> funciones `security definer` sobre una base con datos reales).
+>
+> Commits locales sin `git push` — el bridge no tiene credenciales SSH de
+> Jean, mismo límite que ya documentó
+> `incidente-mezcla-micrositio-whatsapp-y-limites-cowork.md`.
+
 Documento de arranque. Cualquier agente (Claude, Codex) y cualquier persona que
 retome el proyecto lee **esto** y **`AGENTS.md`** antes de tocar nada.
 
