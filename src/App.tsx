@@ -34,6 +34,7 @@ const MicrositioPublico = lazy(() => import("./views/MicrositioPublico"));
 const PropiedadPublica = lazy(() => import("./views/PropiedadPublica"));
 const Reportes = lazy(() => import("./views/Reportes"));
 const SolicitudesAcceso = lazy(() => import("./views/SolicitudesAcceso"));
+const WhatsAppHandoffs = lazy(() => import("./views/WhatsAppHandoffs"));
 import AppShell, { type NavItem } from "./components/AppShell";
 import CampanaNotificaciones from "./components/CampanaNotificaciones";
 import AgendarVisitaModal from "./components/AgendarVisitaModal";
@@ -770,6 +771,18 @@ function AplicacionConfigurada() {
                 etapaInicial={etapaClientes}
                 claseInicial={claseClientes ? claseParaFiltro(claseClientes) : null}
                 respuestaInicial={respuestaClientes}
+              />
+            )}
+          {/* WhatsApp Coexistence: mismos roles que Clientes, el bot escala aquí. */}
+          {vista === "whatsapp" &&
+            (yo.rol === "broker" ||
+              yo.rol === "asesor_independiente" ||
+              yo.rol === "asesor_equipo") && (
+              <WhatsAppHandoffs
+                usuario={yo}
+                usuarios={usuarios}
+                leads={leads}
+                propiedades={propiedades}
               />
             )}
           {vista === "agenda" && tieneAgenda(yo.rol) && (

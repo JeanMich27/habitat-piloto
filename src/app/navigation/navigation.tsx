@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3, Building2, CalendarDays, Calculator, ClipboardCheck, Contact, Home,
-  LayoutDashboard, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
+  LayoutDashboard, MessageCircle, Settings, ShieldCheck, ShieldQuestion, Upload, User as UserIcon, Users,
 } from "lucide-react";
 import type { NavItem } from "../../components/AppShell";
 import type { UserRole, Usuario } from "../../types";
@@ -11,7 +11,7 @@ export type Vista =
   | "broker" | "propiedades" | "detalle" | "nueva" | "asesores" | "solicitudes"
   | "perfil" | "asesor" | "mi-perfil" | "propietario" | "cliente" | "intake"
   | "reportes" | "importar" | "comisiones" | "salud" | "clientes" | "agenda"
-  | "configuracion";
+  | "whatsapp" | "configuracion";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   broker: "Broker / Admin",
@@ -53,6 +53,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "intake", etiqueta: "Validación", Icono: ClipboardCheck },
       { id: "asesores", etiqueta: "Asesores", Icono: Users },
       { id: "solicitudes", etiqueta: "Equipo", Icono: ShieldQuestion, badge: pendingUsers || undefined },
+      { id: "whatsapp", etiqueta: "WhatsApp", Icono: MessageCircle },
       { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
       { id: "importar", etiqueta: "Importar", Icono: Upload },
       { id: "configuracion", etiqueta: "Configuración", Icono: Settings },
@@ -62,6 +63,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard }, agenda,
       { id: "clientes", etiqueta: "Clientes", Icono: Contact },
       { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
+      { id: "whatsapp", etiqueta: "WhatsApp", Icono: MessageCircle },
       { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
       { id: "reportes", etiqueta: "Reportes", Icono: BarChart3 },
       { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
@@ -71,6 +73,7 @@ export function buildNavItems(role: UserRole | undefined, pendingUsers: number, 
       { id: "asesor", etiqueta: "Dashboard", Icono: LayoutDashboard }, agenda,
       { id: "clientes", etiqueta: "Clientes", Icono: Contact },
       { id: "propiedades", etiqueta: "Propiedades", Icono: Building2 },
+      { id: "whatsapp", etiqueta: "WhatsApp", Icono: MessageCircle },
       { id: "comisiones", etiqueta: "Comisiones", Icono: Calculator },
       { id: "mi-perfil", etiqueta: "Mi Perfil", etiquetaCorta: "Perfil", Icono: UserIcon },
     ];

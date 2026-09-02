@@ -172,3 +172,35 @@ export interface DocumentAuditEventRow {
   document_id: string | null; shared_link_id: string | null; correlation_id: string;
   metadata: Record<string, unknown>; created_at: string;
 }
+
+/**
+ * WhatsApp Coexistence (Corte 1). El agente responde en `bot`; a partir de
+ * ahí la respuesta humana ocurre en WhatsApp Business y esta fila solo
+ * registra estado, responsable y cierre. Requiere la migración
+ * `20260827090000_whatsapp_handoff_mvp.sql`.
+ */
+export type WhatsAppConversationState =
+  | "bot" | "pendiente_humano" | "humano" | "cerrada" | "bloqueada" | "requiere_revision";
+
+export interface WhatsAppConversationRow {
+  id: number; agencia_id: string; telefono_norm: string; telefono_whatsapp: string | null;
+  lead_id: string | null; estado: WhatsAppConversationState; asignado_a: string | null;
+  solicitado_humano_en: string | null; asignado_en: string | null; handoff_reason: string | null;
+  cerrada_por: string | null; cerrada_en: string | null; resumen_cierre: string | null;
+  ventana_expira_en: string | null; creado: string; actualizado: string;
+}
+
+export interface WhatsAppMessageRow {
+  id: number; agencia_id: string; conversacion_id: number;
+  direccion: "entrante" | "saliente"; wa_message_id: string | null; cuerpo: string;
+  autor: string; recibido_en: string;
+  intent: string | null; confidence: number | string | null; reason_code: string | null;
+}
+
+/** Tabla `notificaciones` (RPCs de dominio, ej. handoff de WhatsApp) — no confundir con
+ * `Notificacion`, el aviso derivado en memoria de `lib/notificaciones.ts`. */
+export interface NotificationRow {
+  id: string; agencia_id: string; destinatario_id: string; tipo: string;
+  titulo: string; cuerpo: string | null; datos: Record<string, unknown>;
+  leida: boolean; creada_en: string;
+}
