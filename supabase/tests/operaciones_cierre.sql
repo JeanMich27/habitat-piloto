@@ -17,12 +17,12 @@ values
 
 insert into public.propiedades (id, agencia_id, titulo, tipo_inmueble, tipo_operacion, asesor_id, propietario)
 values ('op-prop-a', 'op-test-a', 'Propiedad A', 'Casa', 'Venta', 'op-asesor-a', '{}');
-insert into public.leads (id, agencia_id, nombre, telefono, etapa, origen, asesor_id, interes_propiedad_id)
+insert into public.leads (id, agencia_id, nombre, telefono, etapa, origen, asesor_id, interes_propiedad_id, bant)
 values
-  ('op-lead-a', 'op-test-a', 'Lead A', '', 'Cierre', 'Directo', 'op-asesor-a', 'op-prop-a'),
-  ('op-lead-self-one', 'op-test-a', 'Lead Broker Único', '', 'Cierre', 'Directo', 'op-broker-a', ''),
-  ('op-lead-self-multi', 'op-test-a', 'Lead Dos Brokers', '', 'Cierre', 'Directo', 'op-broker-a', ''),
-  ('op-lead-b', 'op-test-b', 'Lead B', '', 'Cierre', 'Directo', 'op-broker-b', '');
+  ('op-lead-a', 'op-test-a', 'Lead A', '', 'Cierre', 'Directo', 'op-asesor-a', 'op-prop-a', '{"perfil":"Comprador","presupuesto":"aprobado","autoridad":"decide","necesidad":"clara","plazo":"inmediato","calificadoPor":"Asesor","calificadoEl":"2026-08-29T12:00:00Z"}'::jsonb),
+  ('op-lead-self-one', 'op-test-a', 'Lead Broker Único', '', 'Cierre', 'Directo', 'op-broker-a', '', '{"perfil":"Comprador","presupuesto":"aprobado","autoridad":"decide","necesidad":"clara","plazo":"inmediato","calificadoPor":"Asesor","calificadoEl":"2026-08-29T12:00:00Z"}'::jsonb),
+  ('op-lead-self-multi', 'op-test-a', 'Lead Dos Brokers', '', 'Cierre', 'Directo', 'op-broker-a', '', '{"perfil":"Comprador","presupuesto":"aprobado","autoridad":"decide","necesidad":"clara","plazo":"inmediato","calificadoPor":"Asesor","calificadoEl":"2026-08-29T12:00:00Z"}'::jsonb),
+  ('op-lead-b', 'op-test-b', 'Lead B', '', 'Cierre', 'Directo', 'op-broker-b', '', '{"perfil":"Comprador","presupuesto":"aprobado","autoridad":"decide","necesidad":"clara","plazo":"inmediato","calificadoPor":"Asesor","calificadoEl":"2026-08-29T12:00:00Z"}'::jsonb);
 
 select has_table('public', 'operaciones', 'existe la tabla de operaciones');
 

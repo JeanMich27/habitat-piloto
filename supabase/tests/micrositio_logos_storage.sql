@@ -21,7 +21,7 @@ select is(
   'existen las cuatro políticas canónicas del bucket'
 );
 
-select like(
+select alike(
   (select with_check from pg_policies
    where schemaname = 'storage' and tablename = 'objects'
      and policyname = 'logos_publicos_escritura_broker'),
@@ -29,7 +29,7 @@ select like(
   'la escritura queda limitada a la agencia de la sesión'
 );
 
-select like(
+select alike(
   (select with_check from pg_policies
    where schemaname = 'storage' and tablename = 'objects'
      and policyname = 'logos_publicos_escritura_broker'),
@@ -37,7 +37,7 @@ select like(
   'sólo el broker puede insertar logos'
 );
 
-select like(
+select alike(
   (select qual from pg_policies
    where schemaname = 'storage' and tablename = 'objects'
      and policyname = 'logos_publicos_actualizacion_broker'),

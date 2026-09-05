@@ -38,6 +38,10 @@ select ok(
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 create temp table wa_state (name text primary key, value jsonb);
+-- La tabla temporal la crea el rol de la sesión; las pruebas luego cambian a
+-- authenticated/service_role. Sin este grant, pgTAP aborta con
+-- "permission denied" y el plan queda incompleto (no es un fallo del producto).
+grant select, insert, update, delete on wa_state to anon, authenticated, service_role;
 insert into wa_state values (
   'intake',
   public.registrar_mensaje_whatsapp_entrante(

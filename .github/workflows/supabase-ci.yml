@@ -86,7 +86,32 @@ jobs:
         run: npm run supabase:reset
 
       - name: Run all pgTAP security and integration tests
-        run: npm run supabase:test
+        id: pgtap
+        run: |
+          set -o pipefail
+          npm run supabase:test 2>&1 | tee /tmp/pgtap.log
+
+      # El resumen de GitHub mostraba solo el reporte de Vitest ("229/229 OK")
+      # aunque las pruebas de base de datos fallaran mas abajo en el log. Eso
+      # dejo el CI en rojo cinco commits seguidos sin que nadie lo notara.
+      # Este paso sube el veredicto de pgTAP al resumen del job.
+      - name: Resumen de las pruebas de base de datos
+        if: always()
+        run: |
+          {
+            echo "## Pruebas de base de datos (pgTAP)"
+            echo ""
+            if [ "${{ steps.pgtap.outcome }}" = "success" ]; then
+              echo "Resultado: **PASARON**"
+            else
+              echo "Resultado: **FALLARON** — la base NO esta validada, no despliegues."
+            fi
+            echo ""
+            echo '```'
+            sed -n '/Test Summary Report/,$p' /tmp/pgtap.log 2>/dev/null | head -60
+            grep -E '^(Files=|Result:)' /tmp/pgtap.log 2>/dev/null | head -5
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check P4.1 Edge Functions
         run: npm run edge:check

@@ -35,6 +35,10 @@ values
   ('reasig-cita-pasada', 'reasig-a', 'reasig-origen-a', 'reasig-lead-a', 'Pasada', 'visita', now() - interval '2 days', now() - interval '2 days' + interval '1 hour', 'Realizada');
 
 create temp table reasig_state (endpoint_id uuid);
+-- La tabla temporal la crea el rol de la sesión; las pruebas luego cambian a
+-- authenticated/service_role. Sin este grant, pgTAP aborta con
+-- "permission denied" y el plan queda incompleto (no es un fallo del producto).
+grant select, insert, update, delete on reasig_state to anon, authenticated, service_role;
 grant insert, select on reasig_state to service_role;
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);

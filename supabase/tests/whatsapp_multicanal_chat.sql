@@ -3,6 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(18);
 create temp table wa_multi_state (name text primary key, value jsonb);
+-- La tabla temporal la crea el rol de la sesión; las pruebas luego cambian a
+-- authenticated/service_role. Sin este grant, pgTAP aborta con
+-- "permission denied" y el plan queda incompleto (no es un fallo del producto).
+grant select, insert, update, delete on wa_multi_state to anon, authenticated, service_role;
 
 insert into public.agencias (id,nombre,direccion,slug,estado,plan,codigo_invitacion)
 values ('wa-multi-a','WA Multi A','','wa-multi-a','prueba','prueba','WAMULTIA'),
