@@ -347,13 +347,24 @@ Deno.serve(async (request) => {
     return new Response("No se pudo persistir el evento", { status: 500 });
   }
   if (pending.length > 0) {
-    EdgeRuntime.waitUntil(Promise.allSettled(pending.map(procesarAutomatizacion)).then((results) => {
+    const trabajo = Promise.allSettled(pending.map(procesarAutomatizacion)).then((results) => {
       for (const result of results) {
         if (result.status === "rejected") {
           console.error("[whatsapp-webhook] automatización no completada", String(result.reason));
         }
       }
-    }));
+    });
+    // El identificador global `EdgeRuntime` no viene tipado por el .d.ts de
+    // functions-js que resuelve el CI, y `deno check` fallaba con TS2304. Se
+    // lee desde globalThis con su tipo declarado aquí: type-checkea sin
+    // depender de ese paquete y mantiene el mismo comportamiento en Supabase.
+    // Si el runtime no lo expone (ejecución local), se espera el trabajo antes
+    // de responder en vez de perderlo.
+    const runtime = (globalThis as {
+      EdgeRuntime?: { waitUntil(promesa: Promise<unknown>): void };
+    }).EdgeRuntime;
+    if (runtime) runtime.waitUntil(trabajo);
+    else await trabajo;
   }
 
   return new Response(JSON.stringify({ ok: true }), {
