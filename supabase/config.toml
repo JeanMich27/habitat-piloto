@@ -51,3 +51,8 @@ verify_jwt = false
 # cada POST.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+# Valida el JWT dentro de la función y delega la autorización final al RPC.
+# El broker no puede enviar: preparar_envio_whatsapp lo rechaza en la base.
+[functions.whatsapp-send]
+verify_jwt = false

@@ -1,5 +1,32 @@
 # Estado de la plataforma — 26/08/2026
 
+> **05/09/2026 — Bandeja WhatsApp multicanal, local sin publicar.**
+> Se preparó el piloto solicitado para que cada número sea un canal asignado a
+> un asesor, con credencial propia cifrada en Vault. El asesor ve su canal,
+> puede responder texto dentro de la ventana de 24 horas y abrir desde el chat
+> Calificar, Agendar cita y Programar seguimiento. El broker ve únicamente las
+> conversaciones confirmadas como laborales de su oficina y la base le impide
+> enviar o modificar conversaciones.
+>
+> En números personales con Coexistence, un remitente desconocido queda
+> `pendiente` y solo lo ve el dueño del número. El asesor lo marca como trabajo
+> (vinculándolo/creando un cliente) o personal; al marcarlo personal se elimina
+> el texto almacenado y los mensajes posteriores se ignoran. Los estados de
+> entrega y los identificadores de Meta/cliente evitan duplicados básicos.
+>
+> Verificación local: typecheck, lint, 229 pruebas Vitest, build, bundle
+> 485.6/500 KiB y 14 E2E en verde. No fue posible ejecutar la migración ni sus
+> 18 pruebas pgTAP porque esta Mac no tiene Docker/Podman; `edge:check` tampoco
+> corre porque no tiene Deno. No se tocó producción, no se desplegó y no se
+> conectó ningún número nuevo.
+>
+> Límites del corte: todavía no existe Embedded Signup en la interfaz, ni se
+> procesan los webhooks de Coexistence `history`/`smb_message_echoes`. Por eso
+> HomeID muestra el texto recibido por el webhook estándar y lo enviado desde
+> HomeID, pero aún no importa conversaciones anteriores ni refleja mensajes que
+> el asesor mande desde la app de WhatsApp Business. Checklist:
+> `docs/integrations/WHATSAPP-MULTICANAL-PILOTO.md`.
+
 > **02/09/2026 — WhatsApp Coexistence recuperado del frontend (Claude), local sin publicar.**
 > Se cerraron los bloqueantes #2 y #3 de la sección 5 directamente en Meta y
 > Supabase (con autorización explícita de Jean): los 3 secretos de función

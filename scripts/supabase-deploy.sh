@@ -61,6 +61,7 @@ FUNCIONES=(
   share-document
   micrositio-publico
   whatsapp-webhook
+  whatsapp-send
 )
 
 link

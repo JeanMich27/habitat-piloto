@@ -27,6 +27,7 @@ const sb = createClient(
 );
 
 interface MetaContact { wa_id?: string; profile?: { name?: string } }
+interface MetaStatus { id?: string; status?: string }
 interface MetaMessage { id?: string; from?: string; type?: string; text?: { body?: string } }
 interface MetaChange {
   field?: string;
@@ -34,6 +35,7 @@ interface MetaChange {
     metadata?: { phone_number_id?: string };
     contacts?: MetaContact[];
     messages?: MetaMessage[];
+    statuses?: MetaStatus[];
   };
 }
 interface MetaPayload { entry?: Array<{ changes?: MetaChange[] }> }
@@ -42,6 +44,7 @@ interface IntakeResult {
   conversation_id: number;
   lead_id: string | null;
   assigned_agent_id: string | null;
+  agency_id: string;
   state: string;
   should_respond: boolean;
 }
@@ -61,6 +64,14 @@ async function obtenerSecreto(agenciaId: string, proveedor: string): Promise<str
     p_proveedor: proveedor,
   });
   if (error) throw new Error(`No se pudo leer el secreto ${proveedor}: ${error.message}`);
+  return (data as string | null) ?? null;
+}
+
+async function obtenerSecretoCanal(phoneNumberId: string): Promise<string | null> {
+  const { data, error } = await sb.rpc("obtener_secreto_canal_whatsapp", {
+    p_phone_number_id: phoneNumberId,
+  });
+  if (error) throw new Error(`No se pudo leer la credencial del canal: ${error.message}`);
   return (data as string | null) ?? null;
 }
 
@@ -174,7 +185,7 @@ async function persistirMensaje(
   if (!waMessageId || !waId || !body) throw new Error("Mensaje de Meta incompleto");
   const contactName = contacts.find((contact) => contact.wa_id === waId)?.profile?.name ?? "Contacto de WhatsApp";
 
-  const { data: intakeData, error: intakeError } = await sb.rpc("registrar_mensaje_whatsapp_entrante", {
+  const { data: intakeData, error: intakeError } = await sb.rpc("registrar_mensaje_whatsapp_entrante_v2", {
     p_phone_number_id: phoneNumberId,
     p_wa_message_id: waMessageId,
     p_wa_id: waId,
@@ -186,9 +197,8 @@ async function persistirMensaje(
   const intake = intakeData as IntakeResult;
   if (intake.replay || !intake.should_respond) return null;
 
-  const { data: agencia } = await sb.rpc("agencia_por_phone_number_id", { p_phone_number_id: phoneNumberId });
-  if (typeof agencia !== "string") throw new Error("No se pudo resolver la oficina tras la ingesta");
-  return { phoneNumberId, waMessageId, waId, body, agenciaId: agencia, intake, unsupported };
+  if (typeof intake.agency_id !== "string") throw new Error("No se pudo resolver la oficina tras la ingesta");
+  return { phoneNumberId, waMessageId, waId, body, agenciaId: intake.agency_id, intake, unsupported };
 }
 
 async function procesarAutomatizacion(work: PendingAutomation): Promise<void> {
@@ -205,14 +215,14 @@ async function procesarAutomatizacion(work: PendingAutomation): Promise<void> {
       facts: { propertyMention: null, timeline: null, painPoint: null },
     };
     try {
-      whatsappToken = await obtenerSecreto(agenciaId, "whatsapp");
+      whatsappToken = await obtenerSecretoCanal(phoneNumberId);
     } catch (error) {
       console.error("[whatsapp-webhook] credencial de WhatsApp no disponible", (error as Error).message);
     }
   } else {
     try {
       const [waToken, geminiKey, agencyResult] = await Promise.all([
-        obtenerSecreto(agenciaId, "whatsapp"),
+        obtenerSecretoCanal(phoneNumberId),
         obtenerSecreto(agenciaId, "gemini"),
         sb.from("agencias").select("nombre").eq("id", agenciaId).single(),
       ]);
@@ -309,6 +319,14 @@ Deno.serve(async (request) => {
   const changes = (payload.entry ?? []).flatMap((entry) => entry.changes ?? []);
   for (const change of changes) {
     if (change.field !== "messages") continue;
+    for (const status of change.value?.statuses ?? []) {
+      if (!status.id || !status.status) continue;
+      const { error } = await sb.rpc("registrar_estado_mensaje_whatsapp", {
+        p_wa_message_id: status.id,
+        p_estado: status.status,
+      });
+      if (error) console.error("[whatsapp-webhook] estado no persistido", error.message);
+    }
     const phoneNumberId = change.value?.metadata?.phone_number_id;
     const messages = change.value?.messages ?? [];
     if (!phoneNumberId || messages.length === 0) continue;

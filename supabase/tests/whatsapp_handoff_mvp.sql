@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(16);
 
 insert into public.agencias (id,nombre,direccion,slug,estado,plan,codigo_invitacion)
 values ('wa-test-a','WA Test A','','wa-test-a','prueba','prueba','WATESTA'),
@@ -11,12 +11,16 @@ insert into public.usuarios
   (id,agencia_id,auth_id,nombre,correo,telefono,rol,puesto,iniciales,estado_cuenta)
 values
   ('wa-broker-a','wa-test-a','61000000-0000-4000-8000-000000000001','Broker A','wa-a@test','','broker','Broker','BA','Activo'),
+  ('wa-advisor-a','wa-test-a','61000000-0000-4000-8000-000000000002','Asesor A','wa-as@test','','asesor_equipo','Asesor','AA','Activo'),
   ('wa-invitado-a','wa-test-a',null,'Invitado A','wa-i@test','','asesor_equipo','Asesor','IA','Activo'),
   ('wa-broker-b','wa-test-b','62000000-0000-4000-8000-000000000001','Broker B','wa-b@test','','broker','Broker','BB','Activo');
 insert into public.propiedades (id,agencia_id,titulo,tipo_inmueble,tipo_operacion,asesor_id,propietario)
-values ('wa-prop-a','wa-test-a','Prop WA','Casa','Venta','wa-invitado-a','{}');
+values ('wa-prop-a','wa-test-a','Prop WA','Casa','Venta','wa-advisor-a','{}');
 insert into public.agencia_integraciones (agencia_id,proveedor,activo,config)
 values ('wa-test-a','whatsapp',true,'{"phone_number_id":"phone-wa-test"}');
+insert into public.wa_canales
+  (agencia_id,usuario_id,phone_number_id,telefono_mostrado,modo,protege_personal)
+values ('wa-test-a','wa-advisor-a','phone-wa-test','+52 55 0000 0000','coexistence',true);
 
 select ok(
   not has_function_privilege(
@@ -44,8 +48,8 @@ insert into wa_state values (
 
 select is(
   (select value ->> 'assigned_agent_id' from wa_state where name='intake'),
-  'wa-broker-a',
-  'una propiedad con asesor invitado cae al broker que sí puede entrar'
+  'wa-advisor-a',
+  'una propiedad se relaciona con el asesor dueño del canal'
 );
 select results_eq(
   $$select count(*)::int from public.leads where agencia_id='wa-test-a' and telefono_norm='5512345678' and canal_entrada='whatsapp'$$,
@@ -86,7 +90,7 @@ select results_eq(
   'el handoff deja una tarea operativa'
 );
 select results_eq(
-  $$select count(*)::int from public.notificaciones where agencia_id='wa-test-a' and destinatario_id='wa-broker-a' and tipo='whatsapp_handoff' and not leida$$,
+  $$select count(*)::int from public.notificaciones where agencia_id='wa-test-a' and destinatario_id='wa-advisor-a' and tipo='whatsapp_handoff' and not leida$$,
   array[1],
   'el mismo handoff deja una notificación al responsable'
 );
@@ -103,13 +107,22 @@ select results_eq(
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"61000000-0000-4000-8000-000000000001"}',true);
+select results_eq(
+  $$select count(*)::int from public.wa_conversaciones$$,
+  array[1],
+  'el broker conserva supervisión de lectura sobre conversaciones laborales'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"61000000-0000-4000-8000-000000000002"}',true);
 select public.tomar_conversacion_whatsapp(
   ((select value ->> 'conversation_id' from wa_state where name='intake'))::integer
 );
 select results_eq(
   $$select estado from public.wa_conversaciones where agencia_id='wa-test-a'$$,
   array['humano'],
-  'Tomar cambia el estado de forma atómica'
+  'el asesor propietario toma la conversación de forma atómica'
 );
 
 select public.cerrar_conversacion_whatsapp(

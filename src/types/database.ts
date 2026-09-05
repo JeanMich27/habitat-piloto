@@ -174,16 +174,25 @@ export interface DocumentAuditEventRow {
 }
 
 /**
- * WhatsApp Coexistence (Corte 1). El agente responde en `bot`; a partir de
- * ahí la respuesta humana ocurre en WhatsApp Business y esta fila solo
- * registra estado, responsable y cierre. Requiere la migración
- * `20260827090000_whatsapp_handoff_mvp.sql`.
+ * WhatsApp multicanal. Cada conversación pertenece al número de un asesor;
+ * el broker supervisa las laborales y el asesor también puede responder desde
+ * HomeID. Requiere las migraciones de handoff y multicanal.
  */
 export type WhatsAppConversationState =
   | "bot" | "pendiente_humano" | "humano" | "cerrada" | "bloqueada" | "requiere_revision";
+export type WhatsAppConversationVisibility = "laboral" | "pendiente" | "personal";
+export type WhatsAppDeliveryState = "pendiente" | "enviado" | "entregado" | "leido" | "fallido";
+
+export interface WhatsAppChannelRow {
+  id: string; agencia_id: string; usuario_id: string | null; phone_number_id: string;
+  waba_id: string | null; telefono_mostrado: string | null;
+  modo: "cloud_api" | "coexistence"; protege_personal: boolean; activo: boolean;
+  creado_en: string; actualizado_en: string;
+}
 
 export interface WhatsAppConversationRow {
   id: number; agencia_id: string; telefono_norm: string; telefono_whatsapp: string | null;
+  canal_id: string | null; visibilidad: WhatsAppConversationVisibility; contacto_nombre: string | null;
   lead_id: string | null; estado: WhatsAppConversationState; asignado_a: string | null;
   solicitado_humano_en: string | null; asignado_en: string | null; handoff_reason: string | null;
   cerrada_por: string | null; cerrada_en: string | null; resumen_cierre: string | null;
@@ -193,7 +202,8 @@ export interface WhatsAppConversationRow {
 export interface WhatsAppMessageRow {
   id: number; agencia_id: string; conversacion_id: number;
   direccion: "entrante" | "saliente"; wa_message_id: string | null; cuerpo: string;
-  autor: string; recibido_en: string;
+  autor: string; enviado_por: string | null; estado_entrega: WhatsAppDeliveryState | null;
+  client_request_id: string | null; recibido_en: string;
   intent: string | null; confidence: number | string | null; reason_code: string | null;
 }
 

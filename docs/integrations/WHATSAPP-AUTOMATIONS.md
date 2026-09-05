@@ -1,10 +1,19 @@
 # WhatsApp y automatizaciones — diagnóstico y diseño operativo
 
-Fecha de corte: 27/08/2026.
+Fecha de corte original: 27/08/2026. Actualización: 05/09/2026.
 
 Este documento define el punto de partida para trabajar WhatsApp. No autoriza
 un despliegue. Las reglas de `AGENTS.md` y `ESTADO-DE-LA-PLATAFORMA.md` tienen
 precedencia si otro documento del repositorio las contradice.
+
+> **Actualización multicanal (05/09, local sin publicar):** el estado vigente
+> del piloto está en `WHATSAPP-MULTICANAL-PILOTO.md`. Ya existe bandeja de
+> texto, envío humano desde HomeID, canal/credencial por número, separación
+> laboral-pendiente-personal, broker de solo lectura, relación con cliente,
+> acciones de calificación/cita/seguimiento y estados básicos. Las secciones
+> siguientes conservan el diagnóstico del corte anterior y no deben leerse como
+> inventario actual. Siguen pendientes Embedded Signup y los eventos
+> `history`/`smb_message_echoes` de Coexistence.
 
 ## Estado del Corte 1 (árbol local, aún no publicado)
 

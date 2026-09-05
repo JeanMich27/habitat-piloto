@@ -800,6 +800,14 @@ function AplicacionConfigurada() {
                 usuarios={usuarios}
                 leads={leads}
                 propiedades={propiedades}
+                tareas={tareas}
+                onGuardarCalificacion={guardarCalificacion}
+                onRegistrarInteraccion={registrarInteraccion}
+                onRegistrarIntento={registrarIntentoSinRespuesta}
+                onCompletarProximaTarea={completarProximaTarea}
+                onAgendarVisita={(leadId) => setAgendando({ leadId })}
+                onProgramarSeguimiento={programarSeguimiento}
+                onAbrirCliente={irACliente}
               />
             )}
           {vista === "agenda" && tieneAgenda(yo.rol) && (

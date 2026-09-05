@@ -1,5 +1,6 @@
 import type {
   NotificationRow,
+  WhatsAppChannelRow,
   WhatsAppConversationRow,
   WhatsAppMessageRow,
 } from "../types/database";
@@ -8,6 +9,8 @@ import { isCloudEnabled, supabase } from "../lib/supabaseClient";
 export interface WhatsAppConversation extends WhatsAppConversationRow {
   ultimoMensaje: WhatsAppMessageRow | null;
 }
+
+interface FunctionErrorData { error?: string }
 
 export interface WhatsAppHandoffNotification {
   id: string;
@@ -27,7 +30,7 @@ export async function listarConversacionesWhatsApp(): Promise<WhatsAppConversati
   const { data: conversations, error } = await client
     .from("wa_conversaciones")
     .select("*")
-    .in("estado", ["pendiente_humano", "humano", "cerrada", "requiere_revision"])
+    .neq("visibilidad", "personal")
     .order("actualizado", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
@@ -38,7 +41,6 @@ export async function listarConversacionesWhatsApp(): Promise<WhatsAppConversati
     .from("wa_mensajes")
     .select("*")
     .in("conversacion_id", rows.map((conversation) => conversation.id))
-    .eq("direccion", "entrante")
     .order("recibido_en", { ascending: false });
   if (messagesError) throw new Error(messagesError.message);
 
@@ -50,6 +52,60 @@ export async function listarConversacionesWhatsApp(): Promise<WhatsAppConversati
     ...conversation,
     ultimoMensaje: latest.get(conversation.id) ?? null,
   }));
+}
+
+export async function listarCanalesWhatsApp(): Promise<WhatsAppChannelRow[]> {
+  const { data, error } = await requireCloud()
+    .from("wa_canales")
+    .select("*")
+    .eq("activo", true)
+    .order("creado_en", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as WhatsAppChannelRow[];
+}
+
+export async function listarMensajesWhatsApp(conversationId: number): Promise<WhatsAppMessageRow[]> {
+  const { data, error } = await requireCloud()
+    .from("wa_mensajes")
+    .select("*")
+    .eq("conversacion_id", conversationId)
+    .order("recibido_en", { ascending: true })
+    .limit(250);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as WhatsAppMessageRow[];
+}
+
+export async function asignarCanalWhatsApp(channelId: string, userId: string): Promise<void> {
+  const { error } = await requireCloud().rpc("asignar_canal_whatsapp", {
+    p_canal_id: channelId,
+    p_usuario_id: userId,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function clasificarConversacionWhatsApp(
+  conversationId: number,
+  classification: "laboral" | "personal",
+  leadId?: string,
+): Promise<void> {
+  const { error } = await requireCloud().rpc("clasificar_conversacion_whatsapp", {
+    p_conversacion_id: conversationId,
+    p_clasificacion: classification,
+    p_lead_id: leadId ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function enviarMensajeWhatsApp(conversationId: number, body: string): Promise<void> {
+  const { data, error } = await requireCloud().functions.invoke<{ ok?: boolean }>("whatsapp-send", {
+    body: { conversationId, body, requestId: crypto.randomUUID() },
+  });
+  if (error) {
+    const context = error.context as Response | undefined;
+    const details = context ? await context.clone().json().catch(() => null) as FunctionErrorData | null : null;
+    throw new Error(details?.error ?? "No se pudo enviar el mensaje.");
+  }
+  if (!data?.ok) throw new Error("WhatsApp no confirmó el envío.");
 }
 
 export async function tomarConversacionWhatsApp(conversationId: number): Promise<void> {
